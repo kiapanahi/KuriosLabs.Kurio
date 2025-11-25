@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
+  </Folder>
+</Solution>

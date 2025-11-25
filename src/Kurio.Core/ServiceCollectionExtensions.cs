@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
+using Kurio.Core.ErrorHandling;
+using Kurio.Core.Models;
 using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
 using Kurio.Core.Queue;
@@ -45,6 +47,15 @@ public static class ServiceCollectionExtensions
 
         // Register checksum verifier
         services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
+
+        // Register error handling services
+        services.AddSingleton<IRetryHandler, RetryHandler>();
+        services.AddSingleton<IErrorClassifier, ErrorClassifier>();
+        services.AddSingleton<CircuitBreakerFactory>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
+        });
 
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();

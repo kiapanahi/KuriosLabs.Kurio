@@ -1,6 +1,6 @@
 # Kurio.Core
 
-Core download engine library for Kurio download manager, providing robust multi-threaded download capabilities with pause/resume support.
+Core download engine library for Kurio download manager, providing robust multithreaded download capabilities with pause/resume support.
 
 ## Features
 
@@ -219,7 +219,7 @@ Download states:
 5. **Paused**: User paused
 6. **Completed**: Successfully finished
 7. **Failed**: Error occurred
-8. **Cancelled**: User cancelled
+8. **Canceled**: User canceled
 
 ## Error Handling
 

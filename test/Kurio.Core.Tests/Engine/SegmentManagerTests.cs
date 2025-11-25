@@ -1,16 +1,23 @@
 namespace Kurio.Core.Tests.Engine;
 
+using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 public class SegmentManagerTests
 {
+    private readonly Mock<IStorageManager> _mockStorageManager;
+    private readonly Mock<ILogger<SegmentManager>> _mockLogger;
     private readonly SegmentManager _segmentManager;
 
     public SegmentManagerTests()
     {
-        _segmentManager = new SegmentManager();
+        _mockStorageManager = new Mock<IStorageManager>();
+        _mockLogger = new Mock<ILogger<SegmentManager>>();
+        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockLogger.Object);
     }
 
     [Fact]

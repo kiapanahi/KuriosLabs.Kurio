@@ -19,7 +19,7 @@ Kurio is a download manager with the following features:
 - Download history and statistics
 - link capturing from clipboard
 - Customizable download categories and organization
-- Support for downloading streaming media
+- Support for downloading streaming media (yt-dlp, ffmpeg, m3u8, etc.)
 - Ability to import and export download lists
 - Automatic updates to ensure the latest features and security patches
 - Support for proxy servers
@@ -74,6 +74,7 @@ The project is organized into the following directories and files:
 
 - Always adhere to the 50/72 rule for commit messages.
 - Follow the Gitflow workflow for branching and merging.
+- Always create a bew branch for new features and bug fixes.
 - Write clear and concise commit messages following the Conventional Commits specification.
 - Create pull requests for all changes, with appropriate descriptions and linked issues.
 

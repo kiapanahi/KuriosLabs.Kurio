@@ -11,7 +11,7 @@ internal sealed class DownloadTask : IDownloadTask
     private DownloadPriority _priority;
 
     /// <inheritdoc />
-    public Guid Id { get; init; }
+    public Guid Id { get; set; }
 
     /// <inheritdoc />
     public Uri Url { get; init; }

@@ -1,8 +1,10 @@
 namespace Kurio.Core;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
+using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
 using Kurio.Core.Storage;
 
@@ -28,6 +30,13 @@ public static class ServiceCollectionExtensions
         // Register storage manager as singleton with configured directories
         services.AddSingleton<IStorageManager>(sp =>
             new StorageManager(tempDirectory, stateDirectory));
+
+        // Register state persistence
+        services.AddSingleton<IStatePersistence>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<JsonStatePersistence>>();
+            return new JsonStatePersistence(stateDirectory, logger);
+        });
 
         // Register segment manager
         services.AddTransient<ISegmentManager, SegmentManager>();
@@ -61,11 +70,13 @@ public static class ServiceCollectionExtensions
             var protocolHandler = sp.GetRequiredService<IProtocolHandler>();
             var storageManager = sp.GetRequiredService<IStorageManager>();
             var segmentManager = sp.GetRequiredService<ISegmentManager>();
+            var statePersistence = sp.GetRequiredService<IStatePersistence>();
 
             return new DownloadEngine(
                 protocolHandler,
                 storageManager,
                 segmentManager,
+                statePersistence,
                 maxConcurrentDownloads);
         });
 

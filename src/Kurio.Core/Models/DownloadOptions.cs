@@ -74,4 +74,9 @@ public sealed class DownloadOptions
     /// Gets or sets the checksum algorithm (e.g., "SHA256", "MD5").
     /// </summary>
     public string? ChecksumAlgorithm { get; set; }
+
+    /// <summary>
+    /// Gets or sets the verification options for checksum validation.
+    /// </summary>
+    public VerificationOptions? Verification { get; set; }
 }

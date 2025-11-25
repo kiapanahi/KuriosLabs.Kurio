@@ -8,6 +8,7 @@ using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
 using Kurio.Core.Queue;
 using Kurio.Core.Storage;
+using Kurio.Core.Verification;
 
 /// <summary>
 /// Extension methods for configuring Kurio download engine services.
@@ -41,6 +42,9 @@ public static class ServiceCollectionExtensions
 
         // Register segment manager
         services.AddTransient<ISegmentManager, SegmentManager>();
+
+        // Register checksum verifier
+        services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
 
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();

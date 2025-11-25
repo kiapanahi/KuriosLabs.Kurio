@@ -76,4 +76,9 @@ public interface IDownloadTask
     /// Gets the number of retry attempts.
     /// </summary>
     int RetryCount { get; }
+
+    /// <summary>
+    /// Gets the checksum verification result (if verification was performed).
+    /// </summary>
+    ChecksumResult? ChecksumResult { get; }
 }

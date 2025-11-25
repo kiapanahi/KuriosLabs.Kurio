@@ -75,4 +75,44 @@ public interface IDownloadEngine
     /// Gets an observable stream of download progress updates.
     /// </summary>
     IObservable<DownloadProgress> ProgressUpdates { get; }
+
+    /// <summary>
+    /// Changes the priority of a queued download.
+    /// </summary>
+    /// <param name="taskId">The unique task identifier.</param>
+    /// <param name="newPriority">The new priority level.</param>
+    /// <returns>True if the priority was changed; false if task not found or not queued.</returns>
+    bool ChangePriority(Guid taskId, DownloadPriority newPriority);
+
+    /// <summary>
+    /// Moves a queued download up in the queue.
+    /// </summary>
+    /// <param name="taskId">The unique task identifier.</param>
+    /// <returns>True if the task was moved; false if not found or not queued.</returns>
+    bool MoveUp(Guid taskId);
+
+    /// <summary>
+    /// Moves a queued download down in the queue.
+    /// </summary>
+    /// <param name="taskId">The unique task identifier.</param>
+    /// <returns>True if the task was moved; false if not found or not queued.</returns>
+    bool MoveDown(Guid taskId);
+
+    /// <summary>
+    /// Pauses all active downloads.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of downloads that were paused.</returns>
+    Task<int> PauseAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears all completed downloads from tracking.
+    /// </summary>
+    void ClearCompleted();
+
+    /// <summary>
+    /// Gets the current queue statistics.
+    /// </summary>
+    /// <returns>A tuple with active and queued download counts.</returns>
+    (int Active, int Queued) GetQueueStatistics();
 }

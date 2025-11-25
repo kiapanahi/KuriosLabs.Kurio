@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Reactive.Subjects;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+using Kurio.Core.Queue;
 
 /// <summary>
 /// Main orchestrator for download operations.
@@ -18,9 +19,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     private readonly IStorageManager _storageManager;
     private readonly ISegmentManager _segmentManager;
     private readonly IStatePersistence _statePersistence;
+    private readonly IDownloadQueueManager _queueManager;
     private readonly Subject<DownloadProgress> _progressSubject = new();
-    private readonly SemaphoreSlim _concurrencyLock;
-    private readonly int _maxConcurrentDownloads;
+    private readonly Timer _schedulerTimer;
+    private bool _disposed;
 
     /// <inheritdoc />
     public IObservable<DownloadProgress> ProgressUpdates => _progressSubject;
@@ -38,14 +40,17 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         IStorageManager storageManager,
         ISegmentManager segmentManager,
         IStatePersistence statePersistence,
+        IDownloadQueueManager? queueManager = null,
         int maxConcurrentDownloads = 3)
     {
         _protocolHandler = protocolHandler ?? throw new ArgumentNullException(nameof(protocolHandler));
         _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
         _segmentManager = segmentManager ?? throw new ArgumentNullException(nameof(segmentManager));
         _statePersistence = statePersistence ?? throw new ArgumentNullException(nameof(statePersistence));
-        _maxConcurrentDownloads = maxConcurrentDownloads;
-        _concurrencyLock = new SemaphoreSlim(_maxConcurrentDownloads, _maxConcurrentDownloads);
+        _queueManager = queueManager ?? new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads };
+
+        // Start scheduler timer (check every 500ms)
+        _schedulerTimer = new Timer(ScheduleNextDownloads, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
 
         // Load persisted states on initialization
         _ = Task.Run(RecoverPersistedStatesAsync);
@@ -79,6 +84,12 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             throw new InvalidOperationException($"Task with ID {task.Id} already exists.");
         }
 
+        // Add to queue for scheduling
+        _queueManager.Enqueue(task);
+
+        // Save initial state
+        await SaveTaskStateAsync(task, cancellationToken);
+
         return task;
     }
 
@@ -97,6 +108,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             throw new InvalidOperationException(
                 $"Task must be in Queued state to start. Current state: {task.State}");
         }
+
+        // Mark as started in queue
+        _queueManager.MarkAsStarted(taskId);
 
         // Start the download in the background
         _ = Task.Run(() => ExecuteDownloadAsync(task, cancellationToken), cancellationToken);
@@ -126,6 +140,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         task.State = DownloadState.Paused;
 
+        // Mark as paused in queue
+        _queueManager.MarkAsPaused(taskId);
+
         // Save state for resume
         await SaveTaskStateAsync(task, cancellationToken);
     }
@@ -151,8 +168,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         task.State = DownloadState.Queued;
 
-        // Start the resume operation
-        _ = Task.Run(() => ExecuteResumeAsync(task, cancellationToken), cancellationToken);
+        // Re-queue the task
+        _queueManager.Enqueue(task);
+
+        await SaveTaskStateAsync(task, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -173,6 +192,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         }
 
         task.State = DownloadState.Cancelled;
+
+        // Remove from queue if present
+        _queueManager.Dequeue(taskId);
 
         if (removePartialFiles)
         {
@@ -201,6 +223,33 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     }
 
     /// <summary>
+    /// Scheduler callback that starts queued downloads when slots are available.
+    /// </summary>
+    private void ScheduleNextDownloads(object? state)
+    {
+        if (_disposed) return;
+
+        try
+        {
+            // Check if we can start new downloads
+            while (_queueManager.CanStartNewDownload())
+            {
+                var nextTask = _queueManager.GetNextTask();
+                if (nextTask == null) break; // No more tasks in queue
+
+                // Start the download
+                _queueManager.MarkAsStarted(nextTask.Id);
+                _ = Task.Run(() => ExecuteDownloadAsync((DownloadTask)nextTask, CancellationToken.None));
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log scheduling errors but don't crash
+            Console.WriteLine($"Error in download scheduler: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Executes the download for a task.
     /// </summary>
     private async Task ExecuteDownloadAsync(DownloadTask task, CancellationToken cancellationToken)
@@ -209,9 +258,6 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _cancellationTokens[task.Id] = cts;
         var linkedToken = cts.Token;
-
-        // Wait for concurrency slot
-        await _concurrencyLock.WaitAsync(linkedToken);
 
         try
         {
@@ -306,6 +352,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             task.State = DownloadState.Completed;
             task.CompletedAt = DateTime.UtcNow;
 
+            // Notify queue manager
+            _queueManager.MarkAsCompleted(task.Id);
+
             // Delete persisted state
             await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
 
@@ -329,6 +378,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             };
             task.RetryCount++;
 
+            // Notify queue manager
+            _queueManager.MarkAsFailed(task.Id);
+
             // Save failed state
             await SaveTaskStateAsync(task, CancellationToken.None);
         }
@@ -336,7 +388,6 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         {
             _cancellationTokens.TryRemove(task.Id, out var removedCts);
             removedCts?.Dispose();
-            _concurrencyLock.Release();
         }
     }
 
@@ -370,9 +421,6 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _cancellationTokens[task.Id] = cts;
         var linkedToken = cts.Token;
-
-        // Wait for concurrency slot
-        await _concurrencyLock.WaitAsync(linkedToken);
 
         try
         {
@@ -421,6 +469,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             task.State = DownloadState.Completed;
             task.CompletedAt = DateTime.UtcNow;
 
+            // Notify queue manager
+            _queueManager.MarkAsCompleted(task.Id);
+
             // Delete persisted state
             await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
 
@@ -444,6 +495,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             };
             task.RetryCount++;
 
+            // Notify queue manager
+            _queueManager.MarkAsFailed(task.Id);
+
             // Save failed state
             await SaveTaskStateAsync(task, CancellationToken.None);
         }
@@ -451,7 +505,6 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         {
             _cancellationTokens.TryRemove(task.Id, out var removedCts);
             removedCts?.Dispose();
-            _concurrencyLock.Release();
         }
     }
 
@@ -608,8 +661,87 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     }
 
     /// <inheritdoc />
+    public bool ChangePriority(Guid taskId, DownloadPriority newPriority)
+    {
+        if (!_tasks.TryGetValue(taskId, out var task))
+        {
+            return false;
+        }
+
+        if (task.State != DownloadState.Queued)
+        {
+            return false;
+        }
+
+        return _queueManager.ChangePriority(taskId, newPriority);
+    }
+
+    /// <inheritdoc />
+    public bool MoveUp(Guid taskId)
+    {
+        return _queueManager.MoveUp(taskId);
+    }
+
+    /// <inheritdoc />
+    public bool MoveDown(Guid taskId)
+    {
+        return _queueManager.MoveDown(taskId);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
+    {
+        var activeTasks = _queueManager.GetActiveTasks();
+        var pausedCount = 0;
+
+        foreach (var task in activeTasks)
+        {
+            try
+            {
+                await PauseDownloadAsync(task.Id, cancellationToken);
+                pausedCount++;
+            }
+            catch
+            {
+                // Continue with other tasks
+            }
+        }
+
+        return pausedCount;
+    }
+
+    /// <inheritdoc />
+    public void ClearCompleted()
+    {
+        _queueManager.ClearCompleted();
+
+        // Also remove from tasks dictionary
+        var completedTasks = _tasks.Values
+            .Where(t => t.State == DownloadState.Completed)
+            .Select(t => t.Id)
+            .ToList();
+
+        foreach (var taskId in completedTasks)
+        {
+            _tasks.TryRemove(taskId, out _);
+        }
+    }
+
+    /// <inheritdoc />
+    public (int Active, int Queued) GetQueueStatistics()
+    {
+        return (_queueManager.ActiveDownloadsCount, _queueManager.QueuedDownloadsCount);
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
+        // Stop scheduler timer
+        _schedulerTimer?.Dispose();
+
         // Cancel all ongoing downloads
         foreach (var cts in _cancellationTokens.Values)
         {
@@ -620,6 +752,5 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         _cancellationTokens.Clear();
 
         _progressSubject?.Dispose();
-        _concurrencyLock?.Dispose();
     }
 }

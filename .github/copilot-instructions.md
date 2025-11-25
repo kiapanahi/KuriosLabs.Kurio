@@ -64,6 +64,11 @@ The project is organized into the following directories and files:
 - Always use the latest C# language features and best practices.
 - Ensure cross-platform compatibility across Windows, macOS, and Linux.
 - Use .NET 10.0 or later for all new code.
+- Always use centralized package management via NuGet.
+- Add all the new dependencies to the `Directory.Packages.props` file.
+- Add all the common project properties to the `Directory.Build.props` file.
+- Use semver.org for versioning.
+- Add version to all project files using the `Version` property in the `Directory.Build.props` file.
 
 ### Git
 

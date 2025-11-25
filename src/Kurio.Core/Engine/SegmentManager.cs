@@ -3,12 +3,27 @@ namespace Kurio.Core.Engine;
 using System.Collections.Concurrent;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Manages download segmentation and parallel downloading.
 /// </summary>
 public sealed class SegmentManager : ISegmentManager
 {
+    private readonly IStorageManager _storageManager;
+    private readonly ILogger<SegmentManager>? _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SegmentManager"/> class.
+    /// </summary>
+    /// <param name="storageManager">The storage manager for file operations.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public SegmentManager(IStorageManager storageManager, ILogger<SegmentManager>? logger = null)
+    {
+        _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
+        _logger = logger;
+    }
+
     /// <inheritdoc />
     public SegmentConfiguration CalculateSegments(
         long fileSize,
@@ -23,6 +38,12 @@ public sealed class SegmentManager : ISegmentManager
         // If range requests are not supported, use a single segment
         if (!supportsRanges || fileSize < options.MinSegmentSize)
         {
+            _logger?.LogInformation(
+                "Using single segment download. SupportsRanges: {SupportsRanges}, FileSize: {FileSize}, MinSegmentSize: {MinSegmentSize}",
+                supportsRanges,
+                fileSize,
+                options.MinSegmentSize);
+
             return new SegmentConfiguration
             {
                 FileSize = fileSize,
@@ -69,6 +90,12 @@ public sealed class SegmentManager : ISegmentManager
             };
         }
 
+        _logger?.LogInformation(
+            "Calculated {SegmentCount} segments for file size {FileSize} bytes. Average segment size: {SegmentSize} bytes",
+            idealSegmentCount,
+            fileSize,
+            segmentSize);
+
         return new SegmentConfiguration
         {
             FileSize = fileSize,
@@ -89,8 +116,16 @@ public sealed class SegmentManager : ISegmentManager
         IProgress<SegmentProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        _logger?.LogInformation("Starting parallel download with {SegmentCount} segments", config.SegmentCount);
+
+        // Use a semaphore to limit concurrent segment downloads
+        using var semaphore = new SemaphoreSlim(config.SegmentCount, config.SegmentCount);
+
+        // Track failed segments for retry logic
+        var failedSegments = new ConcurrentBag<int>();
+
         // Create tasks for all segments
-        var tasks = new Task[config.SegmentCount];
+        var tasks = new List<Task>(config.SegmentCount);
 
         for (var i = 0; i < config.SegmentCount; i++)
         {
@@ -98,19 +133,53 @@ public sealed class SegmentManager : ISegmentManager
             var range = config.Ranges[i];
             var state = config.States[i];
 
-            tasks[i] = DownloadSegmentAsync(
-                handler,
-                url,
-                range,
-                state,
-                tempFilePath,
-                options,
-                progress,
-                cancellationToken);
+            await semaphore.WaitAsync(cancellationToken);
+
+            var task = Task.Run(async () =>
+            {
+                try
+                {
+                    await DownloadSegmentWithRetryAsync(
+                        handler,
+                        url,
+                        range,
+                        state,
+                        tempFilePath,
+                        options,
+                        progress,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Segment {SegmentIndex} failed after all retries", segmentIndex);
+                    failedSegments.Add(segmentIndex);
+                    throw;
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }, cancellationToken);
+
+            tasks.Add(task);
         }
 
         // Wait for all segments to complete
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks);
+            _logger?.LogInformation("All {SegmentCount} segments downloaded successfully", config.SegmentCount);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Download failed. {FailedCount} segments failed", failedSegments.Count);
+            throw new AggregateException(
+                $"Failed to download {failedSegments.Count} segment(s): {string.Join(", ", failedSegments)}",
+                ex);
+        }
+
+        // Verify segment boundaries
+        await VerifySegmentBoundariesAsync(config, tempFilePath, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -160,6 +229,73 @@ public sealed class SegmentManager : ISegmentManager
         await Task.WhenAll(incompleteTasks);
     }
 
+    /// <summary>
+    /// Downloads a segment with automatic retry logic.
+    /// </summary>
+    private async Task DownloadSegmentWithRetryAsync(
+        IProtocolHandler handler,
+        Uri url,
+        ByteRange range,
+        SegmentState state,
+        string tempFilePath,
+        DownloadOptions options,
+        IProgress<SegmentProgress>? progress,
+        CancellationToken cancellationToken,
+        int maxRetries = 3)
+    {
+        var retryCount = 0;
+        Exception? lastException = null;
+
+        while (retryCount <= maxRetries)
+        {
+            try
+            {
+                await DownloadSegmentAsync(
+                    handler,
+                    url,
+                    range,
+                    state,
+                    tempFilePath,
+                    options,
+                    progress,
+                    cancellationToken);
+
+                // Success - exit retry loop
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                // Don't retry on cancellation
+                throw;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                retryCount++;
+                state.RetryCount = retryCount;
+
+                if (retryCount <= maxRetries)
+                {
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
+                    _logger?.LogWarning(
+                        ex,
+                        "Segment {SegmentIndex} failed (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}s...",
+                        state.SegmentIndex,
+                        retryCount,
+                        maxRetries + 1,
+                        delay.TotalSeconds);
+
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+        }
+
+        // All retries exhausted
+        throw new InvalidOperationException(
+            $"Segment {state.SegmentIndex} failed after {maxRetries + 1} attempts",
+            lastException);
+    }
+
     private async Task DownloadSegmentAsync(
         IProtocolHandler handler,
         Uri url,
@@ -171,71 +307,125 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken,
         bool isResume = false)
     {
-        try
+        state.Status = SegmentStatus.Downloading;
+        state.StartedAt ??= DateTime.UtcNow;
+
+        _logger?.LogDebug(
+            "Downloading segment {SegmentIndex}: {Start}-{End} ({Length} bytes)",
+            state.SegmentIndex,
+            range.Start,
+            range.End,
+            range.Length);
+
+        // Create a memory stream to buffer the segment data
+        await using var memoryStream = new MemoryStream((int)range.Length);
+
+        // Progress tracking for this segment
+        var segmentProgress = new Progress<long>(bytesRead =>
         {
-            state.Status = SegmentStatus.Downloading;
-            state.StartedAt ??= DateTime.UtcNow;
-
-            // Create a memory stream to buffer the segment data
-            await using var memoryStream = new MemoryStream();
-
-            // Progress tracking for this segment
-            var segmentProgress = new Progress<long>(bytesRead =>
-            {
-                var totalForSegment = isResume ? state.BytesDownloaded + bytesRead : bytesRead;
-                progress?.Report(new SegmentProgress
-                {
-                    SegmentIndex = state.SegmentIndex,
-                    BytesDownloaded = totalForSegment,
-                    Status = SegmentStatus.Downloading
-                });
-            });
-
-            // Download the range
-            await handler.DownloadRangeAsync(
-                url,
-                range,
-                memoryStream,
-                options,
-                segmentProgress,
-                cancellationToken);
-
-            // Write the buffered data to the file at the correct offset
-            var buffer = memoryStream.ToArray();
-            var offset = range.Start;
-
-            // Get storage manager to write segment
-            // Note: In a real implementation, we'd inject IStorageManager
-            // For now, we'll write directly (this will be refactored)
-            await using var fileStream = new FileStream(
-                tempFilePath,
-                FileMode.Open,
-                FileAccess.Write,
-                FileShare.Write,
-                bufferSize: 4096,
-                useAsync: true);
-
-            fileStream.Seek(offset, SeekOrigin.Begin);
-            await fileStream.WriteAsync(buffer, cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
-
-            // Update state
-            state.BytesDownloaded = range.Length;
-            state.Status = SegmentStatus.Completed;
-            state.CompletedAt = DateTime.UtcNow;
+            var totalForSegment = isResume ? state.BytesDownloaded + bytesRead : bytesRead;
+            state.BytesDownloaded = totalForSegment;
 
             progress?.Report(new SegmentProgress
             {
                 SegmentIndex = state.SegmentIndex,
-                BytesDownloaded = state.BytesDownloaded,
-                Status = SegmentStatus.Completed
+                BytesDownloaded = totalForSegment,
+                Status = SegmentStatus.Downloading,
+                Timestamp = DateTime.UtcNow
             });
-        }
-        catch (Exception)
+        });
+
+        // Download the range
+        await handler.DownloadRangeAsync(
+            url,
+            range,
+            memoryStream,
+            options,
+            segmentProgress,
+            cancellationToken);
+
+        // Verify downloaded size matches expected
+        var downloadedBytes = memoryStream.Length;
+        if (downloadedBytes != range.Length)
         {
-            state.Status = SegmentStatus.Failed;
-            state.RetryCount++;
-            throw;
+            throw new InvalidOperationException(
+                $"Segment {state.SegmentIndex} size mismatch. Expected: {range.Length}, Got: {downloadedBytes}");
         }
+
+        // Write the buffered data to the file at the correct offset using StorageManager
+        var buffer = memoryStream.ToArray();
+        await _storageManager.WriteSegmentAsync(
+            tempFilePath,
+            range.Start,
+            buffer,
+            buffer.Length,
+            cancellationToken);
+
+        // Update state
+        state.BytesDownloaded = range.Length;
+        state.Status = SegmentStatus.Completed;
+        state.CompletedAt = DateTime.UtcNow;
+
+        _logger?.LogDebug(
+            "Segment {SegmentIndex} completed. Duration: {Duration}ms",
+            state.SegmentIndex,
+            (state.CompletedAt.Value - state.StartedAt.Value).TotalMilliseconds);
+
+        progress?.Report(new SegmentProgress
+        {
+            SegmentIndex = state.SegmentIndex,
+            BytesDownloaded = state.BytesDownloaded,
+            Status = SegmentStatus.Completed,
+            Timestamp = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// Verifies that all segment boundaries are correct and no gaps exist.
+    /// </summary>
+    private async Task VerifySegmentBoundariesAsync(
+        SegmentConfiguration config,
+        string tempFilePath,
+        CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("Verifying segment boundaries...");
+
+        // Check file size
+        var fileInfo = new FileInfo(tempFilePath);
+        if (fileInfo.Length != config.FileSize)
+        {
+            throw new InvalidOperationException(
+                $"Downloaded file size mismatch. Expected: {config.FileSize}, Got: {fileInfo.Length}");
+        }
+
+        // Verify all segments are completed
+        var incompleteSegments = config.States
+            .Where(s => s.Status != SegmentStatus.Completed)
+            .Select(s => s.SegmentIndex)
+            .ToList();
+
+        if (incompleteSegments.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Incomplete segments detected: {string.Join(", ", incompleteSegments)}");
+        }
+
+        // Verify segment boundaries don't overlap or have gaps
+        var sortedStates = config.States.OrderBy(s => s.StartByte).ToArray();
+        for (var i = 0; i < sortedStates.Length - 1; i++)
+        {
+            var current = sortedStates[i];
+            var next = sortedStates[i + 1];
+
+            if (current.EndByte + 1 != next.StartByte)
+            {
+                throw new InvalidOperationException(
+                    $"Gap or overlap detected between segments {current.SegmentIndex} and {next.SegmentIndex}. " +
+                    $"Segment {current.SegmentIndex} ends at {current.EndByte}, " +
+                    $"Segment {next.SegmentIndex} starts at {next.StartByte}");
+            }
+        }
+
+        _logger?.LogInformation("Segment boundary verification completed successfully");
     }
 }

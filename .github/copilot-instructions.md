@@ -19,7 +19,7 @@ Kurio is a download manager with the following features:
 - Download history and statistics
 - link capturing from clipboard
 - Customizable download categories and organization
-- Support for downloading streaming media
+- Support for downloading streaming media (yt-dlp, ffmpeg, m3u8, etc.)
 - Ability to import and export download lists
 - Automatic updates to ensure the latest features and security patches
 - Support for proxy servers
@@ -31,6 +31,11 @@ Kurio is a download manager with the following features:
 - For any new feature or bug fix, create a new prd file in the `docs/prd/` directory outlining the requirements and specifications.
 - From the PRD file generate user stories and tasks in Github Issues.
 - When implementing features, ensure to write unit tests and integration tests as needed.
+- **CRITICAL**: Always update the version in `Directory.Build.props` BEFORE creating a pull request:
+  - **MINOR version** (x.Y.0) for new features that are backward compatible
+  - **PATCH version** (x.y.Z) for bug fixes and minor improvements
+  - **MAJOR version** (X.0.0) for breaking changes
+  - This is mandatory and must not be forgotten
 
 ## Github repository
 
@@ -74,6 +79,7 @@ The project is organized into the following directories and files:
 
 - Always adhere to the 50/72 rule for commit messages.
 - Follow the Gitflow workflow for branching and merging.
+- Always create a new branch for new features and bug fixes.
 - Write clear and concise commit messages following the Conventional Commits specification.
 - Create pull requests for all changes, with appropriate descriptions and linked issues.
 
@@ -81,4 +87,12 @@ The project is organized into the following directories and files:
 ## Versioning
 
 The project follows semantic versioning (semver.org) for versioning. The version number is specified in the `Directory.Build.props` file and is applied to all project files during the build process.
-After each feature addition or bug fix, the version number should be updated accordingly.
+
+**Version Update Rules (MANDATORY):**
+1. Update version in `Directory.Build.props` BEFORE committing any feature or bug fix
+2. Follow semantic versioning strictly:
+   - **MAJOR** (X.0.0): Breaking changes, incompatible API changes
+   - **MINOR** (x.Y.0): New features, backward compatible additions
+   - **PATCH** (x.y.Z): Bug fixes, backward compatible fixes
+3. Include version bump in a separate commit with message: `chore: bump version to X.Y.Z`
+4. Never create a pull request without updating the version number first

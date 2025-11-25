@@ -29,7 +29,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
     /// <param name="httpClientFactory">The HTTP client factory.</param>
     /// <param name="logger">Optional logger instance.</param>
     public HttpProtocolHandler(
-        IHttpClientFactory httpClientFactory, 
+        IHttpClientFactory httpClientFactory,
         ILogger<HttpProtocolHandler>? logger = null)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
@@ -61,10 +61,10 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             {
                 var acceptRanges = string.Join(",", values);
                 var supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
-                
-                _logger?.LogDebug("Server {Supports} range requests (Accept-Ranges: {AcceptRanges})", 
+
+                _logger?.LogDebug("Server {Supports} range requests (Accept-Ranges: {AcceptRanges})",
                     supportsRanges ? "supports" : "does not support", acceptRanges);
-                
+
                 return supportsRanges;
             }
 
@@ -100,7 +100,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
             var fileSize = response.Content.Headers.ContentLength ?? -1;
             _logger?.LogDebug("File size for {Url}: {Size} bytes", url, fileSize);
-            
+
             return fileSize;
         }
         catch (HttpRequestException ex)
@@ -120,7 +120,6 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(url);
-        ArgumentNullException.ThrowIfNull(range);
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(options);
 
@@ -153,13 +152,13 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 _logger?.LogWarning(
                     "Server returned {StatusCode} instead of 206 Partial Content for range request",
                     response.StatusCode);
-                    
+
                 throw new InvalidOperationException(
                     $"Server did not honor range request. Expected 206 Partial Content, got {response.StatusCode}.");
             }
 
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            
+
             // Use optimal buffer size (8KB is generally optimal for most scenarios)
             const int bufferSize = 8192;
             var buffer = new byte[bufferSize];
@@ -173,12 +172,12 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 progress?.Report(totalBytesRead);
             }
 
-            _logger?.LogDebug("Successfully downloaded {Bytes} bytes from range {Start}-{End}", 
+            _logger?.LogDebug("Successfully downloaded {Bytes} bytes from range {Start}-{End}",
                 totalBytesRead, range.Start, range.End);
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "Failed to download range {Start}-{End} from {Url}", 
+            _logger?.LogError(ex, "Failed to download range {Start}-{End} from {Url}",
                 range.Start, range.End, url);
             throw;
         }
@@ -190,7 +189,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         catch (TaskCanceledException ex)
         {
             // Timeout occurred
-            _logger?.LogError(ex, "Timeout downloading range {Start}-{End} from {Url}", 
+            _logger?.LogError(ex, "Timeout downloading range {Start}-{End} from {Url}",
                 range.Start, range.End, url);
             throw new TimeoutException(
                 $"Request timed out after {options.TimeoutSeconds} seconds", ex);
@@ -255,7 +254,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 }
             }
 
-            _logger?.LogDebug("Metadata fetched: Size={Size}, Type={Type}, Ranges={Ranges}", 
+            _logger?.LogDebug("Metadata fetched: Size={Size}, Type={Type}, Ranges={Ranges}",
                 metadata.ContentLength, metadata.ContentType, metadata.SupportsRanges);
 
             return metadata;
@@ -318,9 +317,9 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
             // If we get 206 Partial Content, range requests are supported
             var supportsRanges = response.StatusCode == HttpStatusCode.PartialContent;
-            
+
             _logger?.LogDebug("Range request test result: {Result}", supportsRanges);
-            
+
             return supportsRanges;
         }
         catch (Exception ex)
@@ -351,10 +350,10 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 var lastSegment = segments[^1];
                 // Remove trailing slash if present
                 lastSegment = lastSegment.TrimEnd('/');
-                
+
                 // Decode URL encoding
                 var decoded = Uri.UnescapeDataString(lastSegment);
-                
+
                 // Remove query string if present
                 var queryIndex = decoded.IndexOf('?');
                 if (queryIndex >= 0)

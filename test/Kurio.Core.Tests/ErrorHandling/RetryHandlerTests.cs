@@ -182,7 +182,7 @@ public class RetryHandlerTests
         // Assert - with jitter, we should see some variation
         var uniqueDelays = delays.Distinct().Count();
         Assert.True(uniqueDelays > 1, "Jitter should produce varied delays");
-        
+
         // All delays should be within reasonable range (850-1150ms for 1000ms base with 30% jitter)
         Assert.All(delays, d => Assert.InRange(d, 850, 1150));
     }

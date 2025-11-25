@@ -31,13 +31,13 @@ public sealed class ErrorClassifier : IErrorClassifier
 
         // Classify based on exception type
         error.Category = ClassifyException(exception);
-        
+
         // Extract HTTP status code if available
         if (exception is HttpRequestException httpEx)
         {
             error.HttpStatusCode = (int?)httpEx.StatusCode;
         }
-        
+
         error.IsRecoverable = IsRecoverableCategory(error.Category);
         error.RecoveryAction = GetRecoveryAction(error);
         error.UserFriendlyMessage = GetUserFriendlyMessage(error);

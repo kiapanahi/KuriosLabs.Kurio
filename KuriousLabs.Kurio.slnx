@@ -1,21 +1,23 @@
 <Solution>
     <Folder Name="/src/">
-        <Project Path="src/Kurio.Core/Kurio.Core.csproj"/>
+        <Project Path="src/Kurio.Cli/Kurio.Cli.csproj" />
+        <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
+        <Project Path="src/KuriousLabs.Kurio.ServiceDefaults/KuriousLabs.Kurio.ServiceDefaults.csproj" />
     </Folder>
     <Folder Name="/test/">
-        <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj"/>
+        <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
     </Folder>
 
     <Folder Name="/misc/">
-        <File Path="README.md"/>
-        <File Path="LICENSE"/>
-        <File Path=".gitattributes"/>
-        <File Path=".gitignore"/>
-        <File Path="Directory.Build.props"/>
-        <File Path="Directory.Build.targets"/>
-        <File Path="Directory.Packages.props"/>
+        <File Path="README.md" />
+        <File Path="LICENSE" />
+        <File Path=".gitattributes" />
+        <File Path=".gitignore" />
+        <File Path="Directory.Build.props" />
+        <File Path="Directory.Build.targets" />
+        <File Path="Directory.Packages.props" />
     </Folder>
-    <Folder Name="GitHub">
-        <File Path=".github/copilot-instructions.md"/>
+  <Folder Name="/.github/">
+        <File Path=".github/copilot-instructions.md" />
     </Folder>
 </Solution>

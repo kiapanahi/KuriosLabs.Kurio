@@ -20,7 +20,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        
+
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException($"File not found: {filePath}", filePath);
@@ -52,7 +52,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
 
         using var hashAlgorithm = CreateHashAlgorithm(algorithm);
         var hashBytes = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken);
-        
+
         return BytesToHexString(hashBytes);
     }
 
@@ -144,7 +144,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
                         {
                             var digestAlgorithm = ParseDigestAlgorithm(parts[0].Trim());
                             var digestValue = parts[1].Trim();
-                            
+
                             if (digestAlgorithm.HasValue)
                             {
                                 // Convert base64 to hex if needed
@@ -198,7 +198,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         // Support formats:
         // 1. "checksum *filename" or "checksum  filename" (GNU format)
         // 2. "checksum filename" (BSD format)
-        
+
         var parts = line.Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
         {

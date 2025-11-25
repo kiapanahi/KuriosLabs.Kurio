@@ -62,7 +62,7 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
     {
         ArgumentNullException.ThrowIfNull(url);
 
-        return !string.IsNullOrEmpty(url.Scheme) && 
+        return !string.IsNullOrEmpty(url.Scheme) &&
                _handlerCache.ContainsKey(url.Scheme);
     }
 

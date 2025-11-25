@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj" />
+    <ProjectReference Include="..\..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

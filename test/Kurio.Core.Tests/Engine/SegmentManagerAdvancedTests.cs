@@ -365,7 +365,8 @@ public class SegmentManagerAdvancedTests : IDisposable
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
-        {            Directory.Delete(_tempDirectory, recursive: true);
+        {
+            Directory.Delete(_tempDirectory, recursive: true);
         }
 
         GC.SuppressFinalize(this);

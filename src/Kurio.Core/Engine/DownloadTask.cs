@@ -64,6 +64,11 @@ internal sealed class DownloadTask : IDownloadTask
     public int RetryCount { get; set; }
 
     /// <summary>
+    /// Gets or sets the checksum verification result.
+    /// </summary>
+    public ChecksumResult? ChecksumResult { get; set; }
+
+    /// <summary>
     /// Event raised when the priority changes.
     /// </summary>
     public event EventHandler<DownloadPriority>? PriorityChanged;

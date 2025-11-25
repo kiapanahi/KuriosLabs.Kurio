@@ -9,6 +9,7 @@ using Kurio.Core.Models;
 using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
 using Kurio.Core.Queue;
+using Kurio.Core.Statistics;
 using Kurio.Core.Storage;
 using Kurio.Core.Verification;
 
@@ -83,6 +84,25 @@ public static class ServiceCollectionExtensions
         // Register queue manager
         services.AddSingleton<IDownloadQueueManager>(sp =>
             new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads });
+
+        // Register progress tracker
+        services.AddSingleton<IProgressTracker, ProgressTracker>();
+
+        // Register download history repository
+        var historyDirectory = Path.Combine(stateDirectory, "history");
+        services.AddSingleton<IDownloadHistoryRepository>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<JsonDownloadHistoryRepository>>();
+            return new JsonDownloadHistoryRepository(historyDirectory, logger);
+        });
+
+        // Register statistics service
+        services.AddSingleton<IStatisticsService>(sp =>
+        {
+            var historyRepository = sp.GetRequiredService<IDownloadHistoryRepository>();
+            var logger = sp.GetRequiredService<ILogger<StatisticsService>>();
+            return new StatisticsService(stateDirectory, historyRepository, logger);
+        });
 
         // Register download engine as singleton
         services.AddSingleton<IDownloadEngine>(sp =>

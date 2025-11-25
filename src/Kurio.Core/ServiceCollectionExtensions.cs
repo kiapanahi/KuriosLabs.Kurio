@@ -60,7 +60,7 @@ public static class ServiceCollectionExtensions
 
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
-        
+
         // Register protocol handler factory
         services.AddSingleton<IProtocolHandlerFactory>(sp =>
         {
@@ -69,17 +69,14 @@ public static class ServiceCollectionExtensions
         });
 
         // Configure HttpClient for downloads
-        services.AddHttpClient("KurioDownloader", client =>
-        {
-            client.DefaultRequestHeaders.Add("Accept", "*/*");
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-            MaxConnectionsPerServer = 8,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5
-        });
+        services.AddHttpClient("KurioDownloader", client => { client.DefaultRequestHeaders.Add("Accept", "*/*"); })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                MaxConnectionsPerServer = 8,
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5
+            });
 
         // Register queue manager
         services.AddSingleton<IDownloadQueueManager>(sp =>

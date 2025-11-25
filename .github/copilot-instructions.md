@@ -26,6 +26,12 @@ Kurio is a download manager with the following features:
 - Extensive documentation and tutorials for users
 - Open-source with contributions from the community
 
+## Prompts and instructions
+
+- For any new feature or bug fix, create a new prd file in the `docs/prd/` directory outlining the requirements and specifications.
+- From the PRD file generate user stories and tasks in Github Issues.
+- When implementing features, ensure to write unit tests and integration tests as needed.
+
 ## Github repository
 
 The GitHub repository for Kurio can be found at:

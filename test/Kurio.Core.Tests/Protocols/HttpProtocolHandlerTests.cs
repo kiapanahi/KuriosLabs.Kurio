@@ -227,8 +227,8 @@ public sealed class HttpProtocolHandlerTests
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(req => 
-                    req.Method == HttpMethod.Get && 
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Get &&
                     req.Headers.Range != null),
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
@@ -321,7 +321,7 @@ public sealed class HttpProtocolHandlerTests
                 response.Content.Headers.LastModified = expectedLastModified;
                 response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(expectedETag);
                 response.Headers.Add("Accept-Ranges", "bytes");
-                response.Content.Headers.ContentDisposition = 
+                response.Content.Headers.ContentDisposition =
                     new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
                     {
                         FileName = "test-file.zip"

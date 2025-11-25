@@ -91,7 +91,7 @@ public sealed class JsonStatePersistence : IStatePersistence
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load state for task {TaskId} from {FilePath}", taskId, filePath);
-            
+
             // Move corrupted file to backup
             try
             {

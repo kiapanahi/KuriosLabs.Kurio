@@ -24,7 +24,7 @@ public sealed class ChecksumResult
     /// Gets a value indicating whether the verification passed.
     /// True if ExpectedChecksum matches CalculatedChecksum, or if ExpectedChecksum is null.
     /// </summary>
-    public bool IsValid => ExpectedChecksum == null || 
+    public bool IsValid => ExpectedChecksum == null ||
                           string.Equals(CalculatedChecksum, ExpectedChecksum, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>

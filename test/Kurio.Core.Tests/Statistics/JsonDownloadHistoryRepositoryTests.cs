@@ -292,7 +292,7 @@ public class JsonDownloadHistoryRepositoryTests
     }
 
     [Fact]
-    public async Task Persistence_DataSurviresReload()
+    public async Task Persistence_DataSurvivesReload()
     {
         // Arrange
         var entry = CreateEntry();

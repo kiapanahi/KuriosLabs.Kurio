@@ -6,6 +6,7 @@ using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
+using Kurio.Core.Queue;
 using Kurio.Core.Storage;
 
 /// <summary>
@@ -64,6 +65,10 @@ public static class ServiceCollectionExtensions
             MaxAutomaticRedirections = 5
         });
 
+        // Register queue manager
+        services.AddSingleton<IDownloadQueueManager>(sp =>
+            new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads });
+
         // Register download engine as singleton
         services.AddSingleton<IDownloadEngine>(sp =>
         {
@@ -71,12 +76,14 @@ public static class ServiceCollectionExtensions
             var storageManager = sp.GetRequiredService<IStorageManager>();
             var segmentManager = sp.GetRequiredService<ISegmentManager>();
             var statePersistence = sp.GetRequiredService<IStatePersistence>();
+            var queueManager = sp.GetRequiredService<IDownloadQueueManager>();
 
             return new DownloadEngine(
                 protocolHandler,
                 storageManager,
                 segmentManager,
                 statePersistence,
+                queueManager,
                 maxConcurrentDownloads);
         });
 

@@ -15,7 +15,7 @@
         <File Path="Directory.Build.targets"/>
         <File Path="Directory.Packages.props"/>
     </Folder>
-    <Folder Name="GitHub">
+  <Folder Name="/.github/">
         <File Path=".github/copilot-instructions.md"/>
     </Folder>
 </Solution>

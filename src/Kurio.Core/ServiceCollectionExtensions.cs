@@ -32,8 +32,15 @@ public static class ServiceCollectionExtensions
         // Register segment manager
         services.AddTransient<ISegmentManager, SegmentManager>();
 
-        // Register HTTP protocol handler
+        // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
+        
+        // Register protocol handler factory
+        services.AddSingleton<IProtocolHandlerFactory>(sp =>
+        {
+            var handlers = sp.GetServices<IProtocolHandler>();
+            return new ProtocolHandlerFactory(handlers);
+        });
 
         // Configure HttpClient for downloads
         services.AddHttpClient("KurioDownloader", client =>

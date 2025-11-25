@@ -76,3 +76,9 @@ The project is organized into the following directories and files:
 - Follow the Gitflow workflow for branching and merging.
 - Write clear and concise commit messages following the Conventional Commits specification.
 - Create pull requests for all changes, with appropriate descriptions and linked issues.
+
+
+## Versioning
+
+The project follows semantic versioning (semver.org) for versioning. The version number is specified in the `Directory.Build.props` file and is applied to all project files during the build process.
+After each feature addition or bug fix, the version number should be updated accordingly.

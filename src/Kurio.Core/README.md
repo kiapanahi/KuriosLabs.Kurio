@@ -264,11 +264,101 @@ Run the test suite:
 dotnet test test/Kurio.Core.Tests
 ```
 
+## Protocol Handlers
+
+The protocol abstraction layer allows extending Kurio with support for additional protocols beyond HTTP/HTTPS.
+
+### Using Protocol Handlers
+
+```csharp
+// Get protocol handler factory
+var factory = serviceProvider.GetRequiredService<IProtocolHandlerFactory>();
+
+// Check if a URL is supported
+var url = new Uri("https://example.com/file.zip");
+bool isSupported = factory.IsSupported(url); // true
+
+// Get appropriate handler for a URL
+IProtocolHandler handler = factory.GetHandler(url);
+Console.WriteLine($"Using handler for: {string.Join(", ", handler.SupportedSchemes)}");
+```
+
+### Built-in Handlers
+
+#### HttpProtocolHandler
+
+Supports `http` and `https` schemes with:
+- Range request support detection
+- Automatic decompression (gzip, deflate)
+- Custom headers and authentication
+- Timeout and redirect configuration
+- SSL/TLS certificate validation
+
+```csharp
+// Protocol handler operations are typically called by the engine,
+// but you can use them directly if needed
+var options = new DownloadOptions
+{
+    DestinationDirectory = "/downloads",
+    UserAgent = "Kurio/1.0",
+    TimeoutSeconds = 30
+};
+
+// Check if server supports range requests
+bool supportsRanges = await handler.SupportsRangeRequestsAsync(url, options);
+
+// Get file metadata
+var metadata = await handler.GetMetadataAsync(url, options);
+Console.WriteLine($"Size: {metadata.ContentLength} bytes");
+Console.WriteLine($"Type: {metadata.ContentType}");
+Console.WriteLine($"ETag: {metadata.ETag}");
+Console.WriteLine($"Filename: {metadata.SuggestedFileName}");
+
+// Download a byte range
+var range = new ByteRange(0, 1023); // First 1KB
+using var stream = new FileStream("partial.dat", FileMode.Create);
+await handler.DownloadRangeAsync(url, range, stream, options);
+```
+
+### Creating Custom Protocol Handlers
+
+Implement `IProtocolHandler` to add support for new protocols:
+
+```csharp
+public class FtpProtocolHandler : IProtocolHandler
+{
+    public IReadOnlySet<string> SupportedSchemes => 
+        new HashSet<string> { "ftp", "ftps" };
+
+    public async Task<bool> SupportsRangeRequestsAsync(
+        Uri url, 
+        DownloadOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        // Check if FTP server supports REST command
+        // ...
+    }
+
+    // Implement other interface methods...
+}
+```
+
+Register your custom handler:
+
+```csharp
+services.AddSingleton<IProtocolHandler, FtpProtocolHandler>();
+services.AddKurioDownloadEngine();
+```
+
+The factory will automatically discover and register all `IProtocolHandler` implementations.
+
 ## Architecture Decisions
 
 Based on the [Core Engine Architecture PRD](../docs/prd/core-engine-architecture.md):
 
 - **HttpClient via IHttpClientFactory**: Prevents socket exhaustion
+- **Protocol abstraction layer**: Extensible design for multiple protocols
+- **Factory pattern**: Automatic protocol selection based on URL scheme
 - **Concurrent file writes**: `FileShare.Write` for parallel segments
 - **Pre-allocated files**: Better disk performance
 - **Reactive progress**: `System.Reactive` for event streaming

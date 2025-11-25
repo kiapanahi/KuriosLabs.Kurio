@@ -1,7 +1,9 @@
 namespace Kurio.Core.Protocols;
 
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using Microsoft.Extensions.Logging;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 
@@ -11,6 +13,7 @@ using Kurio.Core.Models;
 public sealed class HttpProtocolHandler : IProtocolHandler
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<HttpProtocolHandler>? _logger;
     private static readonly HashSet<string> s_supportedSchemes = new(StringComparer.OrdinalIgnoreCase)
     {
         "http",
@@ -24,9 +27,13 @@ public sealed class HttpProtocolHandler : IProtocolHandler
     /// Initializes a new instance of the <see cref="HttpProtocolHandler"/> class.
     /// </summary>
     /// <param name="httpClientFactory">The HTTP client factory.</param>
-    public HttpProtocolHandler(IHttpClientFactory httpClientFactory)
+    /// <param name="logger">Optional logger instance.</param>
+    public HttpProtocolHandler(
+        IHttpClientFactory httpClientFactory, 
+        ILogger<HttpProtocolHandler>? logger = null)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -35,12 +42,17 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         DownloadOptions options,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(options);
+
         using var httpClient = CreateHttpClient(options);
         using var request = new HttpRequestMessage(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
         try
         {
+            _logger?.LogDebug("Checking range request support for {Url}", url);
+
             using var response = await httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
@@ -48,14 +60,21 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             if (response.Headers.TryGetValues("Accept-Ranges", out var values))
             {
                 var acceptRanges = string.Join(",", values);
-                return !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
+                var supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
+                
+                _logger?.LogDebug("Server {Supports} range requests (Accept-Ranges: {AcceptRanges})", 
+                    supportsRanges ? "supports" : "does not support", acceptRanges);
+                
+                return supportsRanges;
             }
 
             // If no Accept-Ranges header, assume no support
+            _logger?.LogDebug("No Accept-Ranges header found, assuming no range support");
             return false;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger?.LogWarning(ex, "HEAD request failed, attempting range request test");
             // If HEAD fails, try a small range request
             return await TestRangeRequestAsync(url, options, cancellationToken);
         }
@@ -67,14 +86,28 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         DownloadOptions options,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(options);
+
         using var httpClient = CreateHttpClient(options);
         using var request = new HttpRequestMessage(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        return response.Content.Headers.ContentLength ?? -1;
+            var fileSize = response.Content.Headers.ContentLength ?? -1;
+            _logger?.LogDebug("File size for {Url}: {Size} bytes", url, fileSize);
+            
+            return fileSize;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogError(ex, "Failed to get file size for {Url}", url);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -86,6 +119,16 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         IProgress<long>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(range);
+        ArgumentNullException.ThrowIfNull(destination);
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (!destination.CanWrite)
+        {
+            throw new ArgumentException("Destination stream must be writable.", nameof(destination));
+        }
+
         using var httpClient = CreateHttpClient(options);
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         ConfigureRequest(request, options);
@@ -93,31 +136,64 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         // Set range header
         request.Headers.Range = new RangeHeaderValue(range.Start, range.End);
 
-        using var response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
+        _logger?.LogDebug("Downloading range {Start}-{End} from {Url}", range.Start, range.End, url);
 
-        response.EnsureSuccessStatusCode();
-
-        // Verify we got a partial content response if range was requested
-        if (response.StatusCode != System.Net.HttpStatusCode.PartialContent &&
-            range.Start > 0)
+        try
         {
-            throw new InvalidOperationException(
-                "Server did not honor range request. Expected 206 Partial Content.");
+            using var response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+
+            // Verify we got a partial content response if range was requested
+            if (response.StatusCode != HttpStatusCode.PartialContent && range.Start > 0)
+            {
+                _logger?.LogWarning(
+                    "Server returned {StatusCode} instead of 206 Partial Content for range request",
+                    response.StatusCode);
+                    
+                throw new InvalidOperationException(
+                    $"Server did not honor range request. Expected 206 Partial Content, got {response.StatusCode}.");
+            }
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            
+            // Use optimal buffer size (8KB is generally optimal for most scenarios)
+            const int bufferSize = 8192;
+            var buffer = new byte[bufferSize];
+            long totalBytesRead = 0;
+
+            int bytesRead;
+            while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                totalBytesRead += bytesRead;
+                progress?.Report(totalBytesRead);
+            }
+
+            _logger?.LogDebug("Successfully downloaded {Bytes} bytes from range {Start}-{End}", 
+                totalBytesRead, range.Start, range.End);
         }
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var buffer = new byte[options.MinSegmentSize > 8192 ? 8192 : (int)options.MinSegmentSize];
-        long totalBytesRead = 0;
-
-        int bytesRead;
-        while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
+        catch (HttpRequestException ex)
         {
-            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-            totalBytesRead += bytesRead;
-            progress?.Report(totalBytesRead);
+            _logger?.LogError(ex, "Failed to download range {Start}-{End} from {Url}", 
+                range.Start, range.End, url);
+            throw;
+        }
+        catch (TaskCanceledException ex) when (ex.CancellationToken == cancellationToken)
+        {
+            _logger?.LogInformation("Download range {Start}-{End} was cancelled", range.Start, range.End);
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            // Timeout occurred
+            _logger?.LogError(ex, "Timeout downloading range {Start}-{End} from {Url}", 
+                range.Start, range.End, url);
+            throw new TimeoutException(
+                $"Request timed out after {options.TimeoutSeconds} seconds", ex);
         }
     }
 
@@ -127,39 +203,68 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         DownloadOptions options,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(options);
+
         using var httpClient = CreateHttpClient(options);
         using var request = new HttpRequestMessage(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var metadata = new ResourceMetadata
+        try
         {
-            ContentLength = response.Content.Headers.ContentLength ?? -1,
-            ContentType = response.Content.Headers.ContentType?.MediaType,
-            ETag = response.Headers.ETag?.Tag,
-            LastModified = response.Content.Headers.LastModified,
-            SupportsRanges = await SupportsRangeRequestsAsync(url, options, cancellationToken)
-        };
+            _logger?.LogDebug("Fetching metadata for {Url}", url);
 
-        // Try to get filename from Content-Disposition header
-        if (response.Content.Headers.ContentDisposition is { } contentDisposition)
-        {
-            metadata.SuggestedFileName = contentDisposition.FileName?.Trim('"') ??
-                                        contentDisposition.FileNameStar;
-        }
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        // Store additional headers
-        foreach (var header in response.Headers)
-        {
-            if (!IsStandardHeader(header.Key))
+            var supportsRanges = false;
+            if (response.Headers.TryGetValues("Accept-Ranges", out var acceptRangeValues))
             {
-                metadata.AdditionalHeaders[header.Key] = string.Join(",", header.Value);
+                var acceptRanges = string.Join(",", acceptRangeValues);
+                supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
             }
-        }
 
-        return metadata;
+            var metadata = new ResourceMetadata
+            {
+                ContentLength = response.Content.Headers.ContentLength ?? -1,
+                ContentType = response.Content.Headers.ContentType?.MediaType,
+                ETag = response.Headers.ETag?.Tag,
+                LastModified = response.Content.Headers.LastModified,
+                SupportsRanges = supportsRanges
+            };
+
+            // Try to get filename from Content-Disposition header
+            if (response.Content.Headers.ContentDisposition is { } contentDisposition)
+            {
+                metadata.SuggestedFileName = contentDisposition.FileName?.Trim('"') ??
+                                            contentDisposition.FileNameStar;
+            }
+
+            // If no filename in Content-Disposition, try to extract from URL
+            if (string.IsNullOrEmpty(metadata.SuggestedFileName))
+            {
+                metadata.SuggestedFileName = GetFileNameFromUrl(url);
+            }
+
+            // Store additional headers
+            foreach (var header in response.Headers)
+            {
+                if (!IsStandardHeader(header.Key))
+                {
+                    metadata.AdditionalHeaders[header.Key] = string.Join(",", header.Value);
+                }
+            }
+
+            _logger?.LogDebug("Metadata fetched: Size={Size}, Type={Type}, Ranges={Ranges}", 
+                metadata.ContentLength, metadata.ContentType, metadata.SupportsRanges);
+
+            return metadata;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogError(ex, "Failed to fetch metadata for {Url}", url);
+            throw;
+        }
     }
 
     private HttpClient CreateHttpClient(DownloadOptions options)
@@ -197,6 +302,8 @@ public sealed class HttpProtocolHandler : IProtocolHandler
     {
         try
         {
+            _logger?.LogDebug("Testing range request support with byte range 0-0 for {Url}", url);
+
             using var httpClient = CreateHttpClient(options);
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ConfigureRequest(request, options);
@@ -210,10 +317,15 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 cancellationToken);
 
             // If we get 206 Partial Content, range requests are supported
-            return response.StatusCode == System.Net.HttpStatusCode.PartialContent;
+            var supportsRanges = response.StatusCode == HttpStatusCode.PartialContent;
+            
+            _logger?.LogDebug("Range request test result: {Result}", supportsRanges);
+            
+            return supportsRanges;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogWarning(ex, "Range request test failed for {Url}", url);
             return false;
         }
     }
@@ -227,5 +339,37 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             "Accept-Ranges" => true,
             _ => false
         };
+    }
+
+    private static string? GetFileNameFromUrl(Uri url)
+    {
+        try
+        {
+            var segments = url.Segments;
+            if (segments.Length > 0)
+            {
+                var lastSegment = segments[^1];
+                // Remove trailing slash if present
+                lastSegment = lastSegment.TrimEnd('/');
+                
+                // Decode URL encoding
+                var decoded = Uri.UnescapeDataString(lastSegment);
+                
+                // Remove query string if present
+                var queryIndex = decoded.IndexOf('?');
+                if (queryIndex >= 0)
+                {
+                    decoded = decoded[..queryIndex];
+                }
+
+                return string.IsNullOrWhiteSpace(decoded) ? null : decoded;
+            }
+        }
+        catch
+        {
+            // If extraction fails, return null
+        }
+
+        return null;
     }
 }

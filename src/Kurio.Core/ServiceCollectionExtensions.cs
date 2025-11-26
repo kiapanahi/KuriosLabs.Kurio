@@ -35,7 +35,18 @@ public static class ServiceCollectionExtensions
     {
             // Register storage manager as singleton with configured directories
             services.AddSingleton<IStorageManager>(sp =>
-                new StorageManager(tempDirectory, stateDirectory));
+            {
+                // Configure default storage options - can be overridden via configuration
+                var storageOptions = new StorageOptions
+                {
+                    Mode = StorageMode.SingleFile,
+                    VerifyWrites = false, // Disabled by default for performance
+                    WriteBufferSize = 81920, // 80KB
+                    CleanupSegmentFiles = true
+                };
+                
+                return new StorageManager(tempDirectory, stateDirectory, pathProvider: null, options: storageOptions);
+            });
 
             // Register state persistence
             services.AddSingleton<IStatePersistence>(sp =>

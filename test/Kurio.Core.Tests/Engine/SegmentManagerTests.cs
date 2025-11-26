@@ -13,14 +13,16 @@ using Xunit;
 public class SegmentManagerTests
 {
     private readonly Mock<IStorageManager> _mockStorageManager;
+    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
     private readonly Mock<ILogger<SegmentManager>> _mockLogger;
     private readonly SegmentManager _segmentManager;
 
     public SegmentManagerTests()
     {
         _mockStorageManager = new Mock<IStorageManager>();
+        _mockSegmentVerifier = new Mock<ISegmentVerifier>();
         _mockLogger = new Mock<ILogger<SegmentManager>>();
-        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockLogger.Object);
+        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
     }
 
     [Fact]

@@ -128,7 +128,7 @@ public class ProgressTrackerTests
     }
 
     [Fact]
-    public void GetProgressUpdates_EmitsProgressForCorrectTask()
+    public async Task GetProgressUpdates_EmitsProgressForCorrectTask()
     {
         // Arrange
         using var tracker = new ProgressTracker();
@@ -138,13 +138,28 @@ public class ProgressTrackerTests
         tracker.StartTracking(taskId2, 10000);
 
         var receivedProgress = new List<EnhancedDownloadProgress>();
-        using var subscription = tracker.GetProgressUpdates(taskId1)
-            .Subscribe(p => receivedProgress.Add(p));
+        using var cts = new CancellationTokenSource();
+        
+        // Start streaming progress in background
+        var streamTask = Task.Run(async () =>
+        {
+            await foreach (var progress in tracker.StreamProgressAsync(taskId1, cts.Token))
+            {
+                receivedProgress.Add(progress);
+                if (receivedProgress.Count >= 2)
+                    cts.Cancel();
+            }
+        });
 
         // Act
+        await Task.Delay(50); // Let stream start
         tracker.RecordProgress(taskId1, 1000);
         tracker.RecordProgress(taskId2, 2000);
         tracker.RecordProgress(taskId1, 3000);
+
+        // Wait for stream to collect progress
+        await Task.WhenAny(streamTask, Task.Delay(500));
+        cts.Cancel();
 
         // Assert
         receivedProgress.Should().HaveCount(2);
@@ -152,7 +167,7 @@ public class ProgressTrackerTests
     }
 
     [Fact]
-    public void AllProgressUpdates_EmitsProgressForAllTasks()
+    public async Task AllProgressUpdates_EmitsProgressForAllTasks()
     {
         // Arrange
         using var tracker = new ProgressTracker();
@@ -162,12 +177,27 @@ public class ProgressTrackerTests
         tracker.StartTracking(taskId2, 10000);
 
         var receivedProgress = new List<EnhancedDownloadProgress>();
-        using var subscription = tracker.AllProgressUpdates
-            .Subscribe(p => receivedProgress.Add(p));
+        using var cts = new CancellationTokenSource();
+        
+        // Start streaming all progress in background
+        var streamTask = Task.Run(async () =>
+        {
+            await foreach (var progress in tracker.StreamProgressAsync(null, cts.Token))
+            {
+                receivedProgress.Add(progress);
+                if (receivedProgress.Count >= 2)
+                    cts.Cancel();
+            }
+        });
 
         // Act
+        await Task.Delay(50); // Let stream start
         tracker.RecordProgress(taskId1, 1000);
         tracker.RecordProgress(taskId2, 2000);
+
+        // Wait for stream to collect progress
+        await Task.WhenAny(streamTask, Task.Delay(500));
+        cts.Cancel();
 
         // Assert
         receivedProgress.Should().HaveCount(2);

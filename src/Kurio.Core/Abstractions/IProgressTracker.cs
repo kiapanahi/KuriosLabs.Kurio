@@ -8,9 +8,14 @@ namespace Kurio.Core.Abstractions;
 public interface IProgressTracker
 {
     /// <summary>
-    ///     Gets an observable stream of all progress updates.
+    ///     Streams progress updates. Optionally filter by task ID.
     /// </summary>
-    IObservable<EnhancedDownloadProgress> AllProgressUpdates { get; }
+    /// <param name="taskId">Optional task ID to filter progress updates. If null, streams all progress.</param>
+    /// <param name="cancellationToken">Cancellation token to stop streaming.</param>
+    /// <returns>Async stream of enhanced progress updates.</returns>
+    IAsyncEnumerable<EnhancedDownloadProgress> StreamProgressAsync(
+        Guid? taskId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Starts tracking progress for a download task.
@@ -52,10 +57,4 @@ public interface IProgressTracker
     /// <returns>The enhanced progress information, or null if not being tracked.</returns>
     EnhancedDownloadProgress? GetProgress(Guid taskId);
 
-    /// <summary>
-    ///     Gets an observable stream of enhanced progress updates for a specific task.
-    /// </summary>
-    /// <param name="taskId">The task identifier.</param>
-    /// <returns>An observable that emits progress updates for the task.</returns>
-    IObservable<EnhancedDownloadProgress> GetProgressUpdates(Guid taskId);
 }

@@ -1,4 +1,3 @@
-using System.Reactive.Subjects;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +11,6 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
     private readonly string _configFilePath;
     private readonly ILogger<ConfigurationService> _logger;
     private readonly ConfigurationValidator _validator;
-    private readonly Subject<KurioConfiguration> _configurationChanged;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private KurioConfiguration _currentConfiguration;
 
@@ -30,12 +28,11 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
         _configFilePath = configFilePath ?? throw new ArgumentNullException(nameof(configFilePath));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _validator = new ConfigurationValidator();
-        _configurationChanged = new Subject<KurioConfiguration>();
         
         _currentConfiguration = LoadOrCreateConfiguration();
     }
 
-    public IObservable<KurioConfiguration> ConfigurationChanged => _configurationChanged;
+    public event EventHandler<KurioConfiguration>? ConfigurationChanged;
 
     public KurioConfiguration GetConfiguration()
     {
@@ -64,7 +61,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             await SaveConfigurationAsync(updatedConfig, cancellationToken);
             _currentConfiguration = updatedConfig;
             
-            _configurationChanged.OnNext(CloneConfiguration(_currentConfiguration));
+            ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration updated successfully");
         }
         finally
@@ -88,7 +85,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             await SaveConfigurationAsync(defaultConfig, cancellationToken);
             _currentConfiguration = defaultConfig;
             
-            _configurationChanged.OnNext(CloneConfiguration(_currentConfiguration));
+            ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration reset to defaults");
         }
         finally
@@ -140,7 +137,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             await SaveConfigurationAsync(config, cancellationToken);
             _currentConfiguration = config;
             
-            _configurationChanged.OnNext(CloneConfiguration(_currentConfiguration));
+            ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration imported from {FilePath}", filePath);
         }
         finally
@@ -212,7 +209,6 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
 
     public void Dispose()
     {
-        _configurationChanged?.Dispose();
         _lock?.Dispose();
     }
 }

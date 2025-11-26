@@ -50,9 +50,9 @@ public interface IConfigurationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Observable stream of configuration changes
+    /// Event raised when configuration changes
     /// </summary>
-    IObservable<KurioConfiguration> ConfigurationChanged { get; }
+    event EventHandler<KurioConfiguration>? ConfigurationChanged;
 }
 
 /// <summary>

@@ -1,14 +1,19 @@
-namespace Kurio.Core.Abstractions;
-
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Abstractions;
+
 /// <summary>
-/// Main interface for the download engine, orchestrating all download operations.
+///     Main interface for the download engine, orchestrating all download operations.
 /// </summary>
 public interface IDownloadEngine
 {
     /// <summary>
-    /// Adds a new download to the queue.
+    ///     Gets an observable stream of download progress updates.
+    /// </summary>
+    IObservable<DownloadProgress> ProgressUpdates { get; }
+
+    /// <summary>
+    ///     Adds a new download to the queue.
     /// </summary>
     /// <param name="url">The URL of the resource to download.</param>
     /// <param name="options">Download configuration options.</param>
@@ -20,7 +25,7 @@ public interface IDownloadEngine
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Starts a queued download.
+    ///     Starts a queued download.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -29,7 +34,7 @@ public interface IDownloadEngine
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pauses an active download.
+    ///     Pauses an active download.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -38,7 +43,7 @@ public interface IDownloadEngine
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resumes a paused download.
+    ///     Resumes a paused download.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -47,7 +52,7 @@ public interface IDownloadEngine
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cancels a download and optionally removes partial files.
+    ///     Cancels a download and optionally removes partial files.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="removePartialFiles">Whether to remove partial download files.</param>
@@ -58,26 +63,21 @@ public interface IDownloadEngine
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a specific download task by its identifier.
+    ///     Gets a specific download task by its identifier.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <returns>The download task, or null if not found.</returns>
     IDownloadTask? GetDownload(Guid taskId);
 
     /// <summary>
-    /// Gets all downloads matching the specified filter.
+    ///     Gets all downloads matching the specified filter.
     /// </summary>
     /// <param name="filter">The state filter to apply.</param>
     /// <returns>A collection of matching download tasks.</returns>
     IEnumerable<IDownloadTask> GetDownloads(DownloadStateFilter filter);
 
     /// <summary>
-    /// Gets an observable stream of download progress updates.
-    /// </summary>
-    IObservable<DownloadProgress> ProgressUpdates { get; }
-
-    /// <summary>
-    /// Changes the priority of a queued download.
+    ///     Changes the priority of a queued download.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="newPriority">The new priority level.</param>
@@ -85,33 +85,33 @@ public interface IDownloadEngine
     bool ChangePriority(Guid taskId, DownloadPriority newPriority);
 
     /// <summary>
-    /// Moves a queued download up in the queue.
+    ///     Moves a queued download up in the queue.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <returns>True if the task was moved; false if not found or not queued.</returns>
     bool MoveUp(Guid taskId);
 
     /// <summary>
-    /// Moves a queued download down in the queue.
+    ///     Moves a queued download down in the queue.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <returns>True if the task was moved; false if not found or not queued.</returns>
     bool MoveDown(Guid taskId);
 
     /// <summary>
-    /// Pauses all active downloads.
+    ///     Pauses all active downloads.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The number of downloads that were paused.</returns>
     Task<int> PauseAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Clears all completed downloads from tracking.
+    ///     Clears all completed downloads from tracking.
     /// </summary>
     void ClearCompleted();
 
     /// <summary>
-    /// Gets the current queue statistics.
+    ///     Gets the current queue statistics.
     /// </summary>
     /// <returns>A tuple with active and queued download counts.</returns>
     (int Active, int Queued) GetQueueStatistics();

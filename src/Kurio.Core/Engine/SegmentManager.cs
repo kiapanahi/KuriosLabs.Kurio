@@ -1,5 +1,3 @@
-namespace Kurio.Core.Engine;
-
 using System.Collections.Concurrent;
 
 using Kurio.Core.Abstractions;
@@ -7,16 +5,18 @@ using Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
+namespace Kurio.Core.Engine;
+
 /// <summary>
-/// Manages download segmentation and parallel downloading.
+///     Manages download segmentation and parallel downloading.
 /// </summary>
 public sealed class SegmentManager : ISegmentManager
 {
-    private readonly IStorageManager _storageManager;
     private readonly ILogger<SegmentManager>? _logger;
+    private readonly IStorageManager _storageManager;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SegmentManager"/> class.
+    ///     Initializes a new instance of the <see cref="SegmentManager" /> class.
     /// </summary>
     /// <param name="storageManager">The storage manager for file operations.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
@@ -66,29 +66,26 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Calculate ideal number of segments
-        var idealSegmentCount = Math.Min(
+        int idealSegmentCount = Math.Min(
             options.MaxConnections,
             (int)(fileSize / options.MinSegmentSize));
 
         // Ensure at least one segment
         idealSegmentCount = Math.Max(1, idealSegmentCount);
 
-        var segmentSize = fileSize / idealSegmentCount;
-        var ranges = new ByteRange[idealSegmentCount];
-        var states = new SegmentState[idealSegmentCount];
+        long segmentSize = fileSize / idealSegmentCount;
+        ByteRange[] ranges = new ByteRange[idealSegmentCount];
+        SegmentState[] states = new SegmentState[idealSegmentCount];
 
-        for (var i = 0; i < idealSegmentCount; i++)
+        for (int i = 0; i < idealSegmentCount; i++)
         {
-            var start = i * segmentSize;
-            var end = (i == idealSegmentCount - 1) ? fileSize - 1 : start + segmentSize - 1;
+            long start = i * segmentSize;
+            long end = i == idealSegmentCount - 1 ? fileSize - 1 : start + segmentSize - 1;
 
             ranges[i] = new ByteRange(start, end);
             states[i] = new SegmentState
             {
-                SegmentIndex = i,
-                StartByte = start,
-                EndByte = end,
-                Status = SegmentStatus.Pending
+                SegmentIndex = i, StartByte = start, EndByte = end, Status = SegmentStatus.Pending
             };
         }
 
@@ -121,23 +118,23 @@ public sealed class SegmentManager : ISegmentManager
         _logger?.LogInformation("Starting parallel download with {SegmentCount} segments", config.SegmentCount);
 
         // Use a semaphore to limit concurrent segment downloads
-        using var semaphore = new SemaphoreSlim(config.SegmentCount, config.SegmentCount);
+        using SemaphoreSlim semaphore = new(config.SegmentCount, config.SegmentCount);
 
         // Track failed segments for retry logic
-        var failedSegments = new ConcurrentBag<int>();
+        ConcurrentBag<int> failedSegments = new();
 
         // Create tasks for all segments
-        var tasks = new List<Task>(config.SegmentCount);
+        List<Task> tasks = new(config.SegmentCount);
 
-        for (var i = 0; i < config.SegmentCount; i++)
+        for (int i = 0; i < config.SegmentCount; i++)
         {
-            var segmentIndex = i;
-            var range = config.Ranges[i];
-            var state = config.States[i];
+            int segmentIndex = i;
+            ByteRange range = config.Ranges[i];
+            SegmentState state = config.States[i];
 
             await semaphore.WaitAsync(cancellationToken);
 
-            var task = Task.Run(async () =>
+            Task task = Task.Run(async () =>
             {
                 try
                 {
@@ -196,11 +193,11 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken = default)
     {
         // Find incomplete segments
-        var incompleteTasks = new List<Task>();
+        List<Task> incompleteTasks = new();
 
-        for (var i = 0; i < segmentStates.Length; i++)
+        for (int i = 0; i < segmentStates.Length; i++)
         {
-            var state = segmentStates[i];
+            SegmentState state = segmentStates[i];
 
             if (state.Status == SegmentStatus.Completed)
             {
@@ -208,8 +205,8 @@ public sealed class SegmentManager : ISegmentManager
             }
 
             // Calculate remaining range for this segment
-            var remainingStart = state.StartByte + state.BytesDownloaded;
-            var remainingRange = new ByteRange(remainingStart, state.EndByte);
+            long remainingStart = state.StartByte + state.BytesDownloaded;
+            ByteRange remainingRange = new(remainingStart, state.EndByte);
 
             // Reset state for retry
             state.Status = SegmentStatus.Downloading;
@@ -224,7 +221,7 @@ public sealed class SegmentManager : ISegmentManager
                 options,
                 progress,
                 cancellationToken,
-                isResume: true));
+                true));
         }
 
         // Wait for all incomplete segments to complete
@@ -232,7 +229,7 @@ public sealed class SegmentManager : ISegmentManager
     }
 
     /// <summary>
-    /// Downloads a segment with automatic retry logic.
+    ///     Downloads a segment with automatic retry logic.
     /// </summary>
     private async Task DownloadSegmentWithRetryAsync(
         IProtocolHandler handler,
@@ -245,7 +242,7 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken,
         int maxRetries = 3)
     {
-        var retryCount = 0;
+        int retryCount = 0;
         Exception? lastException = null;
 
         while (retryCount <= maxRetries)
@@ -278,7 +275,7 @@ public sealed class SegmentManager : ISegmentManager
 
                 if (retryCount <= maxRetries)
                 {
-                    var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
+                    TimeSpan delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
                     _logger?.LogWarning(
                         ex,
                         "Segment {SegmentIndex} failed (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}s...",
@@ -320,12 +317,12 @@ public sealed class SegmentManager : ISegmentManager
             range.Length);
 
         // Create a memory stream to buffer the segment data
-        await using var memoryStream = new MemoryStream((int)range.Length);
+        await using MemoryStream memoryStream = new((int)range.Length);
 
         // Progress tracking for this segment
-        var segmentProgress = new Progress<long>(bytesRead =>
+        Progress<long> segmentProgress = new(bytesRead =>
         {
-            var totalForSegment = isResume ? state.BytesDownloaded + bytesRead : bytesRead;
+            long totalForSegment = isResume ? state.BytesDownloaded + bytesRead : bytesRead;
             state.BytesDownloaded = totalForSegment;
 
             progress?.Report(new SegmentProgress
@@ -347,7 +344,7 @@ public sealed class SegmentManager : ISegmentManager
             cancellationToken);
 
         // Verify downloaded size matches expected
-        var downloadedBytes = memoryStream.Length;
+        long downloadedBytes = memoryStream.Length;
         if (downloadedBytes != range.Length)
         {
             throw new InvalidOperationException(
@@ -355,7 +352,7 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Write the buffered data to the file at the correct offset using StorageManager
-        var buffer = memoryStream.ToArray();
+        byte[] buffer = memoryStream.ToArray();
         await _storageManager.WriteSegmentAsync(
             tempFilePath,
             range.Start,
@@ -383,7 +380,7 @@ public sealed class SegmentManager : ISegmentManager
     }
 
     /// <summary>
-    /// Verifies that all segment boundaries are correct and no gaps exist.
+    ///     Verifies that all segment boundaries are correct and no gaps exist.
     /// </summary>
     private async Task VerifySegmentBoundariesAsync(
         SegmentConfiguration config,
@@ -393,7 +390,7 @@ public sealed class SegmentManager : ISegmentManager
         _logger?.LogInformation("Verifying segment boundaries...");
 
         // Check file size
-        var fileInfo = new FileInfo(tempFilePath);
+        FileInfo fileInfo = new(tempFilePath);
         if (fileInfo.Length != config.FileSize)
         {
             throw new InvalidOperationException(
@@ -401,7 +398,7 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Verify all segments are completed
-        var incompleteSegments = config.States
+        List<int> incompleteSegments = config.States
             .Where(s => s.Status != SegmentStatus.Completed)
             .Select(s => s.SegmentIndex)
             .ToList();
@@ -413,11 +410,11 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Verify segment boundaries don't overlap or have gaps
-        var sortedStates = config.States.OrderBy(s => s.StartByte).ToArray();
-        for (var i = 0; i < sortedStates.Length - 1; i++)
+        SegmentState[] sortedStates = config.States.OrderBy(s => s.StartByte).ToArray();
+        for (int i = 0; i < sortedStates.Length - 1; i++)
         {
-            var current = sortedStates[i];
-            var next = sortedStates[i + 1];
+            SegmentState current = sortedStates[i];
+            SegmentState next = sortedStates[i + 1];
 
             if (current.EndByte + 1 != next.StartByte)
             {

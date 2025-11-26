@@ -1,19 +1,19 @@
-namespace Kurio.Core.Abstractions;
-
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Abstractions;
+
 /// <summary>
-/// Abstraction for protocol-specific download operations.
+///     Abstraction for protocol-specific download operations.
 /// </summary>
 public interface IProtocolHandler
 {
     /// <summary>
-    /// Gets the set of supported protocol schemes (e.g., "http", "https", "ftp").
+    ///     Gets the set of supported protocol schemes (e.g., "http", "https", "ftp").
     /// </summary>
     IReadOnlySet<string> SupportedSchemes { get; }
 
     /// <summary>
-    /// Checks if the server supports range requests (partial downloads).
+    ///     Checks if the server supports range requests (partial downloads).
     /// </summary>
     /// <param name="url">The URL to check.</param>
     /// <param name="options">Download options including headers and authentication.</param>
@@ -25,7 +25,7 @@ public interface IProtocolHandler
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the total file size of the remote resource.
+    ///     Gets the total file size of the remote resource.
     /// </summary>
     /// <param name="url">The URL of the resource.</param>
     /// <param name="options">Download options including headers and authentication.</param>
@@ -37,7 +37,7 @@ public interface IProtocolHandler
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Downloads a specific byte range from the remote resource.
+    ///     Downloads a specific byte range from the remote resource.
     /// </summary>
     /// <param name="url">The URL of the resource.</param>
     /// <param name="range">The byte range to download.</param>
@@ -54,7 +54,7 @@ public interface IProtocolHandler
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets metadata about the remote resource (ETag, Last-Modified, Content-Type, etc.).
+    ///     Gets metadata about the remote resource (ETag, Last-Modified, Content-Type, etc.).
     /// </summary>
     /// <param name="url">The URL of the resource.</param>
     /// <param name="options">Download options including headers and authentication.</param>

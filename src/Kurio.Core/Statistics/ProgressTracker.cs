@@ -8,17 +8,17 @@ using Kurio.Core.Models;
 namespace Kurio.Core.Statistics;
 
 /// <summary>
-/// Provides enhanced progress tracking for downloads with speed and ETA calculations.
+///     Provides enhanced progress tracking for downloads with speed and ETA calculations.
 /// </summary>
 public sealed class ProgressTracker : IProgressTracker, IDisposable
 {
-    private readonly ConcurrentDictionary<Guid, DownloadTrackingState> _trackingStates = new();
     private readonly Subject<EnhancedDownloadProgress> _progressSubject = new();
     private readonly int _speedWindowSize;
+    private readonly ConcurrentDictionary<Guid, DownloadTrackingState> _trackingStates = new();
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ProgressTracker"/> class.
+    ///     Initializes a new instance of the <see cref="ProgressTracker" /> class.
     /// </summary>
     /// <param name="speedWindowSize">The window size for rolling average speed calculation.</param>
     public ProgressTracker(int speedWindowSize = 10)
@@ -27,15 +27,29 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     }
 
     /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _progressSubject.Dispose();
+        _trackingStates.Clear();
+    }
+
+    /// <inheritdoc />
     public IObservable<EnhancedDownloadProgress> AllProgressUpdates => _progressSubject.AsObservable();
 
     /// <inheritdoc />
     public void StartTracking(Guid taskId, long totalBytes)
     {
-        var speedCalculator = new SpeedCalculator(_speedWindowSize);
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new(_speedWindowSize);
+        EtaCalculator etaCalculator = new(speedCalculator);
 
-        var state = new DownloadTrackingState(
+        DownloadTrackingState state = new(
             totalBytes,
             speedCalculator,
             etaCalculator,
@@ -45,27 +59,28 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     }
 
     /// <inheritdoc />
-    public void RecordProgress(Guid taskId, long bytesDownloaded, IReadOnlyList<SegmentProgressInfo>? segmentProgress = null)
+    public void RecordProgress(Guid taskId, long bytesDownloaded,
+        IReadOnlyList<SegmentProgressInfo>? segmentProgress = null)
     {
-        if (!_trackingStates.TryGetValue(taskId, out var state))
+        if (!_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
         {
             return;
         }
 
-        var now = DateTime.UtcNow;
+        DateTime now = DateTime.UtcNow;
         state.SpeedCalculator.RecordSample(bytesDownloaded, now);
         state.BytesDownloaded = bytesDownloaded;
         state.SegmentProgress = segmentProgress ?? [];
         state.ActiveConnections = segmentProgress?.Count(s => s.IsActive) ?? 0;
 
-        var progress = CreateProgress(taskId, state, now);
+        EnhancedDownloadProgress progress = CreateProgress(taskId, state, now);
         _progressSubject.OnNext(progress);
     }
 
     /// <inheritdoc />
     public void Pause(Guid taskId)
     {
-        if (_trackingStates.TryGetValue(taskId, out var state))
+        if (_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
         {
             state.SpeedCalculator.Pause();
         }
@@ -74,7 +89,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     /// <inheritdoc />
     public void Resume(Guid taskId)
     {
-        if (_trackingStates.TryGetValue(taskId, out var state))
+        if (_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
         {
             state.SpeedCalculator.Resume();
         }
@@ -89,7 +104,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     /// <inheritdoc />
     public EnhancedDownloadProgress? GetProgress(Guid taskId)
     {
-        if (!_trackingStates.TryGetValue(taskId, out var state))
+        if (!_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
         {
             return null;
         }
@@ -105,10 +120,10 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
 
     private EnhancedDownloadProgress CreateProgress(Guid taskId, DownloadTrackingState state, DateTime now)
     {
-        var bytesRemaining = state.TotalBytes - state.BytesDownloaded;
-        var totalElapsed = now - state.StartTime;
-        var pausedTime = TimeSpan.FromMilliseconds(state.SpeedCalculator.TotalPausedDurationMs);
-        var activeTime = totalElapsed - pausedTime;
+        long bytesRemaining = state.TotalBytes - state.BytesDownloaded;
+        TimeSpan totalElapsed = now - state.StartTime;
+        TimeSpan pausedTime = TimeSpan.FromMilliseconds(state.SpeedCalculator.TotalPausedDurationMs);
+        TimeSpan activeTime = totalElapsed - pausedTime;
 
         return new EnhancedDownloadProgress
         {
@@ -126,16 +141,6 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
             TotalPausedTime = pausedTime,
             ElapsedActiveTime = activeTime > TimeSpan.Zero ? activeTime : TimeSpan.Zero
         };
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-
-        _progressSubject.Dispose();
-        _trackingStates.Clear();
     }
 
     private sealed class DownloadTrackingState(

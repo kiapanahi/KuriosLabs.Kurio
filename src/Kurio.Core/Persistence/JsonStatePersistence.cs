@@ -9,15 +9,15 @@ using Microsoft.Extensions.Logging;
 namespace Kurio.Core.Persistence;
 
 /// <summary>
-/// Implements state persistence using JSON files.
+///     Implements state persistence using JSON files.
 /// </summary>
 public sealed class JsonStatePersistence : IStatePersistence
 {
-    private readonly ILogger<JsonStatePersistence> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ILogger<JsonStatePersistence> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="JsonStatePersistence"/> class.
+    ///     Initializes a new instance of the <see cref="JsonStatePersistence" /> class.
     /// </summary>
     /// <param name="stateDirectory">The directory where state files are stored.</param>
     /// <param name="logger">Logger instance.</param>
@@ -47,20 +47,20 @@ public sealed class JsonStatePersistence : IStatePersistence
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        var filePath = GetStateFilePath(state.TaskId);
+        string filePath = GetStateFilePath(state.TaskId);
         state.LastUpdateAt = DateTime.UtcNow;
 
         try
         {
             // Write to a temporary file first for atomic operation
-            var tempFilePath = $"{filePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
+            string tempFilePath = $"{filePath}.tmp";
+            await using FileStream fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, state, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();
 
             // Atomic move
-            File.Move(tempFilePath, filePath, overwrite: true);
+            File.Move(tempFilePath, filePath, true);
 
             _logger.LogDebug("Saved state for task {TaskId} to {FilePath}", state.TaskId, filePath);
         }
@@ -74,7 +74,7 @@ public sealed class JsonStatePersistence : IStatePersistence
     /// <inheritdoc />
     public async Task<DownloadTaskState?> LoadStateAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        var filePath = GetStateFilePath(taskId);
+        string filePath = GetStateFilePath(taskId);
 
         if (!File.Exists(filePath))
         {
@@ -84,8 +84,9 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         try
         {
-            await using var fileStream = File.OpenRead(filePath);
-            var state = await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
+            await using FileStream fileStream = File.OpenRead(filePath);
+            DownloadTaskState? state =
+                await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
 
             _logger.LogDebug("Loaded state for task {TaskId} from {FilePath}", taskId, filePath);
             return state;
@@ -97,7 +98,7 @@ public sealed class JsonStatePersistence : IStatePersistence
             // Move corrupted file to backup
             try
             {
-                var backupPath = $"{filePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
+                string backupPath = $"{filePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(filePath, backupPath);
                 _logger.LogWarning("Moved corrupted state file to {BackupPath}", backupPath);
             }
@@ -113,7 +114,7 @@ public sealed class JsonStatePersistence : IStatePersistence
     /// <inheritdoc />
     public async Task DeleteStateAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        var filePath = GetStateFilePath(taskId);
+        string filePath = GetStateFilePath(taskId);
 
         if (!File.Exists(filePath))
         {
@@ -134,21 +135,24 @@ public sealed class JsonStatePersistence : IStatePersistence
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<DownloadTaskState>> LoadAllStatesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DownloadTaskState>> LoadAllStatesAsync(
+        CancellationToken cancellationToken = default)
     {
-        var states = new List<DownloadTaskState>();
+        List<DownloadTaskState> states = new();
 
         try
         {
-            var stateFiles = Directory.GetFiles(StateDirectory, "*.json");
+            string[] stateFiles = Directory.GetFiles(StateDirectory, "*.json");
             _logger.LogInformation("Found {Count} state files in {Directory}", stateFiles.Length, StateDirectory);
 
-            foreach (var filePath in stateFiles)
+            foreach (string filePath in stateFiles)
             {
                 try
                 {
-                    await using var fileStream = File.OpenRead(filePath);
-                    var state = await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
+                    await using FileStream fileStream = File.OpenRead(filePath);
+                    DownloadTaskState? state =
+                        await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions,
+                            cancellationToken);
 
                     if (state != null)
                     {

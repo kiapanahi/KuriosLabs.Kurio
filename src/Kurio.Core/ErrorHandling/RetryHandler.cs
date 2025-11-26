@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Kurio.Core.ErrorHandling;
 
 /// <summary>
-/// Implements retry logic with configurable strategies.
+///     Implements retry logic with configurable strategies.
 /// </summary>
 public sealed class RetryHandler : IRetryHandler
 {
@@ -18,14 +18,14 @@ public sealed class RetryHandler : IRetryHandler
         _logger = logger;
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         RetryPolicy? policy = null,
         CancellationToken cancellationToken = default)
     {
         policy ??= RetryPolicy.Default;
-        var attemptNumber = 0;
+        int attemptNumber = 0;
         Exception? lastException = null;
 
         while (attemptNumber <= policy.MaxRetryAttempts)
@@ -46,7 +46,7 @@ public sealed class RetryHandler : IRetryHandler
                 _logger.LogWarning(ex, "Operation failed on attempt {Attempt}/{MaxAttempts}",
                     attemptNumber, policy.MaxRetryAttempts + 1);
 
-                var delay = CalculateDelay(attemptNumber, policy);
+                TimeSpan delay = CalculateDelay(attemptNumber, policy);
                 _logger.LogDebug("Retrying after {Delay}ms", delay.TotalMilliseconds);
 
                 await Task.Delay(delay, cancellationToken);
@@ -58,7 +58,7 @@ public sealed class RetryHandler : IRetryHandler
         throw lastException!;
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public async Task ExecuteAsync(
         Func<CancellationToken, Task> operation,
         RetryPolicy? policy = null,
@@ -71,10 +71,10 @@ public sealed class RetryHandler : IRetryHandler
         }, policy, cancellationToken);
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public TimeSpan CalculateDelay(int attemptNumber, RetryPolicy policy)
     {
-        var delay = policy.Strategy switch
+        TimeSpan delay = policy.Strategy switch
         {
             RetryStrategy.None => TimeSpan.Zero,
             RetryStrategy.Fixed => policy.InitialDelay,
@@ -94,7 +94,7 @@ public sealed class RetryHandler : IRetryHandler
         // Apply jitter if enabled
         if (policy.UseJitter)
         {
-            var jitter = _random.NextDouble() * 0.3; // +/- 30% jitter
+            double jitter = _random.NextDouble() * 0.3; // +/- 30% jitter
             delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * (1 + jitter - 0.15));
         }
 

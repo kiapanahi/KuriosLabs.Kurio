@@ -1,14 +1,14 @@
 namespace Kurio.Core.Statistics;
 
 /// <summary>
-/// Calculates estimated time remaining for downloads.
+///     Calculates estimated time remaining for downloads.
 /// </summary>
 public sealed class EtaCalculator
 {
     private readonly SpeedCalculator _speedCalculator;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EtaCalculator"/> class.
+    ///     Initializes a new instance of the <see cref="EtaCalculator" /> class.
     /// </summary>
     /// <param name="speedCalculator">The speed calculator to use for speed measurements.</param>
     public EtaCalculator(SpeedCalculator speedCalculator)
@@ -17,7 +17,7 @@ public sealed class EtaCalculator
     }
 
     /// <summary>
-    /// Gets the estimated time remaining based on the current speed.
+    ///     Gets the estimated time remaining based on the current speed.
     /// </summary>
     /// <param name="bytesRemaining">The number of bytes remaining to download.</param>
     /// <returns>The estimated time remaining, or null if it cannot be calculated.</returns>
@@ -28,18 +28,18 @@ public sealed class EtaCalculator
             return TimeSpan.Zero;
         }
 
-        var currentSpeed = _speedCalculator.CurrentSpeed;
+        long currentSpeed = _speedCalculator.CurrentSpeed;
         if (currentSpeed <= 0)
         {
             return null;
         }
 
-        var secondsRemaining = (double)bytesRemaining / currentSpeed;
+        double secondsRemaining = (double)bytesRemaining / currentSpeed;
         return TimeSpan.FromSeconds(secondsRemaining);
     }
 
     /// <summary>
-    /// Gets the estimated time remaining based on the average speed.
+    ///     Gets the estimated time remaining based on the average speed.
     /// </summary>
     /// <param name="bytesRemaining">The number of bytes remaining to download.</param>
     /// <returns>The estimated time remaining, or null if it cannot be calculated.</returns>
@@ -50,19 +50,19 @@ public sealed class EtaCalculator
             return TimeSpan.Zero;
         }
 
-        var averageSpeed = _speedCalculator.AverageSpeed;
+        long averageSpeed = _speedCalculator.AverageSpeed;
         if (averageSpeed <= 0)
         {
             return null;
         }
 
-        var secondsRemaining = (double)bytesRemaining / averageSpeed;
+        double secondsRemaining = (double)bytesRemaining / averageSpeed;
         return TimeSpan.FromSeconds(secondsRemaining);
     }
 
     /// <summary>
-    /// Gets the most accurate ETA estimate, preferring average speed when available.
-    /// Falls back to current speed if average is not yet available.
+    ///     Gets the most accurate ETA estimate, preferring average speed when available.
+    ///     Falls back to current speed if average is not yet available.
     /// </summary>
     /// <param name="bytesRemaining">The number of bytes remaining to download.</param>
     /// <returns>The estimated time remaining, or null if it cannot be calculated.</returns>
@@ -74,7 +74,7 @@ public sealed class EtaCalculator
         }
 
         // Prefer average speed as it's more stable
-        var avgEta = GetEtaFromAverageSpeed(bytesRemaining);
+        TimeSpan? avgEta = GetEtaFromAverageSpeed(bytesRemaining);
         if (avgEta.HasValue)
         {
             return avgEta;

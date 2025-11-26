@@ -1,17 +1,17 @@
-namespace Kurio.Core.Protocols;
-
 using Kurio.Core.Abstractions;
 
+namespace Kurio.Core.Protocols;
+
 /// <summary>
-/// Factory implementation for creating protocol handlers.
+///     Factory implementation for creating protocol handlers.
 /// </summary>
 public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
 {
-    private readonly IReadOnlyCollection<IProtocolHandler> _handlers;
     private readonly Dictionary<string, IProtocolHandler> _handlerCache;
+    private readonly IReadOnlyCollection<IProtocolHandler> _handlers;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ProtocolHandlerFactory"/> class.
+    ///     Initializes a new instance of the <see cref="ProtocolHandlerFactory" /> class.
     /// </summary>
     /// <param name="handlers">Collection of all registered protocol handlers.</param>
     public ProtocolHandlerFactory(IEnumerable<IProtocolHandler> handlers)
@@ -22,9 +22,9 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
         _handlerCache = new Dictionary<string, IProtocolHandler>(StringComparer.OrdinalIgnoreCase);
 
         // Build cache of scheme -> handler mappings
-        foreach (var handler in _handlers)
+        foreach (IProtocolHandler handler in _handlers)
         {
-            foreach (var scheme in handler.SupportedSchemes)
+            foreach (string scheme in handler.SupportedSchemes)
             {
                 if (_handlerCache.ContainsKey(scheme))
                 {
@@ -32,6 +32,7 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
                         $"Multiple handlers registered for scheme '{scheme}'. " +
                         $"Each scheme can only be handled by one protocol handler.");
                 }
+
                 _handlerCache[scheme] = handler;
             }
         }
@@ -47,7 +48,7 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
             throw new ArgumentException("URL must have a valid scheme.", nameof(url));
         }
 
-        if (_handlerCache.TryGetValue(url.Scheme, out var handler))
+        if (_handlerCache.TryGetValue(url.Scheme, out IProtocolHandler? handler))
         {
             return handler;
         }
@@ -67,5 +68,8 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
     }
 
     /// <inheritdoc />
-    public IReadOnlyCollection<IProtocolHandler> GetAllHandlers() => _handlers;
+    public IReadOnlyCollection<IProtocolHandler> GetAllHandlers()
+    {
+        return _handlers;
+    }
 }

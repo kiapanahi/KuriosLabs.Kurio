@@ -1,19 +1,19 @@
-namespace Kurio.Core.Queue;
-
 using System.Collections.Concurrent;
 
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Queue;
+
 /// <summary>
-/// Manages the download queue with priority-based scheduling and concurrent execution limits.
+///     Manages the download queue with priority-based scheduling and concurrent execution limits.
 /// </summary>
 internal sealed class DownloadQueueManager : IDownloadQueueManager
 {
-    private readonly object _lock = new();
-    private readonly List<QueueItem> _queuedItems = [];
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _activeTasks = new();
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _completedTasks = new();
+    private readonly object _lock = new();
+    private readonly List<QueueItem> _queuedItems = [];
     private long _sequenceCounter;
 
     /// <inheritdoc />
@@ -47,11 +47,9 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
                 throw new InvalidOperationException($"Task {task.Id} is already in the queue.");
             }
 
-            var queueItem = new QueueItem
+            QueueItem queueItem = new()
             {
-                Task = task,
-                EnqueuedAt = DateTime.UtcNow,
-                Sequence = Interlocked.Increment(ref _sequenceCounter)
+                Task = task, EnqueuedAt = DateTime.UtcNow, Sequence = Interlocked.Increment(ref _sequenceCounter)
             };
 
             _queuedItems.Add(queueItem);
@@ -64,7 +62,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index >= 0)
             {
                 _queuedItems.RemoveAt(index);
@@ -86,7 +84,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
             }
 
             // Already sorted by priority and sequence
-            var nextItem = _queuedItems[0];
+            QueueItem nextItem = _queuedItems[0];
             _queuedItems.RemoveAt(0);
             return nextItem.Task;
         }
@@ -97,7 +95,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var item = _queuedItems.FirstOrDefault(x => x.Task.Id == taskId);
+            QueueItem? item = _queuedItems.FirstOrDefault(x => x.Task.Id == taskId);
             if (item == null)
             {
                 return false;
@@ -117,15 +115,15 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index <= 0)
             {
                 return false; // Already at top or not found
             }
 
             // Only swap within same priority group
-            var currentPriority = _queuedItems[index].Priority;
-            var previousPriority = _queuedItems[index - 1].Priority;
+            DownloadPriority currentPriority = _queuedItems[index].Priority;
+            DownloadPriority previousPriority = _queuedItems[index - 1].Priority;
 
             if (currentPriority == previousPriority)
             {
@@ -142,15 +140,15 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index < 0 || index >= _queuedItems.Count - 1)
             {
                 return false; // At bottom or not found
             }
 
             // Only swap within same priority group
-            var currentPriority = _queuedItems[index].Priority;
-            var nextPriority = _queuedItems[index + 1].Priority;
+            DownloadPriority currentPriority = _queuedItems[index].Priority;
+            DownloadPriority nextPriority = _queuedItems[index + 1].Priority;
 
             if (currentPriority == nextPriority)
             {
@@ -167,17 +165,17 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index <= 0)
             {
                 return false; // Already at top or not found
             }
 
-            var item = _queuedItems[index];
-            var priority = item.Priority;
+            QueueItem item = _queuedItems[index];
+            DownloadPriority priority = item.Priority;
 
             // Find the first index with the same priority
-            var topIndex = _queuedItems.FindIndex(x => x.Priority == priority);
+            int topIndex = _queuedItems.FindIndex(x => x.Priority == priority);
 
             if (topIndex == index)
             {
@@ -195,17 +193,17 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index < 0)
             {
                 return false; // Not found
             }
 
-            var item = _queuedItems[index];
-            var priority = item.Priority;
+            QueueItem item = _queuedItems[index];
+            DownloadPriority priority = item.Priority;
 
             // Find the last index with the same priority
-            var bottomIndex = _queuedItems.FindLastIndex(x => x.Priority == priority);
+            int bottomIndex = _queuedItems.FindLastIndex(x => x.Priority == priority);
 
             if (bottomIndex == index)
             {
@@ -238,10 +236,10 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     {
         lock (_lock)
         {
-            var index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
+            int index = _queuedItems.FindIndex(x => x.Task.Id == taskId);
             if (index >= 0)
             {
-                var task = _queuedItems[index].Task;
+                IDownloadTask task = _queuedItems[index].Task;
                 _queuedItems.RemoveAt(index);
                 _activeTasks.TryAdd(taskId, task);
             }
@@ -251,7 +249,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     /// <inheritdoc />
     public void MarkAsCompleted(Guid taskId)
     {
-        if (_activeTasks.TryRemove(taskId, out var task))
+        if (_activeTasks.TryRemove(taskId, out IDownloadTask? task))
         {
             _completedTasks.TryAdd(taskId, task);
         }
@@ -284,7 +282,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     /// <inheritdoc />
     public int PauseAll()
     {
-        var count = _activeTasks.Count;
+        int count = _activeTasks.Count;
         _activeTasks.Clear();
         return count;
     }
@@ -299,14 +297,14 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     }
 
     /// <summary>
-    /// Sorts the queue by priority (descending) and sequence (ascending).
+    ///     Sorts the queue by priority (descending) and sequence (ascending).
     /// </summary>
     private void SortQueue()
     {
         _queuedItems.Sort((a, b) =>
         {
             // First sort by priority (higher priority first)
-            var priorityComparison = b.Priority.CompareTo(a.Priority);
+            int priorityComparison = b.Priority.CompareTo(a.Priority);
             if (priorityComparison != 0)
             {
                 return priorityComparison;

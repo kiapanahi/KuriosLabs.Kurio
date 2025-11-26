@@ -1,14 +1,14 @@
-namespace Kurio.Core.Abstractions;
-
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Abstractions;
+
 /// <summary>
-/// Manages file system operations for downloads.
+///     Manages file system operations for downloads.
 /// </summary>
 public interface IStorageManager
 {
     /// <summary>
-    /// Creates a temporary file for storing partial download data.
+    ///     Creates a temporary file for storing partial download data.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="fileName">The target file name.</param>
@@ -22,7 +22,7 @@ public interface IStorageManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Writes data to a specific offset in the file.
+    ///     Writes data to a specific offset in the file.
     /// </summary>
     /// <param name="filePath">The path to the file.</param>
     /// <param name="offset">The byte offset where to write.</param>
@@ -37,7 +37,7 @@ public interface IStorageManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Moves the temporary file to the final destination atomically.
+    ///     Moves the temporary file to the final destination atomically.
     /// </summary>
     /// <param name="tempFilePath">The path to the temporary file.</param>
     /// <param name="destinationDirectory">The destination directory.</param>
@@ -53,7 +53,7 @@ public interface IStorageManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the available disk space at the specified path.
+    ///     Gets the available disk space at the specified path.
     /// </summary>
     /// <param name="path">The path to check.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -63,7 +63,7 @@ public interface IStorageManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleans up all temporary files associated with a task.
+    ///     Cleans up all temporary files associated with a task.
     /// </summary>
     /// <param name="taskId">The unique task identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

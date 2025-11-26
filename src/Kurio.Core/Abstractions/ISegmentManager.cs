@@ -1,14 +1,14 @@
-namespace Kurio.Core.Abstractions;
-
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Abstractions;
+
 /// <summary>
-/// Manages download segmentation and parallel downloading.
+///     Manages download segmentation and parallel downloading.
 /// </summary>
 public interface ISegmentManager
 {
     /// <summary>
-    /// Calculates the optimal segment configuration for a download.
+    ///     Calculates the optimal segment configuration for a download.
     /// </summary>
     /// <param name="fileSize">The total file size in bytes.</param>
     /// <param name="supportsRanges">Whether the server supports range requests.</param>
@@ -20,7 +20,7 @@ public interface ISegmentManager
         SegmentOptions options);
 
     /// <summary>
-    /// Downloads all segments in parallel.
+    ///     Downloads all segments in parallel.
     /// </summary>
     /// <param name="handler">The protocol handler to use for downloading.</param>
     /// <param name="url">The URL of the resource.</param>
@@ -39,7 +39,7 @@ public interface ISegmentManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resumes downloading incomplete segments.
+    ///     Resumes downloading incomplete segments.
     /// </summary>
     /// <param name="handler">The protocol handler to use for downloading.</param>
     /// <param name="url">The URL of the resource.</param>

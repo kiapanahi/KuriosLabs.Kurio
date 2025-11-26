@@ -1,18 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <RootNamespace>$(RootNamespace).Core</RootNamespace>
-    </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>$(RootNamespace).Core</RootNamespace>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <InternalsVisibleTo Include="Kurio.Core.Tests"/>
-    </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurio.Core.Tests"/>
+  </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
-        <PackageReference Include="Microsoft.Extensions.Http"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
-        <PackageReference Include="System.Reactive"/>
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
+    <PackageReference Include="Microsoft.Extensions.Http"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+    <PackageReference Include="System.Reactive"/>
+  </ItemGroup>
 
 </Project>

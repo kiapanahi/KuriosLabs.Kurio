@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Kurio.Core.ErrorHandling;
 
 /// <summary>
-/// Factory for creating and managing circuit breakers per host.
+///     Factory for creating and managing circuit breakers per host.
 /// </summary>
 public sealed class CircuitBreakerFactory
 {
@@ -23,7 +23,7 @@ public sealed class CircuitBreakerFactory
     }
 
     /// <summary>
-    /// Gets or creates a circuit breaker for the specified host.
+    ///     Gets or creates a circuit breaker for the specified host.
     /// </summary>
     /// <param name="host">The host name.</param>
     /// <returns>A circuit breaker instance for the host.</returns>
@@ -31,24 +31,24 @@ public sealed class CircuitBreakerFactory
     {
         return _circuitBreakers.GetOrAdd(host, _ =>
         {
-            var logger = _loggerFactory.CreateLogger<CircuitBreaker>();
+            ILogger<CircuitBreaker> logger = _loggerFactory.CreateLogger<CircuitBreaker>();
             return new CircuitBreaker(_defaultPolicy, logger);
         });
     }
 
     /// <summary>
-    /// Resets all circuit breakers.
+    ///     Resets all circuit breakers.
     /// </summary>
     public void ResetAll()
     {
-        foreach (var breaker in _circuitBreakers.Values)
+        foreach (ICircuitBreaker breaker in _circuitBreakers.Values)
         {
             breaker.Reset();
         }
     }
 
     /// <summary>
-    /// Removes the circuit breaker for a specific host.
+    ///     Removes the circuit breaker for a specific host.
     /// </summary>
     /// <param name="host">The host name.</param>
     public void Remove(string host)

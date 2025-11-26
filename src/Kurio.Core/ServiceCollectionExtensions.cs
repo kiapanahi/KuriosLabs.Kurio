@@ -35,7 +35,18 @@ public static class ServiceCollectionExtensions
     {
             // Register storage manager as singleton with configured directories
             services.AddSingleton<IStorageManager>(sp =>
-                new StorageManager(tempDirectory, stateDirectory));
+            {
+                // Configure default storage options - can be overridden via configuration
+                var storageOptions = new StorageOptions
+                {
+                    Mode = StorageMode.SingleFile,
+                    VerifyWrites = false, // Disabled by default for performance
+                    WriteBufferSize = 81920, // 80KB
+                    CleanupSegmentFiles = true
+                };
+                
+                return new StorageManager(tempDirectory, stateDirectory, pathProvider: null, options: storageOptions);
+            });
 
             // Register state persistence
             services.AddSingleton<IStatePersistence>(sp =>
@@ -44,14 +55,19 @@ public static class ServiceCollectionExtensions
                 return new JsonStatePersistence(stateDirectory, logger);
             });
 
+            // Register segment verifier for checksum operations
+            services.AddSingleton<ISegmentVerifier, SegmentVerifier>();
+
             // Register segment manager
             services.AddTransient<ISegmentManager, SegmentManager>();
 
             // Register checksum verifier
             services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
 
+            // Register resilience services (Polly-based)
+            services.AddSingleton<Resilience.ResiliencePolicyFactory>();
+            
             // Register error handling services
-            services.AddSingleton<IRetryHandler, RetryHandler>();
             services.AddSingleton<IErrorClassifier, ErrorClassifier>();
             services.AddSingleton<CircuitBreakerFactory>(sp =>
             {
@@ -121,9 +137,6 @@ public static class ServiceCollectionExtensions
                     maxConcurrentDownloads);
             });
 
-            return services;
-        }
-
         return services;
     }
 
@@ -151,11 +164,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string? configFilePath = null)
     {
-        services.AddSingleton<Configuration.IPlatformPathProvider, Configuration.PlatformPathProvider>();
+        services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
         
         services.AddSingleton<Configuration.IConfigurationService>(sp =>
         {
-            var pathProvider = sp.GetRequiredService<Configuration.IPlatformPathProvider>();
+            var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
             var logger = sp.GetRequiredService<ILogger<Configuration.ConfigurationService>>();
             
             var defaultPath = Path.Combine(

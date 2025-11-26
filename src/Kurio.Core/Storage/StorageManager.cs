@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 
@@ -11,6 +13,8 @@ public sealed class StorageManager : IStorageManager
     private readonly string _stateDirectory;
     private readonly string _tempDirectory;
     private readonly IPlatformPathProvider _pathProvider;
+    private readonly StorageOptions _options;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new();
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="StorageManager" /> class.
@@ -18,14 +22,17 @@ public sealed class StorageManager : IStorageManager
     /// <param name="tempDirectory">The directory for temporary download files.</param>
     /// <param name="stateDirectory">The directory for state files.</param>
     /// <param name="pathProvider">Platform path provider (optional).</param>
+    /// <param name="options">Storage options (optional).</param>
     public StorageManager(
         string tempDirectory, 
         string stateDirectory,
-        IPlatformPathProvider? pathProvider = null)
+        IPlatformPathProvider? pathProvider = null,
+        StorageOptions? options = null)
     {
         _tempDirectory = tempDirectory ?? throw new ArgumentNullException(nameof(tempDirectory));
         _stateDirectory = stateDirectory ?? throw new ArgumentNullException(nameof(stateDirectory));
         _pathProvider = pathProvider ?? new PlatformPathProvider();
+        _options = options ?? StorageOptions.Default;
 
         // Expand paths
         _tempDirectory = _pathProvider.ExpandPath(_tempDirectory);
@@ -75,18 +82,42 @@ public sealed class StorageManager : IStorageManager
         int count,
         CancellationToken cancellationToken = default)
     {
-        // Use FileStream with FileShare.Write to allow multiple segments to write concurrently
-        await using FileStream fileStream = new(
-            filePath,
-            FileMode.Open,
-            FileAccess.Write,
-            FileShare.Write,
-            4096,
-            true);
+        // Get or create lock for this file
+        var fileLock = _fileLocks.GetOrAdd(filePath, _ => new SemaphoreSlim(1, 1));
 
-        fileStream.Seek(offset, SeekOrigin.Begin);
-        await fileStream.WriteAsync(data.AsMemory(0, count), cancellationToken);
-        await fileStream.FlushAsync(cancellationToken);
+        // Acquire exclusive lock for write operation
+        await fileLock.WaitAsync(cancellationToken);
+        try
+        {
+            await using FileStream fileStream = new(
+                filePath,
+                FileMode.Open,
+                FileAccess.Write,
+                FileShare.None,  // Exclusive access during write
+                _options.WriteBufferSize,
+                FileOptions.WriteThrough | FileOptions.Asynchronous);
+
+            fileStream.Seek(offset, SeekOrigin.Begin);
+            await fileStream.WriteAsync(data.AsMemory(0, count), cancellationToken);
+            await fileStream.FlushAsync(cancellationToken);
+
+            // Optional: Verify write succeeded
+            if (_options.VerifyWrites)
+            {
+                fileStream.Seek(offset, SeekOrigin.Begin);
+                byte[] verifyBuffer = new byte[Math.Min(4096, count)];
+                int bytesRead = await fileStream.ReadAsync(verifyBuffer.AsMemory(), cancellationToken);
+
+                if (!data.AsSpan(0, bytesRead).SequenceEqual(verifyBuffer.AsSpan(0, bytesRead)))
+                {
+                    throw new IOException($"Write verification failed at offset {offset}");
+                }
+            }
+        }
+        finally
+        {
+            fileLock.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -252,5 +283,140 @@ public sealed class StorageManager : IStorageManager
 
         var sanitizedCategory = SanitizeFileName(category);
         return Path.Combine(baseDirectory, sanitizedCategory);
+    }
+
+    /// <inheritdoc />
+    public async Task<string> CreateSegmentFileAsync(
+        Guid taskId,
+        int segmentIndex,
+        long segmentSize,
+        CancellationToken cancellationToken = default)
+    {
+        string taskDirectory = Path.Combine(_tempDirectory, taskId.ToString());
+        Directory.CreateDirectory(taskDirectory);
+
+        string segmentFilePath = Path.Combine(taskDirectory, $"segment_{segmentIndex:D4}.part");
+
+        await using var fileStream = new FileStream(
+            segmentFilePath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            4096,
+            FileOptions.Asynchronous);
+
+        // Pre-allocate space for the segment
+        if (segmentSize > 0)
+        {
+            fileStream.SetLength(segmentSize);
+        }
+
+        return segmentFilePath;
+    }
+
+    /// <inheritdoc />
+    public async Task MergeSegmentFilesAsync(
+        Guid taskId,
+        string finalPath,
+        int segmentCount,
+        CancellationToken cancellationToken = default)
+    {
+        string taskDirectory = Path.Combine(_tempDirectory, taskId.ToString());
+
+        // Ensure the parent directory of finalPath exists
+        string? finalDirectory = Path.GetDirectoryName(finalPath);
+        if (!string.IsNullOrEmpty(finalDirectory))
+        {
+            Directory.CreateDirectory(finalDirectory);
+        }
+
+        await using var outputStream = new FileStream(
+            finalPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 1048576, // 1MB buffer for fast merge
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        for (int i = 0; i < segmentCount; i++)
+        {
+            string segmentPath = Path.Combine(taskDirectory, $"segment_{i:D4}.part");
+
+            if (!File.Exists(segmentPath))
+            {
+                throw new FileNotFoundException($"Segment file not found: {segmentPath}");
+            }
+
+            await using var inputStream = new FileStream(
+                segmentPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 1048576,
+                options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            await inputStream.CopyToAsync(outputStream, cancellationToken);
+        }
+
+        await outputStream.FlushAsync(cancellationToken);
+
+        // Cleanup segment files if configured
+        if (_options.CleanupSegmentFiles)
+        {
+            for (int i = 0; i < segmentCount; i++)
+            {
+                string segmentPath = Path.Combine(taskDirectory, $"segment_{i:D4}.part");
+                try
+                {
+                    if (File.Exists(segmentPath))
+                    {
+                        File.Delete(segmentPath);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> VerifyWriteAsync(
+        string filePath,
+        long offset,
+        byte[] expectedData,
+        int count,
+        CancellationToken cancellationToken = default)
+    {
+        await using var fileStream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 81920,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        fileStream.Seek(offset, SeekOrigin.Begin);
+
+        byte[] buffer = new byte[count];
+        int totalRead = 0;
+
+        while (totalRead < count)
+        {
+            int read = await fileStream.ReadAsync(
+                buffer.AsMemory(totalRead, count - totalRead),
+                cancellationToken);
+
+            if (read == 0)
+            {
+                // Unexpected end of file
+                return false;
+            }
+
+            totalRead += read;
+        }
+
+        return expectedData.AsSpan(0, count).SequenceEqual(buffer.AsSpan(0, count));
     }
 }

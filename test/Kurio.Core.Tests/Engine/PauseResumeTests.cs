@@ -29,6 +29,7 @@ public sealed class PauseResumeTests : IDisposable
     private readonly Mock<IProtocolHandler> _mockProtocolHandler;
     private readonly Mock<IStorageManager> _mockStorageManager;
     private readonly Mock<IStatePersistence> _mockStatePersistence;
+    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
     private readonly ISegmentManager _segmentManager;
 
     public PauseResumeTests()
@@ -39,8 +40,10 @@ public sealed class PauseResumeTests : IDisposable
         _mockProtocolHandler = new Mock<IProtocolHandler>();
         _mockStorageManager = new Mock<IStorageManager>();
         _mockStatePersistence = new Mock<IStatePersistence>();
+        _mockSegmentVerifier = new Mock<ISegmentVerifier>();
         _segmentManager = new SegmentManager(
             _mockStorageManager.Object,
+            _mockSegmentVerifier.Object,
             NullLogger<SegmentManager>.Instance);
 
         Directory.CreateDirectory(_testTempDirectory);

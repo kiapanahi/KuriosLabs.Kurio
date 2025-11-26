@@ -46,6 +46,11 @@ public sealed class SegmentState
     public int RetryCount { get; set; }
 
     /// <summary>
+    ///     Gets or sets the checksum information for this segment.
+    /// </summary>
+    public SegmentChecksum? Checksum { get; set; }
+
+    /// <summary>
     ///     Gets the total size of this segment in bytes.
     /// </summary>
     public long TotalSize => EndByte - StartByte + 1;
@@ -54,4 +59,9 @@ public sealed class SegmentState
     ///     Gets whether this segment is complete.
     /// </summary>
     public bool IsComplete => BytesDownloaded >= TotalSize;
+
+    /// <summary>
+    ///     Gets whether this segment has a verified checksum.
+    /// </summary>
+    public bool HasVerifiedChecksum => Checksum?.IsVerified == true;
 }

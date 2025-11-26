@@ -1,6 +1,8 @@
 using Kurio.Core.ErrorHandling;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit;
 
 namespace Kurio.Core.Tests.ErrorHandling;

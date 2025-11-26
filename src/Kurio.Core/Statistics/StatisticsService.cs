@@ -1,31 +1,33 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.Statistics;
 
 /// <summary>
-/// Provides download statistics calculation and persistence.
+///     Provides download statistics calculation and persistence.
 /// </summary>
 public sealed class StatisticsService : IStatisticsService
 {
-    private readonly IDownloadHistoryRepository _historyRepository;
-    private readonly ILogger<StatisticsService> _logger;
-    private readonly string _statisticsFilePath;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
-    private DownloadStatistics? _statistics;
+    private readonly IDownloadHistoryRepository _historyRepository;
+    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ILogger<StatisticsService> _logger;
     private readonly DateTime _sessionStartTime;
+    private readonly string _statisticsFilePath;
 
     // Session counters (in-memory only)
     private long _sessionBytesDownloaded;
     private int _sessionCompletedDownloads;
     private int _sessionFailedDownloads;
+    private DownloadStatistics? _statistics;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StatisticsService"/> class.
+    ///     Initializes a new instance of the <see cref="StatisticsService" /> class.
     /// </summary>
     /// <param name="statisticsDirectory">The directory where statistics are stored.</param>
     /// <param name="historyRepository">The download history repository.</param>
@@ -77,7 +79,8 @@ public sealed class StatisticsService : IStatisticsService
     }
 
     /// <inheritdoc />
-    public async Task RecordCompletedDownloadAsync(DownloadHistoryEntry entry, CancellationToken cancellationToken = default)
+    public async Task RecordCompletedDownloadAsync(DownloadHistoryEntry entry,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -130,7 +133,8 @@ public sealed class StatisticsService : IStatisticsService
     }
 
     /// <inheritdoc />
-    public async Task RecordFailedDownloadAsync(DownloadHistoryEntry entry, CancellationToken cancellationToken = default)
+    public async Task RecordFailedDownloadAsync(DownloadHistoryEntry entry,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -177,7 +181,7 @@ public sealed class StatisticsService : IStatisticsService
     /// <inheritdoc />
     public async Task<IDictionary<string, object>> ExportStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        var stats = await GetStatisticsAsync(cancellationToken);
+        DownloadStatistics stats = await GetStatisticsAsync(cancellationToken);
 
         return new Dictionary<string, object>
         {
@@ -206,20 +210,17 @@ public sealed class StatisticsService : IStatisticsService
 
         if (!File.Exists(_statisticsFilePath))
         {
-            _statistics = new DownloadStatistics
-            {
-                CreatedAt = DateTime.UtcNow,
-                SessionStartedAt = _sessionStartTime
-            };
+            _statistics = new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
             return;
         }
 
         try
         {
-            await using var fileStream = File.OpenRead(_statisticsFilePath);
+            await using FileStream fileStream = File.OpenRead(_statisticsFilePath);
             _statistics = await JsonSerializer.DeserializeAsync<DownloadStatistics>(
                 fileStream, _jsonOptions, cancellationToken);
-            _statistics ??= new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
+            _statistics ??=
+                new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
             _logger.LogDebug("Loaded statistics from {Path}", _statisticsFilePath);
         }
         catch (Exception ex)
@@ -231,17 +232,20 @@ public sealed class StatisticsService : IStatisticsService
 
     private async Task SaveStatisticsAsync(CancellationToken cancellationToken)
     {
-        if (_statistics == null) return;
+        if (_statistics == null)
+        {
+            return;
+        }
 
         try
         {
-            var tempFilePath = $"{_statisticsFilePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
+            string tempFilePath = $"{_statisticsFilePath}.tmp";
+            await using FileStream fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();
 
-            File.Move(tempFilePath, _statisticsFilePath, overwrite: true);
+            File.Move(tempFilePath, _statisticsFilePath, true);
         }
         catch (Exception ex)
         {
@@ -252,28 +256,35 @@ public sealed class StatisticsService : IStatisticsService
 
     private void UpdateFileTypeCounts(string fileExtension)
     {
-        if (string.IsNullOrEmpty(fileExtension)) return;
+        if (string.IsNullOrEmpty(fileExtension))
+        {
+            return;
+        }
 
-        var counts = new Dictionary<string, int>(_statistics!.FileTypeCounts);
-        counts.TryGetValue(fileExtension, out var count);
+        Dictionary<string, int> counts = new(_statistics!.FileTypeCounts);
+        counts.TryGetValue(fileExtension, out int count);
         counts[fileExtension] = count + 1;
         _statistics.FileTypeCounts = counts;
     }
 
     private void UpdateDownloadsByHour(int hour)
     {
-        var hourCounts = new Dictionary<int, int>(_statistics!.DownloadsByHour);
-        hourCounts.TryGetValue(hour, out var count);
+        Dictionary<int, int> hourCounts = new(_statistics!.DownloadsByHour);
+        hourCounts.TryGetValue(hour, out int count);
         hourCounts[hour] = count + 1;
         _statistics.DownloadsByHour = hourCounts;
     }
 
     private async Task RecalculateAverageSpeedAsync(CancellationToken cancellationToken)
     {
-        var completedDownloads = await _historyRepository.GetCompletedAsync(cancellationToken);
-        if (completedDownloads.Count == 0) return;
+        IReadOnlyList<DownloadHistoryEntry> completedDownloads =
+            await _historyRepository.GetCompletedAsync(cancellationToken);
+        if (completedDownloads.Count == 0)
+        {
+            return;
+        }
 
-        var totalSpeed = completedDownloads.Sum(d => d.AverageSpeed);
+        long totalSpeed = completedDownloads.Sum(d => d.AverageSpeed);
         _statistics!.AverageDownloadSpeed = totalSpeed / completedDownloads.Count;
     }
 

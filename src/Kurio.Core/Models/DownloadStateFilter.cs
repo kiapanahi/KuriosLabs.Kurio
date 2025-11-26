@@ -1,63 +1,63 @@
 namespace Kurio.Core.Models;
 
 /// <summary>
-/// Filter for querying downloads by state.
+///     Filter for querying downloads by state.
 /// </summary>
 [Flags]
 public enum DownloadStateFilter
 {
     /// <summary>
-    /// No filter (matches none).
+    ///     No filter (matches none).
     /// </summary>
     None = 0,
 
     /// <summary>
-    /// Include created downloads.
+    ///     Include created downloads.
     /// </summary>
     Created = 1 << 0,
 
     /// <summary>
-    /// Include queued downloads.
+    ///     Include queued downloads.
     /// </summary>
     Queued = 1 << 1,
 
     /// <summary>
-    /// Include analyzing downloads.
+    ///     Include analyzing downloads.
     /// </summary>
     Analyzing = 1 << 2,
 
     /// <summary>
-    /// Include downloading downloads.
+    ///     Include downloading downloads.
     /// </summary>
     Downloading = 1 << 3,
 
     /// <summary>
-    /// Include paused downloads.
+    ///     Include paused downloads.
     /// </summary>
     Paused = 1 << 4,
 
     /// <summary>
-    /// Include completed downloads.
+    ///     Include completed downloads.
     /// </summary>
     Completed = 1 << 5,
 
     /// <summary>
-    /// Include failed downloads.
+    ///     Include failed downloads.
     /// </summary>
     Failed = 1 << 6,
 
     /// <summary>
-    /// Include cancelled downloads.
+    ///     Include cancelled downloads.
     /// </summary>
     Cancelled = 1 << 7,
 
     /// <summary>
-    /// Include all active downloads (Queued | Analyzing | Downloading).
+    ///     Include all active downloads (Queued | Analyzing | Downloading).
     /// </summary>
     Active = Queued | Analyzing | Downloading,
 
     /// <summary>
-    /// Include all downloads.
+    ///     Include all downloads.
     /// </summary>
     All = Created | Queued | Analyzing | Downloading | Paused | Completed | Failed | Cancelled
 }

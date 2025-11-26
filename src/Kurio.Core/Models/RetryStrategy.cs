@@ -1,27 +1,27 @@
 namespace Kurio.Core.Models;
 
 /// <summary>
-/// Defines the retry strategy for handling transient failures.
+///     Defines the retry strategy for handling transient failures.
 /// </summary>
 public enum RetryStrategy
 {
     /// <summary>
-    /// No retry attempts.
+    ///     No retry attempts.
     /// </summary>
     None,
 
     /// <summary>
-    /// Exponential backoff with jitter.
+    ///     Exponential backoff with jitter.
     /// </summary>
     ExponentialBackoff,
 
     /// <summary>
-    /// Linear delay between retries.
+    ///     Linear delay between retries.
     /// </summary>
     Linear,
 
     /// <summary>
-    /// Fixed delay between retries.
+    ///     Fixed delay between retries.
     /// </summary>
     Fixed
 }

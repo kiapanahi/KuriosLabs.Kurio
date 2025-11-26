@@ -1,22 +1,24 @@
 using System.Collections.Concurrent;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.ErrorHandling;
 
 /// <summary>
-/// Implements the circuit breaker pattern to prevent cascading failures.
+///     Implements the circuit breaker pattern to prevent cascading failures.
 /// </summary>
 public sealed class CircuitBreaker : ICircuitBreaker
 {
-    private readonly CircuitBreakerPolicy _policy;
-    private readonly ILogger<CircuitBreaker> _logger;
     private readonly ConcurrentQueue<DateTime> _failureTimestamps = new();
+    private readonly ILogger<CircuitBreaker> _logger;
+    private readonly CircuitBreakerPolicy _policy;
     private readonly object _stateLock = new();
+    private DateTime _openedAt;
 
     private CircuitBreakerState _state = CircuitBreakerState.Closed;
-    private DateTime _openedAt;
     private int _successCount;
 
     public CircuitBreaker(CircuitBreakerPolicy policy, ILogger<CircuitBreaker> logger)
@@ -25,7 +27,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         _logger = logger;
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public CircuitBreakerState State
     {
         get
@@ -38,7 +40,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken = default)
@@ -47,10 +49,10 @@ public sealed class CircuitBreaker : ICircuitBreaker
 
         try
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(_policy.Timeout);
 
-            var result = await operation(cts.Token);
+            T result = await operation(cts.Token);
             RecordSuccess();
             return result;
         }
@@ -62,7 +64,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public async Task ExecuteAsync(
         Func<CancellationToken, Task> operation,
         CancellationToken cancellationToken = default)
@@ -74,7 +76,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         }, cancellationToken);
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public void RecordSuccess()
     {
         lock (_stateLock)
@@ -101,7 +103,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public void RecordFailure()
     {
         lock (_stateLock)
@@ -109,7 +111,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
             _failureTimestamps.Enqueue(DateTime.UtcNow);
             CleanupOldFailures();
 
-            var recentFailures = _failureTimestamps.Count;
+            int recentFailures = _failureTimestamps.Count;
             _logger.LogDebug("Circuit breaker failure count: {FailureCount}/{Threshold}",
                 recentFailures, _policy.FailureThreshold);
 
@@ -127,7 +129,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public void Reset()
     {
         lock (_stateLock)
@@ -143,7 +145,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
     {
         if (_state == CircuitBreakerState.Open)
         {
-            var elapsed = DateTime.UtcNow - _openedAt;
+            TimeSpan elapsed = DateTime.UtcNow - _openedAt;
             if (elapsed >= _policy.OpenDuration)
             {
                 TransitionTo(CircuitBreakerState.HalfOpen);
@@ -161,8 +163,8 @@ public sealed class CircuitBreaker : ICircuitBreaker
 
             if (_state == CircuitBreakerState.Open)
             {
-                var elapsed = DateTime.UtcNow - _openedAt;
-                var remaining = _policy.OpenDuration - elapsed;
+                TimeSpan elapsed = DateTime.UtcNow - _openedAt;
+                TimeSpan remaining = _policy.OpenDuration - elapsed;
                 throw new InvalidOperationException(
                     $"Circuit breaker is open. Retry in {remaining.TotalSeconds:F0} seconds.");
             }
@@ -171,7 +173,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
 
     private void TransitionTo(CircuitBreakerState newState)
     {
-        var oldState = _state;
+        CircuitBreakerState oldState = _state;
         _state = newState;
 
         if (newState == CircuitBreakerState.Open)
@@ -185,9 +187,9 @@ public sealed class CircuitBreaker : ICircuitBreaker
 
     private void CleanupOldFailures()
     {
-        var cutoff = DateTime.UtcNow - _policy.FailureWindow;
+        DateTime cutoff = DateTime.UtcNow - _policy.FailureWindow;
 
-        while (_failureTimestamps.TryPeek(out var timestamp) && timestamp < cutoff)
+        while (_failureTimestamps.TryPeek(out DateTime timestamp) && timestamp < cutoff)
         {
             _failureTimestamps.TryDequeue(out _);
         }

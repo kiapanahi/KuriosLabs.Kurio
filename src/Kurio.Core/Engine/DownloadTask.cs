@@ -1,14 +1,30 @@
-namespace Kurio.Core.Engine;
-
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 
+namespace Kurio.Core.Engine;
+
 /// <summary>
-/// Concrete implementation of a download task.
+///     Concrete implementation of a download task.
 /// </summary>
 internal sealed class DownloadTask : IDownloadTask
 {
     private DownloadPriority _priority;
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="DownloadTask" /> class.
+    /// </summary>
+    public DownloadTask(Uri url, DownloadOptions options)
+    {
+        Id = Guid.NewGuid();
+        Url = url ?? throw new ArgumentNullException(nameof(url));
+        Options = options ?? throw new ArgumentNullException(nameof(options));
+        FileName = options.FileName ?? Path.GetFileName(url.LocalPath);
+        State = DownloadState.Created;
+        _priority = DownloadPriority.Normal;
+        Progress = new DownloadProgress();
+        Metadata = new ResourceMetadata();
+        CreatedAt = DateTime.UtcNow;
+    }
 
     /// <inheritdoc />
     public Guid Id { get; set; }
@@ -64,28 +80,12 @@ internal sealed class DownloadTask : IDownloadTask
     public int RetryCount { get; set; }
 
     /// <summary>
-    /// Gets or sets the checksum verification result.
+    ///     Gets or sets the checksum verification result.
     /// </summary>
     public ChecksumResult? ChecksumResult { get; set; }
 
     /// <summary>
-    /// Event raised when the priority changes.
+    ///     Event raised when the priority changes.
     /// </summary>
     public event EventHandler<DownloadPriority>? PriorityChanged;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DownloadTask"/> class.
-    /// </summary>
-    public DownloadTask(Uri url, DownloadOptions options)
-    {
-        Id = Guid.NewGuid();
-        Url = url ?? throw new ArgumentNullException(nameof(url));
-        Options = options ?? throw new ArgumentNullException(nameof(options));
-        FileName = options.FileName ?? Path.GetFileName(url.LocalPath);
-        State = DownloadState.Created;
-        _priority = DownloadPriority.Normal;
-        Progress = new DownloadProgress();
-        Metadata = new ResourceMetadata();
-        CreatedAt = DateTime.UtcNow;
-    }
 }

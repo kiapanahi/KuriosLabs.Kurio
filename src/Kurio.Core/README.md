@@ -1,6 +1,7 @@
 # Kurio.Core
 
-Core download engine library for Kurio download manager, providing robust multithreaded download capabilities with pause/resume support.
+Core download engine library for Kurio download manager, providing robust multithreaded download capabilities with
+pause/resume support.
 
 ## Features
 
@@ -288,6 +289,7 @@ Console.WriteLine($"Using handler for: {string.Join(", ", handler.SupportedSchem
 #### HttpProtocolHandler
 
 Supports `http` and `https` schemes with:
+
 - Range request support detection
 - Automatic decompression (gzip, deflate)
 - Custom headers and authentication

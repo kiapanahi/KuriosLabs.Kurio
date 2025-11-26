@@ -1,6 +1,7 @@
 namespace Kurio.Core.Tests.Models;
 
 using Kurio.Core.Models;
+
 using Xunit;
 
 public class DownloadStateFilterTests

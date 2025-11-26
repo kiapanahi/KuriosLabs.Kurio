@@ -6,13 +6,18 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Moq;
-using Moq.Protected;
-using Xunit;
+
 using Kurio.Core.Models;
 using Kurio.Core.Protocols;
+
+using Microsoft.Extensions.Logging;
+
+using Moq;
+using Moq.Protected;
+
+using Xunit;
 
 public sealed class HttpProtocolHandlerTests
 {

@@ -7,12 +7,16 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
 using Kurio.Core.Persistence;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Moq;
+
 using Xunit;
 
 /// <summary>

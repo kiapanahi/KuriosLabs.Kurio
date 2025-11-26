@@ -1,9 +1,12 @@
 namespace Kurio.Core.Tests.Statistics;
 
 using FluentAssertions;
+
 using Kurio.Core.Models;
 using Kurio.Core.Statistics;
+
 using Microsoft.Extensions.Logging;
+
 using Moq;
 
 public class JsonDownloadHistoryRepositoryTests

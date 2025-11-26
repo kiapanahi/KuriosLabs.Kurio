@@ -1,6 +1,8 @@
 using System.Text;
+
 using Kurio.Core.Models;
 using Kurio.Core.Verification;
+
 using Xunit;
 
 namespace Kurio.Core.Tests.Verification;

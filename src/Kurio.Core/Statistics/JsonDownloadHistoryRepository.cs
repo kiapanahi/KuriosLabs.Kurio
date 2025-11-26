@@ -1,25 +1,27 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.Statistics;
 
 /// <summary>
-/// Implements download history storage using JSON files.
+///     Implements download history storage using JSON files.
 /// </summary>
 public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
 {
-    private readonly string _historyFilePath;
-    private readonly ILogger<JsonDownloadHistoryRepository> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
+    private readonly string _historyFilePath;
+    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ILogger<JsonDownloadHistoryRepository> _logger;
     private List<DownloadHistoryEntry> _entries = [];
     private bool _isLoaded;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="JsonDownloadHistoryRepository"/> class.
+    ///     Initializes a new instance of the <see cref="JsonDownloadHistoryRepository" /> class.
     /// </summary>
     /// <param name="historyDirectory">The directory where history files are stored.</param>
     /// <param name="logger">Logger instance.</param>
@@ -112,7 +114,8 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<DownloadHistoryEntry>> GetCompletedAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DownloadHistoryEntry>> GetCompletedAsync(
+        CancellationToken cancellationToken = default)
     {
         await _fileLock.WaitAsync(cancellationToken);
         try
@@ -161,10 +164,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            var term = searchTerm.ToLowerInvariant();
+            string term = searchTerm.ToLowerInvariant();
             return _entries
                 .Where(e => e.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                           e.Url.Contains(term, StringComparison.OrdinalIgnoreCase))
+                            e.Url.Contains(term, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(e => e.CompletedAt ?? e.CreatedAt)
                 .ToList();
         }
@@ -175,22 +178,24 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     }
 
     /// <inheritdoc />
-    public async Task<int> CleanupOldEntriesAsync(TimeSpan retentionPeriod, CancellationToken cancellationToken = default)
+    public async Task<int> CleanupOldEntriesAsync(TimeSpan retentionPeriod,
+        CancellationToken cancellationToken = default)
     {
-        var cutoff = DateTime.UtcNow - retentionPeriod;
+        DateTime cutoff = DateTime.UtcNow - retentionPeriod;
 
         await _fileLock.WaitAsync(cancellationToken);
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            var originalCount = _entries.Count;
+            int originalCount = _entries.Count;
             _entries = _entries.Where(e => (e.CompletedAt ?? e.CreatedAt) >= cutoff).ToList();
-            var deletedCount = originalCount - _entries.Count;
+            int deletedCount = originalCount - _entries.Count;
 
             if (deletedCount > 0)
             {
                 await SaveAsync(cancellationToken);
-                _logger.LogInformation("Cleaned up {Count} old history entries older than {Cutoff}", deletedCount, cutoff);
+                _logger.LogInformation("Cleaned up {Count} old history entries older than {Cutoff}", deletedCount,
+                    cutoff);
             }
 
             return deletedCount;
@@ -208,7 +213,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            var entry = _entries.Find(e => e.Id == id);
+            DownloadHistoryEntry? entry = _entries.Find(e => e.Id == id);
             if (entry == null)
             {
                 return false;
@@ -272,8 +277,8 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
 
         try
         {
-            await using var fileStream = File.OpenRead(_historyFilePath);
-            var entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
+            await using FileStream fileStream = File.OpenRead(_historyFilePath);
+            List<DownloadHistoryEntry>? entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
                 fileStream, _jsonOptions, cancellationToken);
             _entries = entries ?? [];
             _isLoaded = true;
@@ -288,7 +293,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             // Backup corrupted file
             try
             {
-                var backupPath = $"{_historyFilePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
+                string backupPath = $"{_historyFilePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(_historyFilePath, backupPath);
                 _logger.LogWarning("Moved corrupted history file to {BackupPath}", backupPath);
             }
@@ -303,13 +308,13 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     {
         try
         {
-            var tempFilePath = $"{_historyFilePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
+            string tempFilePath = $"{_historyFilePath}.tmp";
+            await using FileStream fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, _entries, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();
 
-            File.Move(tempFilePath, _historyFilePath, overwrite: true);
+            File.Move(tempFilePath, _historyFilePath, true);
         }
         catch (Exception ex)
         {

@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Sockets;
+
 using Kurio.Core.ErrorHandling;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit;
 
 namespace Kurio.Core.Tests.ErrorHandling;

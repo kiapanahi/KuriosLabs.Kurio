@@ -420,6 +420,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Save initial state
             await SaveTaskStateAsync(task, linkedToken);
 
+            DateTime lastStateSave = DateTime.UtcNow;
             Progress<SegmentProgress> progress = new(segmentProgress =>
             {
                 // Aggregate progress from all segments
@@ -431,6 +432,23 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Progress.ActiveConnections = activeConnections;
 
                 _progressSubject.OnNext(task.Progress);
+
+                // Periodically save state to disk (every 5 seconds)
+                if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)
+                {
+                    lastStateSave = DateTime.UtcNow;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveTaskStateAsync(task, CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // Ignore save errors during download - they shouldn't interrupt the download
+                        }
+                    });
+                }
             });
 
             await _segmentManager.DownloadSegmentsAsync(
@@ -536,6 +554,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                     "Cannot resume download: segment configuration or temp file path not found");
             }
 
+            DateTime lastStateSave = DateTime.UtcNow;
             Progress<SegmentProgress> progress = new(segmentProgress =>
             {
                 long totalDownloaded = segmentConfig.States.Sum(s => s.BytesDownloaded);
@@ -546,6 +565,23 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Progress.ActiveConnections = activeConnections;
 
                 _progressSubject.OnNext(task.Progress);
+
+                // Periodically save state to disk (every 5 seconds)
+                if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)
+                {
+                    lastStateSave = DateTime.UtcNow;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveTaskStateAsync(task, CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // Ignore save errors during download - they shouldn't interrupt the download
+                        }
+                    });
+                }
             });
 
             // Resume incomplete segments

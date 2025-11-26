@@ -14,15 +14,21 @@ public sealed class SegmentManager : ISegmentManager
 {
     private readonly ILogger<SegmentManager>? _logger;
     private readonly IStorageManager _storageManager;
+    private readonly ISegmentVerifier _segmentVerifier;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SegmentManager" /> class.
     /// </summary>
     /// <param name="storageManager">The storage manager for file operations.</param>
+    /// <param name="segmentVerifier">The segment verifier for checksum operations.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
-    public SegmentManager(IStorageManager storageManager, ILogger<SegmentManager>? logger = null)
+    public SegmentManager(
+        IStorageManager storageManager, 
+        ISegmentVerifier segmentVerifier,
+        ILogger<SegmentManager>? logger = null)
     {
         _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
+        _segmentVerifier = segmentVerifier ?? throw new ArgumentNullException(nameof(segmentVerifier));
         _logger = logger;
     }
 
@@ -192,6 +198,9 @@ public sealed class SegmentManager : ISegmentManager
         IProgress<SegmentProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        // Verify completed segments' checksums before resuming
+        await VerifyCompletedSegmentsAsync(segmentStates, tempFilePath, cancellationToken);
+
         // Find incomplete segments
         List<Task> incompleteTasks = new();
 
@@ -365,6 +374,15 @@ public sealed class SegmentManager : ISegmentManager
             buffer.Length,
             cancellationToken);
 
+        // Compute checksum for this segment
+        string checksum = await _segmentVerifier.ComputeChecksumAsync(buffer, "SHA256", cancellationToken);
+        state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+
+        _logger?.LogDebug(
+            "Segment {SegmentIndex} checksum computed: {Checksum}",
+            state.SegmentIndex,
+            checksum[..16]); // Log first 16 chars
+
         // Update state - set to the total downloaded for this segment (initial + current session)
         // This should equal state.TotalSize when complete
         state.BytesDownloaded = initialBytesDownloaded + downloadedBytes;
@@ -432,5 +450,67 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         _logger?.LogInformation("Segment boundary verification completed successfully");
+    }
+
+    /// <summary>
+    ///     Verifies checksums of completed segments to detect corruption.
+    /// </summary>
+    private async Task VerifyCompletedSegmentsAsync(
+        SegmentState[] segmentStates,
+        string tempFilePath,
+        CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("Verifying checksums for {CompletedCount} completed segments", 
+            segmentStates.Count(s => s.Status == SegmentStatus.Completed));
+
+        var corruptedSegments = new List<int>();
+
+        foreach (SegmentState state in segmentStates)
+        {
+            // Only verify completed segments with checksums
+            if (state.Status != SegmentStatus.Completed || state.Checksum == null)
+            {
+                continue;
+            }
+
+            // Verify the segment
+            bool isValid = await _segmentVerifier.VerifySegmentAsync(
+                tempFilePath,
+                state.StartByte,
+                state.TotalSize,
+                state.Checksum.Hash,
+                state.Checksum.Algorithm,
+                cancellationToken);
+
+            if (isValid)
+            {
+                state.Checksum.MarkAsVerified();
+                _logger?.LogDebug("Segment {SegmentIndex} checksum verified successfully", state.SegmentIndex);
+            }
+            else
+            {
+                state.Checksum.MarkAsFailed();
+                state.Status = SegmentStatus.Failed;
+                state.BytesDownloaded = 0; // Reset to re-download
+                corruptedSegments.Add(state.SegmentIndex);
+                
+                _logger?.LogWarning(
+                    "Segment {SegmentIndex} checksum verification failed. Expected: {ExpectedChecksum}, will re-download",
+                    state.SegmentIndex,
+                    state.Checksum.Hash[..16]);
+            }
+        }
+
+        if (corruptedSegments.Count > 0)
+        {
+            _logger?.LogWarning(
+                "Detected {CorruptedCount} corrupted segments: {SegmentIndices}. These will be re-downloaded.",
+                corruptedSegments.Count,
+                string.Join(", ", corruptedSegments));
+        }
+        else
+        {
+            _logger?.LogInformation("All completed segments verified successfully");
+        }
     }
 }

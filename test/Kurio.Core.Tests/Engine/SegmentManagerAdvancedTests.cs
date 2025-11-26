@@ -22,6 +22,7 @@ using Xunit;
 public class SegmentManagerAdvancedTests : IDisposable
 {
     private readonly Mock<IStorageManager> _mockStorageManager;
+    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
     private readonly Mock<ILogger<SegmentManager>> _mockLogger;
     private readonly Mock<IProtocolHandler> _mockProtocolHandler;
     private readonly SegmentManager _segmentManager;
@@ -30,9 +31,10 @@ public class SegmentManagerAdvancedTests : IDisposable
     public SegmentManagerAdvancedTests()
     {
         _mockStorageManager = new Mock<IStorageManager>();
+        _mockSegmentVerifier = new Mock<ISegmentVerifier>();
         _mockLogger = new Mock<ILogger<SegmentManager>>();
         _mockProtocolHandler = new Mock<IProtocolHandler>();
-        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockLogger.Object);
+        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);

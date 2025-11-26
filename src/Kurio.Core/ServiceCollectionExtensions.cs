@@ -55,6 +55,9 @@ public static class ServiceCollectionExtensions
                 return new JsonStatePersistence(stateDirectory, logger);
             });
 
+            // Register segment verifier for checksum operations
+            services.AddSingleton<ISegmentVerifier, SegmentVerifier>();
+
             // Register segment manager
             services.AddTransient<ISegmentManager, SegmentManager>();
 

@@ -1,0 +1,6 @@
+@Kurio.Server_HostAddress = http://localhost:5205
+
+GET {{Kurio.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

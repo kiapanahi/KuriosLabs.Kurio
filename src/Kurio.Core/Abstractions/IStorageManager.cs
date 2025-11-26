@@ -70,4 +70,47 @@ public interface IStorageManager
     Task CleanupTemporaryFilesAsync(
         Guid taskId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Creates a separate file for a segment (per-segment mode).
+    /// </summary>
+    /// <param name="taskId">The unique task identifier.</param>
+    /// <param name="segmentIndex">The segment index.</param>
+    /// <param name="segmentSize">The size of the segment in bytes.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The full path to the created segment file.</returns>
+    Task<string> CreateSegmentFileAsync(
+        Guid taskId,
+        int segmentIndex,
+        long segmentSize,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Merges all segment files into a single file (per-segment mode).
+    /// </summary>
+    /// <param name="taskId">The unique task identifier.</param>
+    /// <param name="finalPath">The path to the final merged file.</param>
+    /// <param name="segmentCount">The number of segments to merge.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task MergeSegmentFilesAsync(
+        Guid taskId,
+        string finalPath,
+        int segmentCount,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Verifies that data was written correctly to a file.
+    /// </summary>
+    /// <param name="filePath">The path to the file.</param>
+    /// <param name="offset">The byte offset to verify.</param>
+    /// <param name="expectedData">The expected data.</param>
+    /// <param name="count">The number of bytes to verify.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if verification succeeded, false otherwise.</returns>
+    Task<bool> VerifyWriteAsync(
+        string filePath,
+        long offset,
+        byte[] expectedData,
+        int count,
+        CancellationToken cancellationToken = default);
 }

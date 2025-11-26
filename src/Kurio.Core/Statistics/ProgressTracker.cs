@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
@@ -12,7 +12,7 @@ namespace Kurio.Core.Statistics;
 /// </summary>
 public sealed class ProgressTracker : IProgressTracker, IDisposable
 {
-    private readonly Subject<EnhancedDownloadProgress> _progressSubject = new();
+    private readonly Channel<EnhancedDownloadProgress> _progressChannel;
     private readonly int _speedWindowSize;
     private readonly ConcurrentDictionary<Guid, DownloadTrackingState> _trackingStates = new();
     private bool _disposed;
@@ -24,6 +24,12 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     public ProgressTracker(int speedWindowSize = 10)
     {
         _speedWindowSize = speedWindowSize;
+        
+        _progressChannel = Channel.CreateUnbounded<EnhancedDownloadProgress>(new UnboundedChannelOptions
+        {
+            SingleWriter = false,
+            SingleReader = false
+        });
     }
 
     /// <inheritdoc />
@@ -36,12 +42,23 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
 
         _disposed = true;
 
-        _progressSubject.Dispose();
+        _progressChannel.Writer.Complete();
         _trackingStates.Clear();
     }
 
     /// <inheritdoc />
-    public IObservable<EnhancedDownloadProgress> AllProgressUpdates => _progressSubject.AsObservable();
+    public async IAsyncEnumerable<EnhancedDownloadProgress> StreamProgressAsync(
+        Guid? taskId = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
+        {
+            if (taskId == null || progress.TaskId == taskId)
+            {
+                yield return progress;
+            }
+        }
+    }
 
     /// <inheritdoc />
     public void StartTracking(Guid taskId, long totalBytes)
@@ -74,7 +91,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
         state.ActiveConnections = segmentProgress?.Count(s => s.IsActive) ?? 0;
 
         EnhancedDownloadProgress progress = CreateProgress(taskId, state, now);
-        _progressSubject.OnNext(progress);
+        _progressChannel.Writer.TryWrite(progress);
     }
 
     /// <inheritdoc />
@@ -110,12 +127,6 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
         }
 
         return CreateProgress(taskId, state, DateTime.UtcNow);
-    }
-
-    /// <inheritdoc />
-    public IObservable<EnhancedDownloadProgress> GetProgressUpdates(Guid taskId)
-    {
-        return _progressSubject.Where(p => p.TaskId == taskId);
     }
 
     private EnhancedDownloadProgress CreateProgress(Guid taskId, DownloadTrackingState state, DateTime now)

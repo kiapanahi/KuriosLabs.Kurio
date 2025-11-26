@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using System.Reactive.Subjects;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
@@ -13,7 +14,7 @@ namespace Kurio.Core.Engine;
 public sealed class DownloadEngine : IDownloadEngine, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _cancellationTokens = new();
-    private readonly Subject<DownloadProgress> _progressSubject = new();
+    private readonly Channel<DownloadProgress> _progressChannel;
     private readonly IProtocolHandler _protocolHandler;
     private readonly IDownloadQueueManager _queueManager;
     private readonly Timer _schedulerTimer;
@@ -48,6 +49,13 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         _statePersistence = statePersistence ?? throw new ArgumentNullException(nameof(statePersistence));
         _queueManager = queueManager ?? new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads };
 
+        // Initialize unbounded channel for progress updates
+        _progressChannel = Channel.CreateUnbounded<DownloadProgress>(new UnboundedChannelOptions
+        {
+            SingleWriter = false,  // Multiple download tasks can publish
+            SingleReader = false   // Multiple clients can consume
+        });
+
         // Start scheduler timer (check every 500ms)
         _schedulerTimer = new Timer(ScheduleNextDownloads, null, TimeSpan.FromMilliseconds(500),
             TimeSpan.FromMilliseconds(500));
@@ -78,11 +86,24 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         _cancellationTokens.Clear();
 
-        _progressSubject?.Dispose();
+        // Complete the channel (no more writes)
+        _progressChannel.Writer.Complete();
     }
 
     /// <inheritdoc />
-    public IObservable<DownloadProgress> ProgressUpdates => _progressSubject;
+    public async IAsyncEnumerable<DownloadProgress> StreamProgressAsync(
+        Guid? taskId = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
+        {
+            // Filter by task ID if specified
+            if (taskId == null || progress.TaskId == taskId)
+            {
+                yield return progress;
+            }
+        }
+    }
 
     /// <inheritdoc />
     public async Task<IDownloadTask> AddDownloadAsync(
@@ -442,11 +463,13 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 long totalDownloaded = segmentConfig.States.Sum(s => s.BytesDownloaded);
                 int activeConnections = segmentConfig.States.Count(s => s.Status == SegmentStatus.Downloading);
 
+                task.Progress.TaskId = task.Id;
                 task.Progress.BytesDownloaded = totalDownloaded;
                 task.Progress.TotalBytes = task.FileSize;
                 task.Progress.ActiveConnections = activeConnections;
+                task.Progress.Timestamp = DateTime.UtcNow;
 
-                _progressSubject.OnNext(task.Progress);
+                _progressChannel.Writer.TryWrite(task.Progress);
 
                 // Periodically save state to disk (every 5 seconds)
                 if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)
@@ -580,11 +603,13 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 long totalDownloaded = segmentConfig.States.Sum(s => s.BytesDownloaded);
                 int activeConnections = segmentConfig.States.Count(s => s.Status == SegmentStatus.Downloading);
 
+                task.Progress.TaskId = task.Id;
                 task.Progress.BytesDownloaded = totalDownloaded;
                 task.Progress.TotalBytes = task.FileSize;
                 task.Progress.ActiveConnections = activeConnections;
+                task.Progress.Timestamp = DateTime.UtcNow;
 
-                _progressSubject.OnNext(task.Progress);
+                _progressChannel.Writer.TryWrite(task.Progress);
 
                 // Periodically save state to disk (every 5 seconds)
                 if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)

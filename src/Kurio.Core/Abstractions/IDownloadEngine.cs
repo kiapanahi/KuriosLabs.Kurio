@@ -8,9 +8,14 @@ namespace Kurio.Core.Abstractions;
 public interface IDownloadEngine
 {
     /// <summary>
-    ///     Gets an observable stream of download progress updates.
+    ///     Streams progress updates for downloads. Optionally filter by task ID.
     /// </summary>
-    IObservable<DownloadProgress> ProgressUpdates { get; }
+    /// <param name="taskId">Optional task ID to filter progress updates. If null, streams all progress.</param>
+    /// <param name="cancellationToken">Cancellation token to stop streaming.</param>
+    /// <returns>Async stream of progress updates.</returns>
+    IAsyncEnumerable<DownloadProgress> StreamProgressAsync(
+        Guid? taskId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Adds a new download to the queue.

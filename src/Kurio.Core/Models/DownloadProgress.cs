@@ -6,6 +6,11 @@ namespace Kurio.Core.Models;
 public sealed class DownloadProgress
 {
     /// <summary>
+    ///     Gets or sets the task ID this progress update belongs to.
+    /// </summary>
+    public Guid TaskId { get; set; }
+
+    /// <summary>
     ///     Gets or sets the total bytes downloaded so far.
     /// </summary>
     public long BytesDownloaded { get; set; }

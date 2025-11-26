@@ -1,6 +1,7 @@
 namespace Kurio.Core.Tests.Statistics;
 
 using FluentAssertions;
+
 using Kurio.Core.Statistics;
 
 public class EtaCalculatorTests

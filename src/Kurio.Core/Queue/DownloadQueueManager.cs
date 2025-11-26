@@ -1,6 +1,7 @@
 namespace Kurio.Core.Queue;
 
 using System.Collections.Concurrent;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 

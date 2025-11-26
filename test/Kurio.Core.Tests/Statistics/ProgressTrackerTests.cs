@@ -1,6 +1,7 @@
 namespace Kurio.Core.Tests.Statistics;
 
 using FluentAssertions;
+
 using Kurio.Core.Models;
 using Kurio.Core.Statistics;
 

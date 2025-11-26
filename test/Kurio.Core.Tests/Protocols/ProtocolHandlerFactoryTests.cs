@@ -2,11 +2,15 @@ namespace Kurio.Core.Tests.Protocols;
 
 using System;
 using System.Collections.Generic;
+
 using FluentAssertions;
-using Moq;
-using Xunit;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Protocols;
+
+using Moq;
+
+using Xunit;
 
 public sealed class ProtocolHandlerFactoryTests
 {

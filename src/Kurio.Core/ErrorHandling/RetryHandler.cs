@@ -1,5 +1,6 @@
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.ErrorHandling;

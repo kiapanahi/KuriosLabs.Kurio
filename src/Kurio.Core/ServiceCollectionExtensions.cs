@@ -1,7 +1,5 @@
 namespace Kurio.Core;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.ErrorHandling;
@@ -12,6 +10,9 @@ using Kurio.Core.Queue;
 using Kurio.Core.Statistics;
 using Kurio.Core.Storage;
 using Kurio.Core.Verification;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Extension methods for configuring Kurio download engine services.

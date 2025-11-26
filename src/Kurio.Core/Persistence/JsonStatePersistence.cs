@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.Persistence;

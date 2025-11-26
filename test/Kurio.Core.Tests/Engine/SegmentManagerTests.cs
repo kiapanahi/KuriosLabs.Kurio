@@ -3,8 +3,11 @@ namespace Kurio.Core.Tests.Engine;
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
+
 using Moq;
+
 using Xunit;
 
 public class SegmentManagerTests

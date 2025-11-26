@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kurio.Core.ErrorHandling;

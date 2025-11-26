@@ -1,8 +1,10 @@
 namespace Kurio.Core.Engine;
 
 using System.Collections.Concurrent;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
 
 /// <summary>

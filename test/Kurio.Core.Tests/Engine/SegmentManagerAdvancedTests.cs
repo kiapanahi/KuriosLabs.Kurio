@@ -5,11 +5,15 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
+
 using Microsoft.Extensions.Logging;
+
 using Moq;
+
 using Xunit;
 
 /// <summary>

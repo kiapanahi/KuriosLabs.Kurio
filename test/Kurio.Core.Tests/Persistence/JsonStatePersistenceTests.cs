@@ -3,9 +3,12 @@ namespace Kurio.Core.Tests.Persistence;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+
 using Kurio.Core.Models;
 using Kurio.Core.Persistence;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using Xunit;
 
 /// <summary>

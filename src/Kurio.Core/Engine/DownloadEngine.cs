@@ -2,6 +2,7 @@ namespace Kurio.Core.Engine;
 
 using System.Collections.Concurrent;
 using System.Reactive.Subjects;
+
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 using Kurio.Core.Queue;

@@ -156,16 +156,17 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 $"Only downloading tasks can be paused. Current state: {task.State}");
         }
 
+        // Set state to Paused BEFORE canceling to ensure the catch block sees it
+        task.State = DownloadState.Paused;
+
+        // Mark as paused in queue
+        _queueManager.MarkAsPaused(taskId);
+
         // Cancel the download operation
         if (_cancellationTokens.TryGetValue(taskId, out CancellationTokenSource? cts))
         {
             await cts.CancelAsync();
         }
-
-        task.State = DownloadState.Paused;
-
-        // Mark as paused in queue
-        _queueManager.MarkAsPaused(taskId);
 
         // Save state for resume
         await SaveTaskStateAsync(task, cancellationToken);
@@ -486,6 +487,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         {
             // Download was paused - state already saved
         }
+        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+            ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Download was paused - multiple segments canceled, state already saved
+        }
         catch (Exception ex)
         {
             task.State = DownloadState.Failed;
@@ -620,6 +626,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         catch (OperationCanceledException) when (task.State == DownloadState.Paused)
         {
             // Download was paused again - state already saved
+        }
+        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+            ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Download was paused again - multiple segments canceled, state already saved
         }
         catch (Exception ex)
         {

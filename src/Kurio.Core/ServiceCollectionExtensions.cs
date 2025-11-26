@@ -50,8 +50,10 @@ public static class ServiceCollectionExtensions
             // Register checksum verifier
             services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
 
+            // Register resilience services (Polly-based)
+            services.AddSingleton<Resilience.ResiliencePolicyFactory>();
+            
             // Register error handling services
-            services.AddSingleton<IRetryHandler, RetryHandler>();
             services.AddSingleton<IErrorClassifier, ErrorClassifier>();
             services.AddSingleton<CircuitBreakerFactory>(sp =>
             {
@@ -121,9 +123,6 @@ public static class ServiceCollectionExtensions
                     maxConcurrentDownloads);
             });
 
-            return services;
-        }
-
         return services;
     }
 
@@ -151,11 +150,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string? configFilePath = null)
     {
-        services.AddSingleton<Configuration.IPlatformPathProvider, Configuration.PlatformPathProvider>();
+        services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
         
         services.AddSingleton<Configuration.IConfigurationService>(sp =>
         {
-            var pathProvider = sp.GetRequiredService<Configuration.IPlatformPathProvider>();
+            var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
             var logger = sp.GetRequiredService<ILogger<Configuration.ConfigurationService>>();
             
             var defaultPath = Path.Combine(

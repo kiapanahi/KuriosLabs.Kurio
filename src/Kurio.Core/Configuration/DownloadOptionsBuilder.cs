@@ -7,7 +7,7 @@ namespace Kurio.Core.Configuration;
 /// </summary>
 public sealed class DownloadOptionsBuilder
 {
-    private readonly DownloadOptions _options = new();
+    private readonly DownloadOptions _options = new() { DestinationDirectory = string.Empty };
 
     /// <summary>
     /// Sets the maximum number of concurrent connections
@@ -110,7 +110,7 @@ public sealed class DownloadOptionsBuilder
 
         _options.RetryPolicy = new RetryPolicy
         {
-            MaxAttempts = maxRetries,
+            MaxRetryAttempts = maxRetries,
             InitialDelay = initialDelay
         };
         return this;

@@ -20,6 +20,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     private readonly ConcurrentDictionary<Guid, SegmentConfiguration> _segmentConfigs = new();
     private readonly ISegmentManager _segmentManager;
     private readonly IStatePersistence _statePersistence;
+    private readonly ConcurrentDictionary<Guid, bool> _resumingTasks = new();
     private readonly IStorageManager _storageManager;
     private readonly ConcurrentDictionary<Guid, DownloadTask> _tasks = new();
     private readonly ConcurrentDictionary<Guid, string> _tempFilePaths = new();
@@ -156,16 +157,17 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 $"Only downloading tasks can be paused. Current state: {task.State}");
         }
 
+        // Set state to Paused BEFORE canceling to ensure the catch block sees it
+        task.State = DownloadState.Paused;
+
+        // Mark as paused in queue
+        _queueManager.MarkAsPaused(taskId);
+
         // Cancel the download operation
         if (_cancellationTokens.TryGetValue(taskId, out CancellationTokenSource? cts))
         {
             await cts.CancelAsync();
         }
-
-        task.State = DownloadState.Paused;
-
-        // Mark as paused in queue
-        _queueManager.MarkAsPaused(taskId);
 
         // Save state for resume
         await SaveTaskStateAsync(task, cancellationToken);
@@ -189,6 +191,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         // Validate that the download can be resumed
         await ValidateResumeCapabilityAsync(task, cancellationToken);
+
+        // Mark this task as resuming so scheduler knows to call ExecuteResumeAsync
+        _resumingTasks.TryAdd(task.Id, true);
 
         task.State = DownloadState.Queued;
 
@@ -232,6 +237,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         _cancellationTokens.TryRemove(taskId, out _);
         _segmentConfigs.TryRemove(taskId, out _);
         _tempFilePaths.TryRemove(taskId, out _);
+        _resumingTasks.TryRemove(taskId, out _);
     }
 
     /// <inheritdoc />
@@ -342,7 +348,16 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
                 // Start the download
                 _queueManager.MarkAsStarted(nextTask.Id);
-                _ = Task.Run(() => ExecuteDownloadAsync((DownloadTask)nextTask, CancellationToken.None));
+                
+                // Check if this is a resume or new download
+                if (_resumingTasks.TryRemove(nextTask.Id, out _))
+                {
+                    _ = Task.Run(() => ExecuteResumeAsync((DownloadTask)nextTask, CancellationToken.None));
+                }
+                else
+                {
+                    _ = Task.Run(() => ExecuteDownloadAsync((DownloadTask)nextTask, CancellationToken.None));
+                }
             }
         }
         catch (Exception ex)
@@ -420,6 +435,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Save initial state
             await SaveTaskStateAsync(task, linkedToken);
 
+            DateTime lastStateSave = DateTime.UtcNow;
             Progress<SegmentProgress> progress = new(segmentProgress =>
             {
                 // Aggregate progress from all segments
@@ -431,6 +447,23 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Progress.ActiveConnections = activeConnections;
 
                 _progressSubject.OnNext(task.Progress);
+
+                // Periodically save state to disk (every 5 seconds)
+                if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)
+                {
+                    lastStateSave = DateTime.UtcNow;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveTaskStateAsync(task, CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // Ignore save errors during download - they shouldn't interrupt the download
+                        }
+                    });
+                }
             });
 
             await _segmentManager.DownloadSegmentsAsync(
@@ -467,6 +500,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         catch (OperationCanceledException) when (task.State == DownloadState.Paused)
         {
             // Download was paused - state already saved
+        }
+        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+            ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Download was paused - multiple segments canceled, state already saved
         }
         catch (Exception ex)
         {
@@ -536,6 +574,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                     "Cannot resume download: segment configuration or temp file path not found");
             }
 
+            DateTime lastStateSave = DateTime.UtcNow;
             Progress<SegmentProgress> progress = new(segmentProgress =>
             {
                 long totalDownloaded = segmentConfig.States.Sum(s => s.BytesDownloaded);
@@ -546,6 +585,23 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Progress.ActiveConnections = activeConnections;
 
                 _progressSubject.OnNext(task.Progress);
+
+                // Periodically save state to disk (every 5 seconds)
+                if ((DateTime.UtcNow - lastStateSave).TotalSeconds >= 5)
+                {
+                    lastStateSave = DateTime.UtcNow;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SaveTaskStateAsync(task, CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // Ignore save errors during download - they shouldn't interrupt the download
+                        }
+                    });
+                }
             });
 
             // Resume incomplete segments
@@ -584,6 +640,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         catch (OperationCanceledException) when (task.State == DownloadState.Paused)
         {
             // Download was paused again - state already saved
+        }
+        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+            ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Download was paused again - multiple segments canceled, state already saved
         }
         catch (Exception ex)
         {

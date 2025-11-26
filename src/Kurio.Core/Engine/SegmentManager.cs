@@ -319,10 +319,15 @@ public sealed class SegmentManager : ISegmentManager
         // Create a memory stream to buffer the segment data
         await using MemoryStream memoryStream = new((int)range.Length);
 
+        // Store the initial bytes downloaded (for resume scenarios)
+        long initialBytesDownloaded = isResume ? state.BytesDownloaded : 0;
+
         // Progress tracking for this segment
         Progress<long> segmentProgress = new(bytesRead =>
         {
-            long totalForSegment = isResume ? state.BytesDownloaded + bytesRead : bytesRead;
+            // bytesRead is the total bytes read in this download session
+            // Add it to the initial value from before this session started
+            long totalForSegment = initialBytesDownloaded + bytesRead;
             state.BytesDownloaded = totalForSegment;
 
             progress?.Report(new SegmentProgress
@@ -360,8 +365,9 @@ public sealed class SegmentManager : ISegmentManager
             buffer.Length,
             cancellationToken);
 
-        // Update state
-        state.BytesDownloaded = range.Length;
+        // Update state - set to the total downloaded for this segment (initial + current session)
+        // This should equal state.TotalSize when complete
+        state.BytesDownloaded = initialBytesDownloaded + downloadedBytes;
         state.Status = SegmentStatus.Completed;
         state.CompletedAt = DateTime.UtcNow;
 

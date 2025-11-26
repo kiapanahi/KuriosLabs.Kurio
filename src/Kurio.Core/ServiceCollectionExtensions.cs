@@ -19,20 +19,20 @@ namespace Kurio.Core;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    ///     Adds the Kurio download engine services to the dependency injection container.
+    /// </summary>
     /// <param name="services">The service collection.</param>
-    extension(IServiceCollection services)
+    /// <param name="tempDirectory">The directory for temporary download files.</param>
+    /// <param name="stateDirectory">The directory for state persistence files.</param>
+    /// <param name="maxConcurrentDownloads">Maximum number of concurrent downloads (default: 3).</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddKurioDownloadEngine(
+        this IServiceCollection services,
+        string tempDirectory,
+        string stateDirectory,
+        int maxConcurrentDownloads = 3)
     {
-        /// <summary>
-        ///     Adds the Kurio download engine services to the dependency injection container.
-        /// </summary>
-        /// <param name="tempDirectory">The directory for temporary download files.</param>
-        /// <param name="stateDirectory">The directory for state persistence files.</param>
-        /// <param name="maxConcurrentDownloads">Maximum number of concurrent downloads (default: 3).</param>
-        /// <returns>The service collection for chaining.</returns>
-        private IServiceCollection AddKurioDownloadEngine(string tempDirectory,
-            string stateDirectory,
-            int maxConcurrentDownloads = 3)
-        {
             // Register storage manager as singleton with configured directories
             services.AddSingleton<IStorageManager>(sp =>
                 new StorageManager(tempDirectory, stateDirectory));
@@ -124,17 +124,71 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
-        /// <summary>
-        ///     Adds the Kurio download engine services with default configuration.
-        /// </summary>
-        /// <returns>The service collection for chaining.</returns>
-        public IServiceCollection AddKurioDownloadEngine()
-        {
-            string homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string tempDirectory = Path.Combine(homeDirectory, ".kurio", "temp");
-            string stateDirectory = Path.Combine(homeDirectory, ".kurio", "state");
+        return services;
+    }
 
-            return AddKurioDownloadEngine(services, tempDirectory, stateDirectory);
-        }
+    /// <summary>
+    ///     Adds the Kurio download engine services with default configuration.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddKurioDownloadEngine(this IServiceCollection services)
+    {
+        string homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string tempDirectory = Path.Combine(homeDirectory, ".kurio", "temp");
+        string stateDirectory = Path.Combine(homeDirectory, ".kurio", "state");
+
+        return services.AddKurioDownloadEngine(tempDirectory, stateDirectory);
+    }
+
+    /// <summary>
+    ///     Adds configuration management services to the dependency injection container.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configFilePath">Path to configuration file (optional, uses default if not specified).</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddKurioConfiguration(
+        this IServiceCollection services,
+        string? configFilePath = null)
+    {
+        services.AddSingleton<Configuration.IPlatformPathProvider, Configuration.PlatformPathProvider>();
+        
+        services.AddSingleton<Configuration.IConfigurationService>(sp =>
+        {
+            var pathProvider = sp.GetRequiredService<Configuration.IPlatformPathProvider>();
+            var logger = sp.GetRequiredService<ILogger<Configuration.ConfigurationService>>();
+            
+            var defaultPath = Path.Combine(
+                pathProvider.GetAppDataDirectory(),
+                "config.json");
+            
+            return new Configuration.ConfigurationService(
+                configFilePath ?? defaultPath,
+                logger);
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    ///     Adds storage and file management services to the dependency injection container.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddKurioStorage(this IServiceCollection services)
+    {
+        services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
+        
+        services.AddSingleton<Storage.ITempFileCleanupService>(sp =>
+        {
+            var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
+            var logger = sp.GetRequiredService<ILogger<Storage.TempFileCleanupService>>();
+            
+            return new Storage.TempFileCleanupService(
+                pathProvider.GetTempDirectory(),
+                logger);
+        });
+
+        return services;
     }
 }

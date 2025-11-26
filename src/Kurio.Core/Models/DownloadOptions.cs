@@ -79,4 +79,44 @@ public sealed class DownloadOptions
     ///     Gets or sets the verification options for checksum validation.
     /// </summary>
     public VerificationOptions? Verification { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the download priority in the queue.
+    /// </summary>
+    public DownloadPriority Priority { get; set; } = DownloadPriority.Normal;
+
+    /// <summary>
+    ///     Gets or sets the authentication options.
+    /// </summary>
+    public Configuration.AuthenticationOptions? Authentication { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the retry policy for this download.
+    /// </summary>
+    public RetryPolicy? RetryPolicy { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the category for organization.
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>
+    ///     Gets or sets tags for categorization.
+    /// </summary>
+    public List<string>? Tags { get; set; }
+
+    /// <summary>
+    ///     Gets or sets checksum verification options.
+    /// </summary>
+    public Configuration.ChecksumOptions? Checksum { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the maximum download speed in bytes per second (0 = unlimited).
+    /// </summary>
+    public long? MaxDownloadSpeed { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the file naming policy (using new naming).
+    /// </summary>
+    public FileNamingPolicy? NamingPolicy { get; set; }
 }

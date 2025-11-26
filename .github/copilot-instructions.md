@@ -96,3 +96,16 @@ The project follows semantic versioning (semver.org) for versioning. The version
    - **PATCH** (x.y.Z): Bug fixes, backward compatible fixes
 3. Include version bump in a separate commit with message: `chore: bump version to X.Y.Z`
 4. Never create a pull request without updating the version number first
+
+
+## References
+
+For reference implementation and inspiration, you can check out the following projects:
+
+- [aria2](https://github.com/aria2/aria2)
+- [pyload](https://github.com/pyload/pyload)
+- [gopeed](https://github.com/GopeedLab/gopeed)
+- [brisk](https://github.com/BrisklyDev/brisk)
+
+
+Find inspiration around the download manager engine, segmentation, scheduling, and multi-protocol support.

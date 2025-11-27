@@ -356,12 +356,16 @@ public sealed class SegmentManager : ISegmentManager
         long bytesWrittenThisSession = 0;
 
         // Progress tracking for this segment
-        // Note: Progress is reported but state.BytesDownloaded is only updated after successful completion
+        // Note: We update state.BytesDownloaded for live progress aggregation,
+        // but only the final value (after flush) is persisted to disk
         Progress<long> segmentProgress = new(bytesRead =>
         {
             // bytesRead is cumulative bytes written to disk in this session
             bytesWrittenThisSession = bytesRead;
             long totalForSegment = initialBytesDownloaded + bytesRead;
+
+            // Update state for live progress aggregation (not persisted until completion)
+            state.BytesDownloaded = totalForSegment;
 
             progress?.Report(new SegmentProgress
             {
@@ -397,8 +401,10 @@ public sealed class SegmentManager : ISegmentManager
         // Close the stream before reading for checksum
         await segmentStream.DisposeAsync();
 
-        // CRITICAL: Only after successful write and flush, update the persisted bytes count
-        // This ensures resume starts from the correct position
+        // CRITICAL: Set the final persisted value after successful flush
+        // This ensures resume starts from the correct position and state file has accurate data
+        // Note: state.BytesDownloaded was updated during progress for live aggregation,
+        // but we set the final confirmed value here
         state.BytesDownloaded = initialBytesDownloaded + range.Length;
         state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
 
@@ -468,14 +474,6 @@ public sealed class SegmentManager : ISegmentManager
     {
         _logger?.LogInformation("Verifying segment boundaries...");
 
-        // Check file size
-        FileInfo fileInfo = new(tempFilePath);
-        if (fileInfo.Length != config.FileSize)
-        {
-            throw new InvalidOperationException(
-                $"Downloaded file size mismatch. Expected: {config.FileSize}, Got: {fileInfo.Length}");
-        }
-
         // Verify all segments are completed
         List<int> incompleteSegments = config.States
             .Where(s => s.Status != SegmentStatus.Completed)
@@ -504,7 +502,43 @@ public sealed class SegmentManager : ISegmentManager
             }
         }
 
-        _logger?.LogInformation("Segment boundary verification completed successfully");
+        // Verify segment files exist and have correct sizes
+        string? tempDir = Path.GetDirectoryName(tempFilePath);
+        if (string.IsNullOrEmpty(tempDir))
+        {
+            throw new InvalidOperationException("Invalid temporary file path");
+        }
+
+        long totalBytesVerified = 0;
+        foreach (SegmentState state in config.States)
+        {
+            string segmentFilePath = state.SegmentFilePath ?? 
+                Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
+
+            if (!File.Exists(segmentFilePath))
+            {
+                throw new FileNotFoundException($"Segment file not found: {segmentFilePath}");
+            }
+
+            FileInfo segmentInfo = new(segmentFilePath);
+            if (segmentInfo.Length != state.TotalSize)
+            {
+                throw new InvalidOperationException(
+                    $"Segment {state.SegmentIndex} size mismatch. Expected: {state.TotalSize}, Got: {segmentInfo.Length}");
+            }
+
+            totalBytesVerified += segmentInfo.Length;
+        }
+
+        // Verify total size matches expected file size
+        if (totalBytesVerified != config.FileSize)
+        {
+            throw new InvalidOperationException(
+                $"Total downloaded size mismatch. Expected: {config.FileSize}, Got: {totalBytesVerified}");
+        }
+
+        _logger?.LogInformation("Segment boundary verification completed successfully. Total size: {TotalSize} bytes", 
+            totalBytesVerified);
     }
 
     /// <summary>

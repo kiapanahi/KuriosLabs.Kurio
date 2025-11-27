@@ -529,6 +529,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Delete persisted state
             await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
 
+            // Cleanup temporary directory and state file
+            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None);
+
             // Cleanup tracking
             _segmentConfigs.TryRemove(task.Id, out _);
             _tempFilePaths.TryRemove(task.Id, out _);
@@ -683,6 +686,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
             // Delete persisted state
             await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
+
+            // Cleanup temporary directory and state file
+            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None);
 
             // Cleanup tracking
             _segmentConfigs.TryRemove(task.Id, out _);

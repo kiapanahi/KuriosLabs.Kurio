@@ -101,6 +101,13 @@ public sealed class DownloadTaskState
     public long TotalBytesDownloaded => Segments.Sum(s => s.BytesDownloaded);
 
     /// <summary>
+    ///     Gets the completion percentage (0-100).
+    /// </summary>
+    public double CompletedPercent => FileSize > 0 
+        ? Math.Round((double)TotalBytesDownloaded / FileSize * 100, 2) 
+        : 0;
+
+    /// <summary>
     ///     Gets whether this download can be resumed.
     /// </summary>
     public bool CanResume => State == DownloadState.Paused &&

@@ -67,6 +67,8 @@ The project is organized into the following directories and files:
 ### Constraints
 
 - Always use the latest C# language features and best practices.
+- For web service components, use ASP.NET Core.
+- ALWAYS use minimal APIs when using ASP.NET Core.
 - Ensure cross-platform compatibility across Windows, macOS, and Linux.
 - Use .NET 10.0 or later for all new code.
 - Always use centralized package management via NuGet.

@@ -4,6 +4,8 @@ using KuriousLabs.Kurio.Cli.UI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Spectre.Console;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace KuriousLabs.Kurio.Cli;
 
@@ -59,11 +61,17 @@ internal static class Program
                 // Get server URL from configuration
                 var serverUrl = context.Configuration["Kurio:ServerUrl"] ?? "http://localhost:5205";
                 
-                // Register HTTP client
+                // Register HTTP client with JSON options matching the server
                 services.AddHttpClient<IKurioApiClient>(client =>
                 {
                     client.BaseAddress = new Uri(serverUrl);
                     client.Timeout = TimeSpan.FromSeconds(30);
+                })
+                .ConfigureHttpClient((sp, client) =>
+                {
+                    // Configure JSON serialization options to match server
+                    client.DefaultRequestHeaders.Accept.Add(
+                        new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                 });
                 
                 // Register API client as singleton

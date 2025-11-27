@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Kurio.Core.Models;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -17,6 +19,7 @@ public class KurioApiClient : IKurioApiClient
     private readonly HubConnection _hubConnection;
     private readonly Channel<DownloadProgressDto> _progressChannel;
     private readonly ILogger<KurioApiClient> _logger;
+    private readonly JsonSerializerOptions _jsonOptions;
     private ConnectionState _state = ConnectionState.Disconnected;
     private bool _disposed;
 
@@ -29,6 +32,14 @@ public class KurioApiClient : IKurioApiClient
         _logger = logger;
         _httpClient.BaseAddress = new Uri(serverUrl);
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+        // Configure JSON serialization to match server (enums as strings)
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new JsonStringEnumConverter() },
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
 
         _progressChannel = Channel.CreateUnbounded<DownloadProgressDto>(new UnboundedChannelOptions
         {
@@ -129,7 +140,7 @@ public class KurioApiClient : IKurioApiClient
 
         await EnsureSuccessStatusCodeAsync(response);
 
-        return await response.Content.ReadFromJsonAsync<DownloadResponse>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync<DownloadResponse>(_jsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("Failed to deserialize response");
     }
 
@@ -143,7 +154,7 @@ public class KurioApiClient : IKurioApiClient
 
         await EnsureSuccessStatusCodeAsync(response);
 
-        return await response.Content.ReadFromJsonAsync<List<DownloadResponse>>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync<List<DownloadResponse>>(_jsonOptions, cancellationToken)
             ?? new List<DownloadResponse>();
     }
 
@@ -160,7 +171,7 @@ public class KurioApiClient : IKurioApiClient
 
         await EnsureSuccessStatusCodeAsync(response);
 
-        return await response.Content.ReadFromJsonAsync<DownloadResponse>(cancellationToken);
+        return await response.Content.ReadFromJsonAsync<DownloadResponse>(_jsonOptions, cancellationToken);
     }
 
     public async Task StartDownloadAsync(Guid id, CancellationToken cancellationToken = default)
@@ -227,7 +238,7 @@ public class KurioApiClient : IKurioApiClient
 
         await EnsureSuccessStatusCodeAsync(response);
 
-        return await response.Content.ReadFromJsonAsync<int>(cancellationToken);
+        return await response.Content.ReadFromJsonAsync<int>(_jsonOptions, cancellationToken);
     }
 
     public async Task ClearCompletedAsync(CancellationToken cancellationToken = default)
@@ -248,7 +259,7 @@ public class KurioApiClient : IKurioApiClient
 
         await EnsureSuccessStatusCodeAsync(response);
 
-        return await response.Content.ReadFromJsonAsync<QueueStatistics>(cancellationToken)
+        return await response.Content.ReadFromJsonAsync<QueueStatistics>(_jsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("Failed to deserialize statistics");
     }
 

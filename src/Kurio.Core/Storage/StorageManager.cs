@@ -128,10 +128,13 @@ public sealed class StorageManager : IStorageManager
         FileNamingPolicy namingPolicy,
         CancellationToken cancellationToken = default)
     {
+        // Expand destination directory to handle ~ and environment variables
+        string expandedDestination = _pathProvider.ExpandPath(destinationDirectory);
+        
         // Ensure destination directory exists
-        Directory.CreateDirectory(destinationDirectory);
+        Directory.CreateDirectory(expandedDestination);
 
-        string destinationPath = Path.Combine(destinationDirectory, fileName);
+        string destinationPath = Path.Combine(expandedDestination, fileName);
 
         // Handle file naming conflicts
         destinationPath = namingPolicy switch
@@ -162,7 +165,9 @@ public sealed class StorageManager : IStorageManager
         string path,
         CancellationToken cancellationToken = default)
     {
-        DriveInfo driveInfo = new(Path.GetPathRoot(path) ?? path);
+        // Expand path to handle ~ and environment variables
+        string expandedPath = _pathProvider.ExpandPath(path);
+        DriveInfo driveInfo = new(Path.GetPathRoot(expandedPath) ?? expandedPath);
         return Task.FromResult(driveInfo.AvailableFreeSpace);
     }
 

@@ -1,5 +1,5 @@
-using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+using KuriousLabs.Kurio.Cli.Client;
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
@@ -9,11 +9,11 @@ namespace KuriousLabs.Kurio.Cli.UI;
 /// </summary>
 public sealed class DownloadListView
 {
-    private readonly IDownloadEngine _downloadEngine;
+    private readonly IKurioApiClient _apiClient;
 
-    public DownloadListView(IDownloadEngine downloadEngine)
+    public DownloadListView(IKurioApiClient apiClient)
     {
-        _downloadEngine = downloadEngine ?? throw new ArgumentNullException(nameof(downloadEngine));
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ public sealed class DownloadListView
             AnsiConsole.Clear();
             ShowHeader();
 
-            var downloads = _downloadEngine.GetDownloads(DownloadStateFilter.All).ToList();
+            var downloads = await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
 
             if (downloads.Count == 0)
             {
@@ -36,7 +36,7 @@ public sealed class DownloadListView
                 return;
             }
 
-            DisplayDownloads(downloads);
+            await DisplayDownloadsAsync(downloads, cancellationToken);
 
             var choice = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
@@ -64,7 +64,7 @@ public sealed class DownloadListView
         }
     }
 
-    private void DisplayDownloads(List<IDownloadTask> downloads)
+    private async Task DisplayDownloadsAsync(List<DownloadResponse> downloads, CancellationToken cancellationToken)
     {
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -81,9 +81,9 @@ public sealed class DownloadListView
             var progress = download.Progress;
 
             var statusIcon = GetStatusIcon(download.State);
-            var progressBar = CreateProgressBar(progress.Percentage);
-            var speed = FormatSpeed(progress.BytesPerSecond);
-            var size = FormatSize(progress.TotalBytes);
+            var progressBar = CreateProgressBar(progress?.PercentComplete ?? 0);
+            var speed = FormatSpeed(progress?.BytesPerSecond ?? 0);
+            var size = FormatSize(download.FileSize);
 
             table.AddRow(
                 (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -97,8 +97,8 @@ public sealed class DownloadListView
 
         AnsiConsole.Write(table);
 
-        var (active, queued) = _downloadEngine.GetQueueStatistics();
-        AnsiConsole.MarkupLine($"\n[dim]Active: {active} | Queued: {queued} | Total: {downloads.Count}[/]");
+        var stats = await _apiClient.GetStatisticsAsync(cancellationToken);
+        AnsiConsole.MarkupLine($"\n[dim]Active: {stats.ActiveDownloads} | Queued: {stats.QueuedDownloads} | Total: {downloads.Count}[/]");
     }
 
     private static string GetStatusIcon(DownloadState state)
@@ -154,7 +154,7 @@ public sealed class DownloadListView
         };
     }
 
-    private async Task HandleActionAsync(string action, List<IDownloadTask> downloads, CancellationToken cancellationToken)
+    private async Task HandleActionAsync(string action, List<DownloadResponse> downloads, CancellationToken cancellationToken)
     {
         try
         {
@@ -165,13 +165,13 @@ public sealed class DownloadListView
                     break;
 
                 case "🗑️  Clear Completed":
-                    _downloadEngine.ClearCompleted();
+                    await _apiClient.ClearCompletedAsync(cancellationToken);
                     AnsiConsole.MarkupLine("[green]Completed downloads cleared.[/]");
                     await Task.Delay(1000, cancellationToken);
                     break;
 
                 case "⏸️  Pause All":
-                    var paused = await _downloadEngine.PauseAllAsync(cancellationToken);
+                    var paused = await _apiClient.PauseAllAsync(cancellationToken);
                     AnsiConsole.MarkupLine($"[green]Paused {paused} downloads.[/]");
                     await Task.Delay(1000, cancellationToken);
                     break;
@@ -193,7 +193,7 @@ public sealed class DownloadListView
         }
     }
 
-    private static IDownloadTask? SelectDownload(List<IDownloadTask> downloads)
+    private static DownloadResponse? SelectDownload(List<DownloadResponse> downloads)
     {
         var choices = downloads
             .Select((d, i) => $"{i + 1}. {d.FileName ?? "Unknown"}")
@@ -215,57 +215,43 @@ public sealed class DownloadListView
         return downloads[index];
     }
 
-    private async Task ExecuteDownloadActionAsync(string action, IDownloadTask download, CancellationToken cancellationToken)
+    private async Task ExecuteDownloadActionAsync(string action, DownloadResponse download, CancellationToken cancellationToken)
     {
         switch (action)
         {
             case "▶️  Start Selected":
-                await _downloadEngine.StartDownloadAsync(download.Id, cancellationToken);
+                await _apiClient.StartDownloadAsync(download.Id, cancellationToken);
                 AnsiConsole.MarkupLine("[green]Download started.[/]");
                 break;
 
             case "⏸️  Pause Selected":
-                await _downloadEngine.PauseDownloadAsync(download.Id, cancellationToken);
+                await _apiClient.PauseDownloadAsync(download.Id, cancellationToken);
                 AnsiConsole.MarkupLine("[green]Download paused.[/]");
                 break;
 
             case "🔄 Resume Selected":
-                await _downloadEngine.ResumeDownloadAsync(download.Id, cancellationToken);
+                await _apiClient.ResumeDownloadAsync(download.Id, cancellationToken);
                 AnsiConsole.MarkupLine("[green]Download resumed.[/]");
                 break;
 
             case "❌ Cancel Selected":
                 if (AnsiConsole.Confirm("Remove partial files?"))
                 {
-                    await _downloadEngine.CancelDownloadAsync(download.Id, true, cancellationToken);
+                    await _apiClient.CancelDownloadAsync(download.Id, true, cancellationToken);
                 }
                 else
                 {
-                    await _downloadEngine.CancelDownloadAsync(download.Id, false, cancellationToken);
+                    await _apiClient.CancelDownloadAsync(download.Id, false, cancellationToken);
                 }
                 AnsiConsole.MarkupLine("[green]Download cancelled.[/]");
                 break;
 
             case "⬆️  Move Up":
-                if (_downloadEngine.MoveUp(download.Id))
-                {
-                    AnsiConsole.MarkupLine("[green]Download moved up.[/]");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine("[yellow]Cannot move up further.[/]");
-                }
+                AnsiConsole.MarkupLine("[yellow]Priority management via API not yet implemented.[/]");
                 break;
 
             case "⬇️  Move Down":
-                if (_downloadEngine.MoveDown(download.Id))
-                {
-                    AnsiConsole.MarkupLine("[green]Download moved down.[/]");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine("[yellow]Cannot move down further.[/]");
-                }
+                AnsiConsole.MarkupLine("[yellow]Priority management via API not yet implemented.[/]");
                 break;
         }
 

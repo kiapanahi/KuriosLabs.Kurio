@@ -1,4 +1,4 @@
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Cli.Client;
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
@@ -8,20 +8,20 @@ namespace KuriousLabs.Kurio.Cli.UI;
 /// </summary>
 public sealed class MainMenu
 {
-    private readonly IDownloadEngine _downloadEngine;
+    private readonly IKurioApiClient _apiClient;
     private readonly DownloadListView _downloadListView;
     private readonly AddDownloadView _addDownloadView;
     private readonly StatisticsView _statisticsView;
     private readonly SettingsView _settingsView;
 
     public MainMenu(
-        IDownloadEngine downloadEngine,
+        IKurioApiClient apiClient,
         DownloadListView downloadListView,
         AddDownloadView addDownloadView,
         StatisticsView statisticsView,
         SettingsView settingsView)
     {
-        _downloadEngine = downloadEngine ?? throw new ArgumentNullException(nameof(downloadEngine));
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _downloadListView = downloadListView ?? throw new ArgumentNullException(nameof(downloadListView));
         _addDownloadView = addDownloadView ?? throw new ArgumentNullException(nameof(addDownloadView));
         _statisticsView = statisticsView ?? throw new ArgumentNullException(nameof(statisticsView));
@@ -88,12 +88,12 @@ public sealed class MainMenu
             case "❌ Exit":
                 if (AnsiConsole.Confirm("Are you sure you want to exit?"))
                 {
-                    var (active, queued) = _downloadEngine.GetQueueStatistics();
-                    if (active > 0)
+                    var statistics = await _apiClient.GetStatisticsAsync(cancellationToken);
+                    if (statistics.ActiveDownloads > 0)
                     {
-                        if (AnsiConsole.Confirm($"[yellow]{active} downloads are still active. Pause them before exiting?[/]"))
+                        if (AnsiConsole.Confirm($"[yellow]{statistics.ActiveDownloads} downloads are still active. Pause them before exiting?[/]"))
                         {
-                            await _downloadEngine.PauseAllAsync(cancellationToken);
+                            await _apiClient.PauseAllAsync(cancellationToken);
                             AnsiConsole.MarkupLine("[green]All downloads paused.[/]");
                         }
                     }

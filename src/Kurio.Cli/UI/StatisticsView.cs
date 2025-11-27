@@ -1,5 +1,5 @@
-using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+using KuriousLabs.Kurio.Cli.Client;
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
@@ -9,26 +9,23 @@ namespace KuriousLabs.Kurio.Cli.UI;
 /// </summary>
 public sealed class StatisticsView
 {
-    private readonly IDownloadEngine _downloadEngine;
-    private readonly IStatisticsService? _statisticsService;
+    private readonly IKurioApiClient _apiClient;
 
-    public StatisticsView(
-        IDownloadEngine downloadEngine,
-        IStatisticsService? statisticsService = null)
+    public StatisticsView(IKurioApiClient apiClient)
     {
-        _downloadEngine = downloadEngine ?? throw new ArgumentNullException(nameof(downloadEngine));
-        _statisticsService = statisticsService;
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
     }
 
     /// <summary>
     /// Shows the statistics view.
     /// </summary>
-    public Task ShowAsync(CancellationToken cancellationToken)
+    public async Task ShowAsync(CancellationToken cancellationToken)
     {
         AnsiConsole.Clear();
         ShowHeader();
 
-        var downloads = _downloadEngine.GetDownloads(DownloadStateFilter.All).ToList();
+        var downloads = await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
+        var stats = await _apiClient.GetStatisticsAsync(cancellationToken);
 
         var activeCount = downloads.Count(d => d.State == DownloadState.Downloading);
         var queuedCount = downloads.Count(d => d.State == DownloadState.Queued);
@@ -36,11 +33,11 @@ public sealed class StatisticsView
         var completedCount = downloads.Count(d => d.State == DownloadState.Completed);
         var failedCount = downloads.Count(d => d.State == DownloadState.Failed);
 
-        var totalBytesDownloaded = downloads.Sum(d => d.Progress.BytesDownloaded);
-        var totalBytes = downloads.Sum(d => d.Progress.TotalBytes);
+        var totalBytesDownloaded = downloads.Sum(d => d.Progress?.BytesDownloaded ?? 0);
+        var totalBytes = downloads.Sum(d => d.FileSize);
         var currentSpeed = downloads
             .Where(d => d.State == DownloadState.Downloading)
-            .Sum(d => d.Progress.BytesPerSecond);
+            .Sum(d => d.Progress?.BytesPerSecond ?? 0);
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -62,8 +59,6 @@ public sealed class StatisticsView
 
         AnsiConsole.MarkupLine("\n[dim]Press any key to return...[/]");
         Console.ReadKey(true);
-
-        return Task.CompletedTask;
     }
 
     private static string FormatSpeed(long bytesPerSecond)

@@ -1,5 +1,5 @@
-using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+using KuriousLabs.Kurio.Cli.Client;
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
@@ -9,11 +9,11 @@ namespace KuriousLabs.Kurio.Cli.UI;
 /// </summary>
 public sealed class AddDownloadView
 {
-    private readonly IDownloadEngine _downloadEngine;
+    private readonly IKurioApiClient _apiClient;
 
-    public AddDownloadView(IDownloadEngine downloadEngine)
+    public AddDownloadView(IKurioApiClient apiClient)
     {
-        _downloadEngine = downloadEngine ?? throw new ArgumentNullException(nameof(downloadEngine));
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
     }
 
     /// <summary>
@@ -46,11 +46,13 @@ public sealed class AddDownloadView
             "[blue]Max connections:[/]",
             8);
 
-        var options = new DownloadOptions
+        var request = new AddDownloadRequest
         {
+            Url = url,
             DestinationDirectory = destinationDirectory,
             FileName = string.IsNullOrWhiteSpace(fileName) ? null : fileName,
-            MaxConnections = maxConnections
+            MaxConnections = maxConnections,
+            Priority = DownloadPriority.Normal
         };
 
         try
@@ -58,13 +60,13 @@ public sealed class AddDownloadView
             await AnsiConsole.Status()
                 .StartAsync("Adding download...", async ctx =>
                 {
-                    var task = await _downloadEngine.AddDownloadAsync(uri, options, cancellationToken);
-                    AnsiConsole.MarkupLine($"[green]✓ Download added: {task.FileName ?? "Unknown"}[/]");
+                    var response = await _apiClient.AddDownloadAsync(request, cancellationToken);
+                    AnsiConsole.MarkupLine($"[green]✓ Download added: {response.FileName ?? "Unknown"}[/]");
                     
                     if (AnsiConsole.Confirm("Start download now?"))
                     {
                         ctx.Status("Starting download...");
-                        await _downloadEngine.StartDownloadAsync(task.Id, cancellationToken);
+                        await _apiClient.StartDownloadAsync(response.Id, cancellationToken);
                         AnsiConsole.MarkupLine("[green]✓ Download started![/]");
                     }
                 });

@@ -6,6 +6,8 @@ using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
 using Kurio.Core.Queue;
 
+using Microsoft.Extensions.Logging;
+
 namespace Kurio.Core.Engine;
 
 /// <summary>
@@ -17,6 +19,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     private readonly Channel<DownloadProgress> _progressChannel;
     private readonly IProtocolHandler _protocolHandler;
     private readonly IDownloadQueueManager _queueManager;
+    private readonly ILogger<DownloadEngine> _logger;
     private readonly Timer _schedulerTimer;
     private readonly ConcurrentDictionary<Guid, SegmentConfiguration> _segmentConfigs = new();
     private readonly ISegmentManager _segmentManager;
@@ -40,6 +43,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         IStorageManager storageManager,
         ISegmentManager segmentManager,
         IStatePersistence statePersistence,
+        ILogger<DownloadEngine> logger,
         IDownloadQueueManager? queueManager = null,
         int maxConcurrentDownloads = 3)
     {
@@ -48,6 +52,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         _segmentManager = segmentManager ?? throw new ArgumentNullException(nameof(segmentManager));
         _statePersistence = statePersistence ?? throw new ArgumentNullException(nameof(statePersistence));
         _queueManager = queueManager ?? new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads };
+        _logger = logger;
 
         // Initialize unbounded channel for progress updates
         _progressChannel = Channel.CreateUnbounded<DownloadProgress>(new UnboundedChannelOptions
@@ -111,15 +116,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         DownloadOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (url == null)
-        {
-            throw new ArgumentNullException(nameof(url));
-        }
+        ArgumentNullException.ThrowIfNull(url);
 
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         // Create a new download task
         DownloadTask task = new(url, options) { State = DownloadState.Queued };
@@ -369,7 +368,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
                 // Start the download
                 _queueManager.MarkAsStarted(nextTask.Id);
-                
+
                 // Check if this is a resume or new download
                 if (_resumingTasks.TryRemove(nextTask.Id, out _))
                 {
@@ -440,7 +439,8 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Calculate segments
             SegmentOptions segmentOptions = new()
             {
-                MaxConnections = task.Options.MaxConnections, MinSegmentSize = task.Options.MinSegmentSize
+                MaxConnections = task.Options.MaxConnections,
+                MinSegmentSize = task.Options.MinSegmentSize
             };
 
             SegmentConfiguration segmentConfig = _segmentManager.CalculateSegments(
@@ -498,6 +498,19 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 progress,
                 linkedToken);
 
+            // Merge segment files into final file (for per-segment file mode)
+            if (segmentConfig.SegmentCount > 1)
+            {
+                _logger?.LogInformation("Merging {SegmentCount} segment files for task {TaskId}",
+                    segmentConfig.SegmentCount, task.Id);
+
+                await _storageManager.MergeSegmentFilesAsync(
+                    task.Id,
+                    tempFilePath,
+                    segmentConfig.SegmentCount,
+                    linkedToken);
+            }
+
             // Commit the download
             string finalPath = await _storageManager.CommitDownloadAsync(
                 tempFilePath,
@@ -524,7 +537,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         {
             // Download was paused - state already saved
         }
-        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+        catch (AggregateException ex) when (task.State == DownloadState.Paused &&
             ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
             // Download was paused - multiple segments canceled, state already saved
@@ -640,6 +653,19 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 progress,
                 linkedToken);
 
+            // Merge segment files into final file (for per-segment file mode)
+            if (segmentConfig.SegmentCount > 1)
+            {
+                _logger?.LogInformation("Merging {SegmentCount} segment files for resumed task {TaskId}",
+                    segmentConfig.SegmentCount, task.Id);
+
+                await _storageManager.MergeSegmentFilesAsync(
+                    task.Id,
+                    tempFilePath,
+                    segmentConfig.SegmentCount,
+                    linkedToken);
+            }
+
             // Commit the download
             string finalPath = await _storageManager.CommitDownloadAsync(
                 tempFilePath,
@@ -666,7 +692,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         {
             // Download was paused again - state already saved
         }
-        catch (AggregateException ex) when (task.State == DownloadState.Paused && 
+        catch (AggregateException ex) when (task.State == DownloadState.Paused &&
             ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
             // Download was paused again - multiple segments canceled, state already saved

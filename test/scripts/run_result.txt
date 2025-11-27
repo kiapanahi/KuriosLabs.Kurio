@@ -1,0 +1,566 @@
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5205/api/downloads - application/json 211
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.AddDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "AddDownload", controller = "Downloads"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[KuriousLabs.Kurio.Server.Models.DownloadResponse]] AddDownload(KuriousLabs.Kurio.Server.Models.AddDownloadRequest, System.Threading.CancellationToken) on controller KuriousLabs.Kurio.Server.Controllers.DownloadsController (Kurio.Server).
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type 'KuriousLabs.Kurio.Server.Models.DownloadResponse'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KuriousLabs.Kurio.Server.Controllers.DownloadsController.AddDownload (Kurio.Server) in 44.0521ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.AddDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5205/api/downloads - 201 - application/json;+charset=utf-8 51.7545ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Fetching metadata for https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request HEAD https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request HEAD https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 697.7823ms - 200
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 701.8869ms - 200
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Metadata fetched: Size=132738990, Type=application/zip, Ranges=True
+info: Kurio.Core.Engine.SegmentManager[0]
+      Calculated 8 segments for file size 132738990 bytes. Average segment size: 16592373 bytes
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+info: Kurio.Core.Engine.SegmentManager[0]
+      Starting parallel download with 8 segments
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 7: 116146611-132738989 (16592379 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 0: 0-16592372 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 2: 33184746-49777118 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 1: 16592373-33184745 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 6: 99554238-116146610 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 3: 49777119-66369491 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 5: 82961865-99554237 (16592373 bytes)
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 4: 66369492-82961864 (16592373 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 66369492-82961864 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 49777119-66369491 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 116146611-132738989 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 99554238-116146610 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 0-16592372 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 33184746-49777118 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 82961865-99554237 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 16592373-33184745 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 51.2868ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 51.3641ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 141.1959ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 141.2673ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 174.5972ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 174.6716ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 212.8262ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 212.9205ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 250.2785ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 250.3327ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 260.0868ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 260.1457ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 306.2304ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 306.2778ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 309.6785ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 309.713ms - 206
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8 - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetDownload", controller = "Downloads"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.ActionResult`1[KuriousLabs.Kurio.Server.Models.DownloadResponse] GetDownload(System.Guid) on controller KuriousLabs.Kurio.Server.Controllers.DownloadsController (Kurio.Server).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'KuriousLabs.Kurio.Server.Models.DownloadResponse'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server) in 2.4988ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8 - 200 - application/json;+charset=utf-8 6.7524ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8/pause - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.PauseDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "PauseDownload", controller = "Downloads"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] PauseDownload(System.Guid, System.Threading.CancellationToken) on controller KuriousLabs.Kurio.Server.Controllers.DownloadsController (Kurio.Server).
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 99554238-116146610 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 82961865-99554237 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 116146611-132738989 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 66369492-82961864 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 0-16592372 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 33184746-49777118 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 16592373-33184745 was cancelled
+info: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Download range 49777119-66369491 was cancelled
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+info: Microsoft.AspNetCore.Mvc.StatusCodeResult[1]
+      Executing StatusCodeResult, setting HTTP status code 204
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KuriousLabs.Kurio.Server.Controllers.DownloadsController.PauseDownload (Kurio.Server) in 5.286ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.PauseDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8/pause - 204 - - 9.0280ms
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 6 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: The read operation failed, see inner exception.
+       ---> System.ObjectDisposedException: Cannot access a disposed object.
+      Object name: 'System.Net.Sockets.NetworkStream'.
+         at System.Net.Sockets.NetworkStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 7 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 3 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 4 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 2 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 1 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 5 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Segment 0 failed after all retries
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+fail: Kurio.Core.Engine.SegmentManager[0]
+      Download failed. 8 segments failed
+      System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+       ---> System.IO.IOException: Unable to read data from the transport connection: Operation canceled.
+       ---> System.Net.Sockets.SocketException (89): Operation canceled
+         --- End of inner exception stack trace ---
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+         at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at System.Net.Http.HttpConnection.ContentLengthReadStream.ReadAsync(Memory`1 buffer, CancellationToken cancellationToken)
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 170
+         at Kurio.Core.Protocols.HttpProtocolHandler.DownloadRangeAsync(Uri url, ByteRange range, Stream destination, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Protocols/HttpProtocolHandler.cs:line 177
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 352
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Boolean isResume) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 397
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentWithRetryAsync(IProtocolHandler handler, Uri url, ByteRange range, SegmentState state, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken, Int32 maxRetries) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 261
+         at Kurio.Core.Engine.SegmentManager.<>c__DisplayClass5_1.<<DownloadSegmentsAsync>b__0>d.MoveNext() in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 147
+      --- End of stack trace from previous location ---
+         at Kurio.Core.Engine.SegmentManager.DownloadSegmentsAsync(IProtocolHandler handler, Uri url, SegmentConfiguration config, String tempFilePath, DownloadOptions options, IProgress`1 progress, CancellationToken cancellationToken) in /Users/k/projects/github/k/KuriousLabs.Kurio/src/Kurio.Core/Engine/SegmentManager.cs:line 175
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8/resume - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.ResumeDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "ResumeDownload", controller = "Downloads"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] ResumeDownload(System.Guid, System.Threading.CancellationToken) on controller KuriousLabs.Kurio.Server.Controllers.DownloadsController (Kurio.Server).
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Fetching metadata for https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request HEAD https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request HEAD https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 131.4835ms - 200
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 131.5747ms - 200
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Metadata fetched: Size=132738990, Type=application/zip, Ranges=True
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+info: Microsoft.AspNetCore.Mvc.StatusCodeResult[1]
+      Executing StatusCodeResult, setting HTTP status code 204
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KuriousLabs.Kurio.Server.Controllers.DownloadsController.ResumeDownload (Kurio.Server) in 136.4104ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.ResumeDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8/resume - 204 - - 143.3492ms
+info: Kurio.Core.Engine.SegmentManager[0]
+      Verifying checksums for 0 completed segments
+info: Kurio.Core.Engine.SegmentManager[0]
+      All completed segments verified successfully
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 0: 3349829-16592372 (13242544 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 3349829-16592372 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 1: 18185253-33184745 (14999493 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 18185253-33184745 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 2: 36465178-49777118 (13311941 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 36465178-49777118 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 3: 52287503-66369491 (14081989 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 52287503-66369491 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 4: 68355588-82961864 (14606277 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 68355588-82961864 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 5: 84734969-99554237 (14819269 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 84734969-99554237 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 6: 101409261-116146610 (14737350 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 101409261-116146610 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Downloading segment 7: 117510113-132738989 (15228877 bytes)
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Downloading range 117510113-132738989 from https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?1764238169
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[100]
+      Start processing HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[100]
+      Sending HTTP request GET https://dl2.soft98.ir/soft/g/Google.Chrome.142.0.7444.176.x64.zip?*
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 54.3997ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 54.488ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 134.4437ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 134.4822ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 143.5227ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 143.5385ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 144.4984ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 144.52ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 153.3591ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 153.3788ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 154.6155ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 154.6734ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 162.8741ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 162.8966ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.ClientHandler[101]
+      Received HTTP response headers after 162.2576ms - 206
+info: System.Net.Http.HttpClient.KurioDownloader.LogicalHandler[101]
+      End processing HTTP request after 162.2791ms - 206
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8 - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetDownload", controller = "Downloads"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.ActionResult`1[KuriousLabs.Kurio.Server.Models.DownloadResponse] GetDownload(System.Guid) on controller KuriousLabs.Kurio.Server.Controllers.DownloadsController (Kurio.Server).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'KuriousLabs.Kurio.Server.Models.DownloadResponse'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server) in 0.499ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KuriousLabs.Kurio.Server.Controllers.DownloadsController.GetDownload (Kurio.Server)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5205/api/downloads/169a4b45-be2b-407b-9e87-e7bf3fd66dc8 - 200 - application/json;+charset=utf-8 1.0220ms
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 13242544 bytes from range 3349829-16592372
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 0 checksum computed: 9ABBEB4DAD5C6CB9
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 0 completed. Duration: 8858.833ms
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 14081989 bytes from range 52287503-66369491
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 3 checksum computed: 6F9642C2D6D263F4
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 3 completed. Duration: 11146.977ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 14819269 bytes from range 84734969-99554237
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 5 checksum computed: AD3680297A6D61C1
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 5 completed. Duration: 11690.443ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 14737350 bytes from range 101409261-116146610
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 6 checksum computed: 8C465AFF2A32B15C
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 6 completed. Duration: 12030.374ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 13311941 bytes from range 36465178-49777118
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 2 checksum computed: 66D5B0BB67CCCC55
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 2 completed. Duration: 12242.402ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 15228877 bytes from range 117510113-132738989
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 7 checksum computed: 2137B7D2146D9278
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 7 completed. Duration: 12476.553ms
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 14999493 bytes from range 18185253-33184745
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 1 checksum computed: 807F20A51DD66910
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 1 completed. Duration: 12544.221ms
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Saved state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8 to /Users/k/.kurio/state/169a4b45-be2b-407b-9e87-e7bf3fd66dc8.json
+dbug: Kurio.Core.Protocols.HttpProtocolHandler[0]
+      Successfully downloaded 14606277 bytes from range 68355588-82961864
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 4 checksum computed: 3C7FC16DE76D88AC
+dbug: Kurio.Core.Engine.SegmentManager[0]
+      Segment 4 completed. Duration: 16473.817ms
+dbug: Kurio.Core.Persistence.JsonStatePersistence[0]
+      Deleted state for task 169a4b45-be2b-407b-9e87-e7bf3fd66dc8+

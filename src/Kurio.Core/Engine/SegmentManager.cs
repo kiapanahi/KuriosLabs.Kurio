@@ -325,19 +325,43 @@ public sealed class SegmentManager : ISegmentManager
             range.End,
             range.Length);
 
-        // Create a memory stream to buffer the segment data
-        await using MemoryStream memoryStream = new((int)range.Length);
-
+        // Get the directory containing the temp file
+        string? tempDir = Path.GetDirectoryName(tempFilePath);
+        if (string.IsNullOrEmpty(tempDir))
+        {
+            throw new InvalidOperationException("Invalid temporary file path");
+        }
+        
+        // Create segment-specific file path
+        string segmentFilePath = Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
+        
         // Store the initial bytes downloaded (for resume scenarios)
+        // This represents bytes that were previously written to disk
         long initialBytesDownloaded = isResume ? state.BytesDownloaded : 0;
 
+        // Open segment file for writing - stream directly to disk, no in-memory buffering
+        // Use OpenOrCreate for resume support
+        await using FileStream segmentStream = new(
+            segmentFilePath,
+            FileMode.OpenOrCreate,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
+
+        // For resumed downloads, seek to the position where we left off
+        segmentStream.Seek(initialBytesDownloaded, SeekOrigin.Begin);
+
+        // Track bytes written in this session for progress reporting
+        long bytesWrittenThisSession = 0;
+
         // Progress tracking for this segment
+        // Note: Progress is reported but state.BytesDownloaded is only updated after successful completion
         Progress<long> segmentProgress = new(bytesRead =>
         {
-            // bytesRead is the total bytes read in this download session
-            // Add it to the initial value from before this session started
+            // bytesRead is cumulative bytes written to disk in this session
+            bytesWrittenThisSession = bytesRead;
             long totalForSegment = initialBytesDownloaded + bytesRead;
-            state.BytesDownloaded = totalForSegment;
 
             progress?.Report(new SegmentProgress
             {
@@ -348,44 +372,75 @@ public sealed class SegmentManager : ISegmentManager
             });
         });
 
-        // Download the range
+        // Download directly to the segment file stream (no in-memory buffering!)
         await handler.DownloadRangeAsync(
             url,
             range,
-            memoryStream,
+            segmentStream,
             options,
             segmentProgress,
             cancellationToken);
 
+        // Flush to ensure all data is written to disk
+        await segmentStream.FlushAsync(cancellationToken);
+
         // Verify downloaded size matches expected
-        long downloadedBytes = memoryStream.Length;
-        if (downloadedBytes != range.Length)
+        long finalPosition = segmentStream.Position;
+        long expectedPosition = initialBytesDownloaded + range.Length;
+        
+        if (finalPosition != expectedPosition)
         {
             throw new InvalidOperationException(
-                $"Segment {state.SegmentIndex} size mismatch. Expected: {range.Length}, Got: {downloadedBytes}");
+                $"Segment {state.SegmentIndex} size mismatch. Expected position: {expectedPosition}, Got: {finalPosition}");
         }
 
-        // Write the buffered data to the file at the correct offset using StorageManager
-        byte[] buffer = memoryStream.ToArray();
-        await _storageManager.WriteSegmentAsync(
-            tempFilePath,
-            range.Start,
-            buffer,
-            buffer.Length,
-            cancellationToken);
+        // Close the stream before reading for checksum
+        await segmentStream.DisposeAsync();
 
-        // Compute checksum for this segment
-        string checksum = await _segmentVerifier.ComputeChecksumAsync(buffer, "SHA256", cancellationToken);
-        state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+        // CRITICAL: Only after successful write and flush, update the persisted bytes count
+        // This ensures resume starts from the correct position
+        state.BytesDownloaded = initialBytesDownloaded + range.Length;
+        state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
 
-        _logger?.LogDebug(
-            "Segment {SegmentIndex} checksum computed: {Checksum}",
-            state.SegmentIndex,
-            checksum[..16]); // Log first 16 chars
+        // Compute checksum for the ENTIRE segment from the segment file (not just the newly written part)
+        // This is important for resume scenarios where we need to verify the complete segment
+        // Read the entire segment from its file to compute checksum
+        using (FileStream fileStream = new(
+            segmentFilePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 81920,
+            useAsync: true))
+        {
+            byte[] segmentData = new byte[state.TotalSize];
+            int totalRead = 0;
+            
+            while (totalRead < state.TotalSize)
+            {
+                int bytesRead = await fileStream.ReadAsync(
+                    segmentData.AsMemory(totalRead, (int)(state.TotalSize - totalRead)),
+                    cancellationToken);
+                
+                if (bytesRead == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Unexpected end of file while reading segment {state.SegmentIndex}");
+                }
+                
+                totalRead += bytesRead;
+            }
+            
+            string checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken);
+            state.Checksum = SegmentChecksum.Create("SHA256", checksum);
 
-        // Update state - set to the total downloaded for this segment (initial + current session)
-        // This should equal state.TotalSize when complete
-        state.BytesDownloaded = initialBytesDownloaded + downloadedBytes;
+            _logger?.LogDebug(
+                "Segment {SegmentIndex} checksum computed: {Checksum}",
+                state.SegmentIndex,
+                checksum[..16]); // Log first 16 chars
+        }
+
+        // Mark segment as completed
         state.Status = SegmentStatus.Completed;
         state.CompletedAt = DateTime.UtcNow;
 
@@ -473,10 +528,30 @@ public sealed class SegmentManager : ISegmentManager
                 continue;
             }
 
-            // Verify the segment
+            // Get segment file path
+            string? segmentFile = state.SegmentFilePath;
+            if (string.IsNullOrEmpty(segmentFile))
+            {
+                // Fallback: construct segment file path from temp file directory
+                string? tempDir = Path.GetDirectoryName(tempFilePath);
+                if (!string.IsNullOrEmpty(tempDir))
+                {
+                    segmentFile = Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
+                }
+            }
+
+            // Skip if segment file doesn't exist (shouldn't happen but be defensive)
+            if (string.IsNullOrEmpty(segmentFile) || !File.Exists(segmentFile))
+            {
+                _logger?.LogWarning("Segment file not found for segment {SegmentIndex}, skipping verification", 
+                    state.SegmentIndex);
+                continue;
+            }
+
+            // Verify the segment from its file (offset is 0 since each segment has its own file)
             bool isValid = await _segmentVerifier.VerifySegmentAsync(
-                tempFilePath,
-                state.StartByte,
+                segmentFile,
+                0, // Offset is 0 for per-segment files
                 state.TotalSize,
                 state.Checksum.Hash,
                 state.Checksum.Algorithm,

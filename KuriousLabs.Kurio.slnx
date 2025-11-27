@@ -1,32 +1,37 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Kurio.Cli/Kurio.Cli.csproj" />
-    <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
-    <Project Path="src/Kurio.Server/Kurio.Server.csproj" />
-    <Project Path="src/KuriousLabs.Kurio.ServiceDefaults/KuriousLabs.Kurio.ServiceDefaults.csproj" />
+    <Project Path="src/Kurio.Cli/Kurio.Cli.csproj"/>
+    <Project Path="src/Kurio.Core/Kurio.Core.csproj"/>
+    <Project Path="src/Kurio.Server/Kurio.Server.csproj"/>
+    <Project Path="src/KuriousLabs.Kurio.ServiceDefaults/KuriousLabs.Kurio.ServiceDefaults.csproj"/>
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
+    <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj"/>
   </Folder>
 
   <Folder Name="/misc/">
-    <File Path="README.md" />
-    <File Path="LICENSE" />
-    <File Path=".gitattributes" />
-    <File Path=".gitignore" />
-    <File Path="Directory.Build.props" />
-    <File Path="Directory.Build.targets" />
-    <File Path="Directory.Packages.props" />
-    <File Path=".editorconfig" />
+    <File Path="README.md"/>
+    <File Path="LICENSE"/>
+    <File Path=".gitattributes"/>
+    <File Path=".gitignore"/>
+    <File Path="Directory.Build.props"/>
+    <File Path="Directory.Build.targets"/>
+    <File Path="Directory.Packages.props"/>
+    <File Path=".editorconfig"/>
   </Folder>
   <Folder Name="/.github/">
-    <File Path=".github/copilot-instructions.md" />
+    <File Path=".github/copilot-instructions.md"/>
   </Folder>
-  <Folder Name="/docs/" />
+  <Folder Name="/docs/">
+    <File Path="docs/implementation-plan.md"/>
+  </Folder>
   <Folder Name="/docs/architecture/">
-    <File Path="docs/architecture/domain-model.md" />
+    <File Path="docs/architecture/domain-model.md"/>
   </Folder>
   <Folder Name="/docs/prd/">
-    <File Path="docs/prd/core-engine-architecture.md" />
+    <File Path="docs/prd/core-engine-architecture.md"/>
+    <File Path="docs/prd/configuration-and-storage.md"/>
+    <File Path="docs/prd/tui-implementation.md"/>
+    <File Path="docs/prd/web-service-architecture.md"/>
   </Folder>
 </Solution>

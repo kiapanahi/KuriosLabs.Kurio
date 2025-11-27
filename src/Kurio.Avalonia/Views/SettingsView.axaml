@@ -8,7 +8,7 @@
              x:DataType="vm:SettingsViewModel">
 
     <Design.DataContext>
-        <vm:SettingsViewModel/>
+        <vm:SettingsViewModel />
     </Design.DataContext>
 
     <ScrollViewer>
@@ -22,14 +22,14 @@
 
                     <StackPanel Spacing="5">
                         <TextBlock Text="Maximum Concurrent Downloads:" />
-                        <NumericUpDown Value="{Binding MaxConcurrentDownloads}" 
-                                      Minimum="1" Maximum="10" />
+                        <NumericUpDown Value="{Binding MaxConcurrentDownloads}"
+                                       Minimum="1" Maximum="10" />
                     </StackPanel>
 
                     <StackPanel Spacing="5">
                         <TextBlock Text="Default Number of Segments:" />
-                        <NumericUpDown Value="{Binding DefaultSegments}" 
-                                      Minimum="1" Maximum="32" />
+                        <NumericUpDown Value="{Binding DefaultSegments}"
+                                       Minimum="1" Maximum="32" />
                     </StackPanel>
 
                     <StackPanel Spacing="5">
@@ -40,8 +40,8 @@
                         </Grid>
                     </StackPanel>
 
-                    <CheckBox Content="Start downloads automatically" 
-                             IsChecked="{Binding StartDownloadsAutomatically}" />
+                    <CheckBox Content="Start downloads automatically"
+                              IsChecked="{Binding StartDownloadsAutomatically}" />
                 </StackPanel>
             </Border>
 
@@ -52,10 +52,10 @@
 
                     <StackPanel Spacing="5">
                         <TextBlock Text="Maximum Download Speed (KB/s):" />
-                        <NumericUpDown Value="{Binding MaxSpeedKBps}" 
-                                      Minimum="0" Maximum="1000000" />
-                        <TextBlock Text="Set to 0 for unlimited speed" 
-                                  FontSize="11" Foreground="Gray" />
+                        <NumericUpDown Value="{Binding MaxSpeedKBps}"
+                                       Minimum="0" Maximum="1000000" />
+                        <TextBlock Text="Set to 0 for unlimited speed"
+                                   FontSize="11" Foreground="Gray" />
                     </StackPanel>
                 </StackPanel>
             </Border>

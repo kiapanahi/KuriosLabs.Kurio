@@ -1,4 +1,3 @@
-using System;
 using ReactiveUI;
 
 namespace KuriousLabs.Kurio.Avalonia.ViewModels;

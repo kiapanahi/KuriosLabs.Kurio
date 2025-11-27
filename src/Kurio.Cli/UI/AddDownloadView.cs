@@ -1,11 +1,13 @@
 using Kurio.Core.Models;
+
 using KuriousLabs.Kurio.Cli.Client;
+
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
 
 /// <summary>
-/// View for adding new downloads.
+///     View for adding new downloads.
 /// </summary>
 public sealed class AddDownloadView
 {
@@ -17,7 +19,7 @@ public sealed class AddDownloadView
     }
 
     /// <summary>
-    /// Shows the add download view.
+    ///     Shows the add download view.
     /// </summary>
     public async Task ShowAsync(CancellationToken cancellationToken)
     {
@@ -38,7 +40,7 @@ public sealed class AddDownloadView
             "[blue]Destination directory:[/]",
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "/Downloads");
 
-        var fileName = AnsiConsole.Ask<string>(
+        var fileName = AnsiConsole.Ask(
             "[blue]File name (leave empty to auto-detect):[/]",
             string.Empty);
 
@@ -46,7 +48,7 @@ public sealed class AddDownloadView
             "[blue]Max connections:[/]",
             8);
 
-        var request = new AddDownloadRequest
+        AddDownloadRequest request = new()
         {
             Url = url,
             DestinationDirectory = destinationDirectory,
@@ -62,7 +64,7 @@ public sealed class AddDownloadView
                 {
                     var response = await _apiClient.AddDownloadAsync(request, cancellationToken);
                     AnsiConsole.MarkupLine($"[green]✓ Download added: {response.FileName ?? "Unknown"}[/]");
-                    
+
                     if (AnsiConsole.Confirm("Start download now?"))
                     {
                         ctx.Status("Starting download...");
@@ -82,10 +84,7 @@ public sealed class AddDownloadView
 
     private static void ShowHeader()
     {
-        var rule = new Rule("[blue]Add Download[/]")
-        {
-            Justification = Justify.Left
-        };
+        Rule rule = new("[blue]Add Download[/]") { Justification = Justify.Left };
         AnsiConsole.Write(rule);
         AnsiConsole.WriteLine();
     }

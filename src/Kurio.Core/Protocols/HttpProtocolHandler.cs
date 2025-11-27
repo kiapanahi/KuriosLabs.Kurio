@@ -47,7 +47,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(options);
 
-        using HttpClient httpClient = CreateHttpClient(options);
+        using var httpClient = CreateHttpClient(options);
         using HttpRequestMessage request = new(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
@@ -55,14 +55,14 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         {
             _logger?.LogDebug("Checking range request support for {Url}", url);
 
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             // Check for Accept-Ranges header
-            if (response.Headers.TryGetValues("Accept-Ranges", out IEnumerable<string>? values))
+            if (response.Headers.TryGetValues("Accept-Ranges", out var values))
             {
-                string acceptRanges = string.Join(",", values);
-                bool supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
+                var acceptRanges = string.Join(",", values);
+                var supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
 
                 _logger?.LogDebug("Server {Supports} range requests (Accept-Ranges: {AcceptRanges})",
                     supportsRanges ? "supports" : "does not support", acceptRanges);
@@ -91,16 +91,16 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(options);
 
-        using HttpClient httpClient = CreateHttpClient(options);
+        using var httpClient = CreateHttpClient(options);
         using HttpRequestMessage request = new(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
         try
         {
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            long fileSize = response.Content.Headers.ContentLength ?? -1;
+            var fileSize = response.Content.Headers.ContentLength ?? -1;
             _logger?.LogDebug("File size for {Url}: {Size} bytes", url, fileSize);
 
             return fileSize;
@@ -130,7 +130,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             throw new ArgumentException("Destination stream must be writable.", nameof(destination));
         }
 
-        using HttpClient httpClient = CreateHttpClient(options);
+        using var httpClient = CreateHttpClient(options);
         using HttpRequestMessage request = new(HttpMethod.Get, url);
         ConfigureRequest(request, options);
 
@@ -141,7 +141,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
         try
         {
-            using HttpResponseMessage response = await httpClient.SendAsync(
+            using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
@@ -159,11 +159,11 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                     $"Server did not honor range request. Expected 206 Partial Content, got {response.StatusCode}.");
             }
 
-            await using Stream responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
             // Use optimal buffer size (8KB is generally optimal for most scenarios)
             const int bufferSize = 8192;
-            byte[] buffer = new byte[bufferSize];
+            var buffer = new byte[bufferSize];
             long totalBytesRead = 0;
 
             int bytesRead;
@@ -207,7 +207,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(options);
 
-        using HttpClient httpClient = CreateHttpClient(options);
+        using var httpClient = CreateHttpClient(options);
         using HttpRequestMessage request = new(HttpMethod.Head, url);
         ConfigureRequest(request, options);
 
@@ -215,13 +215,13 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         {
             _logger?.LogDebug("Fetching metadata for {Url}", url);
 
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            bool supportsRanges = false;
-            if (response.Headers.TryGetValues("Accept-Ranges", out IEnumerable<string>? acceptRangeValues))
+            var supportsRanges = false;
+            if (response.Headers.TryGetValues("Accept-Ranges", out var acceptRangeValues))
             {
-                string acceptRanges = string.Join(",", acceptRangeValues);
+                var acceptRanges = string.Join(",", acceptRangeValues);
                 supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
             }
 
@@ -248,7 +248,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             }
 
             // Store additional headers
-            foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
+            foreach (var header in response.Headers)
             {
                 if (!IsStandardHeader(header.Key))
                 {
@@ -270,7 +270,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
     private HttpClient CreateHttpClient(DownloadOptions options)
     {
-        HttpClient client = _httpClientFactory.CreateClient("KurioDownloader");
+        var client = _httpClientFactory.CreateClient("KurioDownloader");
         client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         return client;
     }
@@ -282,7 +282,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         request.Headers.UserAgent.ParseAdd(options.UserAgent);
 
         // Add custom headers
-        foreach ((string key, string value) in options.Headers)
+        foreach (var (key, value) in options.Headers)
         {
             request.Headers.TryAddWithoutValidation(key, value);
         }
@@ -290,7 +290,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         // Add authentication if provided
         if (!string.IsNullOrEmpty(options.Credentials))
         {
-            string credentials = Convert.ToBase64String(
+            var credentials = Convert.ToBase64String(
                 Encoding.UTF8.GetBytes(options.Credentials));
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
         }
@@ -305,20 +305,20 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         {
             _logger?.LogDebug("Testing range request support with byte range 0-0 for {Url}", url);
 
-            using HttpClient httpClient = CreateHttpClient(options);
+            using var httpClient = CreateHttpClient(options);
             using HttpRequestMessage request = new(HttpMethod.Get, url);
             ConfigureRequest(request, options);
 
             // Request only the first byte
             request.Headers.Range = new RangeHeaderValue(0, 0);
 
-            using HttpResponseMessage response = await httpClient.SendAsync(
+            using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
             // If we get 206 Partial Content, range requests are supported
-            bool supportsRanges = response.StatusCode == HttpStatusCode.PartialContent;
+            var supportsRanges = response.StatusCode == HttpStatusCode.PartialContent;
 
             _logger?.LogDebug("Range request test result: {Result}", supportsRanges);
 
@@ -346,18 +346,18 @@ public sealed class HttpProtocolHandler : IProtocolHandler
     {
         try
         {
-            string[] segments = url.Segments;
+            var segments = url.Segments;
             if (segments.Length > 0)
             {
-                string lastSegment = segments[^1];
+                var lastSegment = segments[^1];
                 // Remove trailing slash if present
                 lastSegment = lastSegment.TrimEnd('/');
 
                 // Decode URL encoding
-                string decoded = Uri.UnescapeDataString(lastSegment);
+                var decoded = Uri.UnescapeDataString(lastSegment);
 
                 // Remove query string if present
-                int queryIndex = decoded.IndexOf('?');
+                var queryIndex = decoded.IndexOf('?');
                 if (queryIndex >= 0)
                 {
                     decoded = decoded[..queryIndex];

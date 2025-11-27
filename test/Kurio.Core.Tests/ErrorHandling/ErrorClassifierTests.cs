@@ -6,8 +6,6 @@ using Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using Xunit;
-
 namespace Kurio.Core.Tests.ErrorHandling;
 
 public class ErrorClassifierTests
@@ -23,7 +21,7 @@ public class ErrorClassifierTests
     public void Classify_SocketException_ReturnsNetworkCategory()
     {
         // Arrange
-        var exception = new SocketException();
+        SocketException exception = new();
 
         // Act
         var error = _classifier.Classify(exception);
@@ -38,7 +36,7 @@ public class ErrorClassifierTests
     public void Classify_TimeoutException_ReturnsNetworkCategory()
     {
         // Arrange
-        var exception = new TimeoutException("Request timed out");
+        TimeoutException exception = new("Request timed out");
 
         // Act
         var error = _classifier.Classify(exception);
@@ -52,7 +50,7 @@ public class ErrorClassifierTests
     public void Classify_HttpRequestException404_ReturnsResourceNotFound()
     {
         // Arrange
-        var exception = new HttpRequestException("Not found", null, HttpStatusCode.NotFound);
+        HttpRequestException exception = new("Not found", null, HttpStatusCode.NotFound);
 
         // Act
         var error = _classifier.Classify(exception);
@@ -67,7 +65,7 @@ public class ErrorClassifierTests
     public void Classify_HttpRequestException401_ReturnsAuthenticationCategory()
     {
         // Arrange
-        var exception = new HttpRequestException("Unauthorized", null, HttpStatusCode.Unauthorized);
+        HttpRequestException exception = new("Unauthorized", null, HttpStatusCode.Unauthorized);
 
         // Act
         var error = _classifier.Classify(exception);
@@ -82,7 +80,7 @@ public class ErrorClassifierTests
     public void Classify_HttpRequestException429_ReturnsRateLimiting()
     {
         // Arrange
-        var exception = new HttpRequestException("Too many requests", null, HttpStatusCode.TooManyRequests);
+        HttpRequestException exception = new("Too many requests", null, HttpStatusCode.TooManyRequests);
 
         // Act
         var error = _classifier.Classify(exception);
@@ -98,7 +96,7 @@ public class ErrorClassifierTests
     public void Classify_HttpRequestException500_ReturnsHttpCategory()
     {
         // Arrange
-        var exception = new HttpRequestException("Internal server error", null, HttpStatusCode.InternalServerError);
+        HttpRequestException exception = new("Internal server error", null, HttpStatusCode.InternalServerError);
 
         // Act
         var error = _classifier.Classify(exception);
@@ -114,7 +112,7 @@ public class ErrorClassifierTests
     public void Classify_IOException_ReturnsDiskIoCategory()
     {
         // Arrange
-        var exception = new IOException("Disk full");
+        IOException exception = new("Disk full");
 
         // Act
         var error = _classifier.Classify(exception);
@@ -128,7 +126,7 @@ public class ErrorClassifierTests
     public void Classify_UnauthorizedAccessException_ReturnsAuthenticationCategory()
     {
         // Arrange
-        var exception = new UnauthorizedAccessException("Access denied");
+        UnauthorizedAccessException exception = new("Access denied");
 
         // Act
         var error = _classifier.Classify(exception);
@@ -141,7 +139,7 @@ public class ErrorClassifierTests
     public void Classify_UnknownException_ReturnsUnknownCategory()
     {
         // Arrange
-        var exception = new InvalidCastException("Invalid cast");
+        InvalidCastException exception = new("Invalid cast");
 
         // Act
         var error = _classifier.Classify(exception);
@@ -155,11 +153,7 @@ public class ErrorClassifierTests
     public void IsTransient_NetworkError_ReturnsTrue()
     {
         // Arrange
-        var error = new DownloadError
-        {
-            Message = "Network error",
-            Category = DownloadErrorCategory.Network
-        };
+        DownloadError error = new() { Message = "Network error", Category = DownloadErrorCategory.Network };
 
         // Act
         var isTransient = _classifier.IsTransient(error);
@@ -172,11 +166,7 @@ public class ErrorClassifierTests
     public void IsTransient_RateLimitingError_ReturnsTrue()
     {
         // Arrange
-        var error = new DownloadError
-        {
-            Message = "Rate limited",
-            Category = DownloadErrorCategory.RateLimiting
-        };
+        DownloadError error = new() { Message = "Rate limited", Category = DownloadErrorCategory.RateLimiting };
 
         // Act
         var isTransient = _classifier.IsTransient(error);
@@ -189,11 +179,9 @@ public class ErrorClassifierTests
     public void IsTransient_ServerError_ReturnsTrue()
     {
         // Arrange
-        var error = new DownloadError
+        DownloadError error = new()
         {
-            Message = "Server error",
-            Category = DownloadErrorCategory.Http,
-            HttpStatusCode = 503
+            Message = "Server error", Category = DownloadErrorCategory.Http, HttpStatusCode = 503
         };
 
         // Act
@@ -207,11 +195,7 @@ public class ErrorClassifierTests
     public void IsTransient_ResourceNotFound_ReturnsFalse()
     {
         // Arrange
-        var error = new DownloadError
-        {
-            Message = "Not found",
-            Category = DownloadErrorCategory.ResourceNotFound
-        };
+        DownloadError error = new() { Message = "Not found", Category = DownloadErrorCategory.ResourceNotFound };
 
         // Act
         var isTransient = _classifier.IsTransient(error);
@@ -224,11 +208,9 @@ public class ErrorClassifierTests
     public void GetRecoveryAction_RangeNotSatisfiable_ReturnsFallback()
     {
         // Arrange
-        var error = new DownloadError
+        DownloadError error = new()
         {
-            Message = "Range not satisfiable",
-            Category = DownloadErrorCategory.Http,
-            HttpStatusCode = 416
+            Message = "Range not satisfiable", Category = DownloadErrorCategory.Http, HttpStatusCode = 416
         };
 
         // Act
@@ -242,7 +224,7 @@ public class ErrorClassifierTests
     public void Classify_IncludesUserFriendlyMessage()
     {
         // Arrange
-        var exception = new SocketException();
+        SocketException exception = new();
 
         // Act
         var error = _classifier.Classify(exception);
@@ -256,7 +238,7 @@ public class ErrorClassifierTests
     public void Classify_IncludesExceptionDetails()
     {
         // Arrange
-        var exception = new InvalidOperationException("Test exception");
+        InvalidOperationException exception = new("Test exception");
 
         // Act
         var error = _classifier.Classify(exception);

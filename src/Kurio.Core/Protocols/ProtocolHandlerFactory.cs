@@ -22,9 +22,9 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
         _handlerCache = new Dictionary<string, IProtocolHandler>(StringComparer.OrdinalIgnoreCase);
 
         // Build cache of scheme -> handler mappings
-        foreach (IProtocolHandler handler in _handlers)
+        foreach (var handler in _handlers)
         {
-            foreach (string scheme in handler.SupportedSchemes)
+            foreach (var scheme in handler.SupportedSchemes)
             {
                 if (_handlerCache.ContainsKey(scheme))
                 {
@@ -48,7 +48,7 @@ public sealed class ProtocolHandlerFactory : IProtocolHandlerFactory
             throw new ArgumentException("URL must have a valid scheme.", nameof(url));
         }
 
-        if (_handlerCache.TryGetValue(url.Scheme, out IProtocolHandler? handler))
+        if (_handlerCache.TryGetValue(url.Scheme, out var handler))
         {
             return handler;
         }

@@ -1,9 +1,9 @@
-namespace Kurio.Core.Tests.Statistics;
-
 using FluentAssertions;
 
 using Kurio.Core.Models;
 using Kurio.Core.Statistics;
+
+namespace Kurio.Core.Tests.Statistics;
 
 public class ProgressTrackerTests
 {
@@ -11,7 +11,7 @@ public class ProgressTrackerTests
     public void StartTracking_CreatesTrackingState()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
 
         // Act
@@ -29,7 +29,7 @@ public class ProgressTrackerTests
     public void GetProgress_ForUnknownTask_ReturnsNull()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
 
         // Act
         var progress = tracker.GetProgress(Guid.NewGuid());
@@ -42,7 +42,7 @@ public class ProgressTrackerTests
     public void RecordProgress_UpdatesBytesDownloaded()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
 
@@ -60,14 +60,28 @@ public class ProgressTrackerTests
     public void RecordProgress_UpdatesSegmentProgress()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
 
-        var segments = new List<SegmentProgressInfo>
+        List<SegmentProgressInfo> segments = new()
         {
-            new() { SegmentIndex = 0, StartByte = 0, EndByte = 4999, BytesDownloaded = 2500, IsActive = true },
-            new() { SegmentIndex = 1, StartByte = 5000, EndByte = 9999, BytesDownloaded = 2500, IsActive = true }
+            new SegmentProgressInfo
+            {
+                SegmentIndex = 0,
+                StartByte = 0,
+                EndByte = 4999,
+                BytesDownloaded = 2500,
+                IsActive = true
+            },
+            new SegmentProgressInfo
+            {
+                SegmentIndex = 1,
+                StartByte = 5000,
+                EndByte = 9999,
+                BytesDownloaded = 2500,
+                IsActive = true
+            }
         };
 
         // Act
@@ -84,7 +98,7 @@ public class ProgressTrackerTests
     public void StopTracking_RemovesTrackingState()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
 
@@ -100,7 +114,7 @@ public class ProgressTrackerTests
     public void Pause_PausesSpeedCalculation()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
         tracker.RecordProgress(taskId, 1000);
@@ -120,7 +134,7 @@ public class ProgressTrackerTests
     public void RecordProgress_ForUnknownTask_DoesNotThrow()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
 
         // Act & Assert
         var act = () => tracker.RecordProgress(Guid.NewGuid(), 1000);
@@ -131,15 +145,15 @@ public class ProgressTrackerTests
     public async Task GetProgressUpdates_EmitsProgressForCorrectTask()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId1 = Guid.NewGuid();
         var taskId2 = Guid.NewGuid();
         tracker.StartTracking(taskId1, 10000);
         tracker.StartTracking(taskId2, 10000);
 
-        var receivedProgress = new List<EnhancedDownloadProgress>();
-        using var cts = new CancellationTokenSource();
-        
+        List<EnhancedDownloadProgress> receivedProgress = new();
+        using CancellationTokenSource cts = new();
+
         // Start streaming progress in background
         var streamTask = Task.Run(async () =>
         {
@@ -147,7 +161,9 @@ public class ProgressTrackerTests
             {
                 receivedProgress.Add(progress);
                 if (receivedProgress.Count >= 2)
+                {
                     cts.Cancel();
+                }
             }
         });
 
@@ -170,15 +186,15 @@ public class ProgressTrackerTests
     public async Task AllProgressUpdates_EmitsProgressForAllTasks()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId1 = Guid.NewGuid();
         var taskId2 = Guid.NewGuid();
         tracker.StartTracking(taskId1, 10000);
         tracker.StartTracking(taskId2, 10000);
 
-        var receivedProgress = new List<EnhancedDownloadProgress>();
-        using var cts = new CancellationTokenSource();
-        
+        List<EnhancedDownloadProgress> receivedProgress = new();
+        using CancellationTokenSource cts = new();
+
         // Start streaming all progress in background
         var streamTask = Task.Run(async () =>
         {
@@ -186,7 +202,9 @@ public class ProgressTrackerTests
             {
                 receivedProgress.Add(progress);
                 if (receivedProgress.Count >= 2)
+                {
                     cts.Cancel();
+                }
             }
         });
 
@@ -209,7 +227,7 @@ public class ProgressTrackerTests
     public void Progress_CalculatesPercentageCorrectly()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 1000);
 
@@ -226,7 +244,7 @@ public class ProgressTrackerTests
     public void Progress_CalculatesElapsedActiveTime()
     {
         // Arrange
-        using var tracker = new ProgressTracker();
+        using ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
 
@@ -244,7 +262,7 @@ public class ProgressTrackerTests
     public void Dispose_ClearsAllTracking()
     {
         // Arrange
-        var tracker = new ProgressTracker();
+        ProgressTracker tracker = new();
         var taskId = Guid.NewGuid();
         tracker.StartTracking(taskId, 10000);
 

@@ -103,8 +103,8 @@ public sealed class DownloadTaskState
     /// <summary>
     ///     Gets the completion percentage (0-100).
     /// </summary>
-    public double CompletedPercent => FileSize > 0 
-        ? Math.Round((double)TotalBytesDownloaded / FileSize * 100, 2) 
+    public double CompletedPercent => FileSize > 0
+        ? Math.Round((double)TotalBytesDownloaded / FileSize * 100, 2)
         : 0;
 
     /// <summary>

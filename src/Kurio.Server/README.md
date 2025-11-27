@@ -1,10 +1,12 @@
 # Kurio.Server
 
-ASP.NET Core web service that hosts the Kurio download engine and exposes it via REST API and real-time communication channels (SignalR/SSE).
+ASP.NET Core web service that hosts the Kurio download engine and exposes it via REST API and real-time communication
+channels (SignalR/SSE).
 
 ## Overview
 
 Kurio.Server is the backend component of the Kurio download manager that provides:
+
 - **REST API** for all download operations (CRUD, queue management)
 - **SignalR Hub** for bidirectional real-time communication
 - **Server-Sent Events (SSE)** for simple server-to-client progress streaming
@@ -36,6 +38,7 @@ dotnet run
 ```
 
 The server will start on:
+
 - HTTP: `http://localhost:5000`
 - HTTPS: `https://localhost:5001`
 

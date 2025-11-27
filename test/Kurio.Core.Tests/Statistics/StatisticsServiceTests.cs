@@ -1,5 +1,3 @@
-namespace Kurio.Core.Tests.Statistics;
-
 using FluentAssertions;
 
 using Kurio.Core.Abstractions;
@@ -9,6 +7,8 @@ using Kurio.Core.Statistics;
 using Microsoft.Extensions.Logging;
 
 using Moq;
+
+namespace Kurio.Core.Tests.Statistics;
 
 public class StatisticsServiceTests
 {
@@ -75,7 +75,7 @@ public class StatisticsServiceTests
         _mockHistoryRepository.Setup(r => r.GetCompletedAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DownloadHistoryEntry>());
 
-        var entry = CreateHistoryEntry(true, 1000, 500, peakSpeed: 10000);
+        var entry = CreateHistoryEntry(true, 1000, 500, 10000);
 
         // Act
         await service.RecordCompletedDownloadAsync(entry);

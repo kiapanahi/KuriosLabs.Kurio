@@ -17,7 +17,7 @@ public sealed class ResiliencePolicyFactory
     private readonly ResiliencePolicyOptions _options;
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="ResiliencePolicyFactory"/> class.
+    ///     Initializes a new instance of the <see cref="ResiliencePolicyFactory" /> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="options">The resilience policy options.</param>

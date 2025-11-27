@@ -7,13 +7,12 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
         x:Class="KuriousLabs.Kurio.Avalonia.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
         Title="Kurio - Download Manager"
         Width="1200"
         Height="700">
 
     <Design.DataContext>
-        <vm:MainWindowViewModel/>
+        <vm:MainWindowViewModel />
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,*,Auto">

@@ -5,16 +5,43 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 
-using Kurio.Core.Models;
-
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 
-namespace KuriousLabs.Kurio.Cli.Client;
+namespace KuriousLabs.Kurio.Avalonia.Services;
 
-/// <summary>
-///     Client for communicating with the Kurio server via HTTP and SignalR.
-/// </summary>
+public interface IKurioApiClient : IAsyncDisposable
+{
+    ConnectionState State { get; }
+    event EventHandler<ConnectionState>? ConnectionStateChanged;
+
+    Task ConnectAsync(CancellationToken cancellationToken = default);
+    Task DisconnectAsync(CancellationToken cancellationToken = default);
+    Task<DownloadResponse> AddDownloadAsync(AddDownloadRequest request, CancellationToken cancellationToken = default);
+
+    Task<List<DownloadResponse>> GetDownloadsAsync(DownloadStateFilter filter = DownloadStateFilter.All,
+        CancellationToken cancellationToken = default);
+
+    Task<DownloadResponse?> GetDownloadAsync(Guid id, CancellationToken cancellationToken = default);
+    Task StartDownloadAsync(Guid id, CancellationToken cancellationToken = default);
+    Task PauseDownloadAsync(Guid id, CancellationToken cancellationToken = default);
+    Task ResumeDownloadAsync(Guid id, CancellationToken cancellationToken = default);
+    Task CancelDownloadAsync(Guid id, bool removeFiles = false, CancellationToken cancellationToken = default);
+    Task<QueueStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<DownloadProgressDto> StreamProgressAsync(Guid? taskId = null,
+        CancellationToken cancellationToken = default);
+}
+
+public enum ConnectionState
+{
+    Disconnected,
+    Connecting,
+    Connected,
+    Reconnecting,
+    Error
+}
+
 public class KurioApiClient : IKurioApiClient
 {
     private readonly HttpClient _httpClient;
@@ -35,7 +62,6 @@ public class KurioApiClient : IKurioApiClient
         _httpClient.BaseAddress = new Uri(serverUrl);
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-        // Configure JSON serialization to match server (enums as strings)
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -48,7 +74,6 @@ public class KurioApiClient : IKurioApiClient
             SingleWriter = false, SingleReader = false
         });
 
-        // Configure SignalR connection
         _hubConnection = new HubConnectionBuilder()
             .WithUrl($"{serverUrl}/hubs/downloads")
             .WithAutomaticReconnect(new[]
@@ -62,12 +87,10 @@ public class KurioApiClient : IKurioApiClient
             })
             .Build();
 
-        // Subscribe to connection events
         _hubConnection.Closed += OnConnectionClosed;
         _hubConnection.Reconnecting += OnReconnecting;
         _hubConnection.Reconnected += OnReconnected;
 
-        // Subscribe to progress updates
         _hubConnection.On<DownloadProgressDto>("ProgressUpdate", progress =>
         {
             _progressChannel.Writer.TryWrite(progress);
@@ -96,11 +119,9 @@ public class KurioApiClient : IKurioApiClient
 
         try
         {
-            // Test HTTP connection first
             var response = await _httpClient.GetAsync("/health", cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            // Connect SignalR
             await _hubConnection.StartAsync(cancellationToken);
             await _hubConnection.InvokeAsync("SubscribeToProgress", null, cancellationToken);
 
@@ -216,41 +237,6 @@ public class KurioApiClient : IKurioApiClient
         await EnsureSuccessStatusCodeAsync(response);
     }
 
-    public async Task<bool> ChangePriorityAsync(
-        Guid id,
-        DownloadPriority priority,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await _httpClient.PostAsJsonAsync(
-            $"api/downloads/{id}/priority",
-            new { Priority = priority },
-            cancellationToken);
-
-        return response.IsSuccessStatusCode;
-    }
-
-    public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
-    {
-        var response = await _httpClient.PostAsync(
-            "api/downloads/pause-all",
-            null,
-            cancellationToken);
-
-        await EnsureSuccessStatusCodeAsync(response);
-
-        return await response.Content.ReadFromJsonAsync<int>(_jsonOptions, cancellationToken);
-    }
-
-    public async Task ClearCompletedAsync(CancellationToken cancellationToken = default)
-    {
-        var response = await _httpClient.PostAsync(
-            "api/downloads/clear-completed",
-            null,
-            cancellationToken);
-
-        await EnsureSuccessStatusCodeAsync(response);
-    }
-
     public async Task<QueueStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         var response = await _httpClient.GetAsync(
@@ -269,9 +255,6 @@ public class KurioApiClient : IKurioApiClient
     {
         await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
         {
-            // Filter by task ID if specified
-            // Note: The DownloadProgressDto doesn't have a TaskId property yet
-            // This will need to be added to match the server's progress model
             yield return progress;
         }
     }

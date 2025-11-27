@@ -1,8 +1,6 @@
-namespace Kurio.Core.Tests.Models;
-
 using Kurio.Core.Models;
 
-using Xunit;
+namespace Kurio.Core.Tests.Models;
 
 public class ByteRangeTests
 {
@@ -10,7 +8,7 @@ public class ByteRangeTests
     public void Constructor_ShouldSetStartAndEnd()
     {
         // Arrange & Act
-        var range = new ByteRange(0, 99);
+        ByteRange range = new(0, 99);
 
         // Assert
         Assert.Equal(0, range.Start);
@@ -21,7 +19,7 @@ public class ByteRangeTests
     public void Length_ShouldCalculateCorrectly()
     {
         // Arrange
-        var range = new ByteRange(0, 99);
+        ByteRange range = new(0, 99);
 
         // Act
         var length = range.Length;
@@ -46,7 +44,7 @@ public class ByteRangeTests
     public void ToString_ShouldReturnHttpRangeFormat()
     {
         // Arrange
-        var range = new ByteRange(0, 99);
+        ByteRange range = new(0, 99);
 
         // Act
         var result = range.ToString();

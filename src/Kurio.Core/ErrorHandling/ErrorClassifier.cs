@@ -114,7 +114,7 @@ public sealed class ErrorClassifier(ILogger<ErrorClassifier> logger) : IErrorCla
 
     private static DownloadErrorCategory ClassifyIoException(IOException ioEx)
     {
-        string message = ioEx.Message.ToLowerInvariant();
+        var message = ioEx.Message.ToLowerInvariant();
 
         if (message.Contains("space") || message.Contains("disk full") || message.Contains("permission") ||
             message.Contains("access denied"))

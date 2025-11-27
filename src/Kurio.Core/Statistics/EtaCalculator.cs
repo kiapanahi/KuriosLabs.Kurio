@@ -28,13 +28,13 @@ public sealed class EtaCalculator
             return TimeSpan.Zero;
         }
 
-        long currentSpeed = _speedCalculator.CurrentSpeed;
+        var currentSpeed = _speedCalculator.CurrentSpeed;
         if (currentSpeed <= 0)
         {
             return null;
         }
 
-        double secondsRemaining = (double)bytesRemaining / currentSpeed;
+        var secondsRemaining = (double)bytesRemaining / currentSpeed;
         return TimeSpan.FromSeconds(secondsRemaining);
     }
 
@@ -50,13 +50,13 @@ public sealed class EtaCalculator
             return TimeSpan.Zero;
         }
 
-        long averageSpeed = _speedCalculator.AverageSpeed;
+        var averageSpeed = _speedCalculator.AverageSpeed;
         if (averageSpeed <= 0)
         {
             return null;
         }
 
-        double secondsRemaining = (double)bytesRemaining / averageSpeed;
+        var secondsRemaining = (double)bytesRemaining / averageSpeed;
         return TimeSpan.FromSeconds(secondsRemaining);
     }
 
@@ -74,7 +74,7 @@ public sealed class EtaCalculator
         }
 
         // Prefer average speed as it's more stable
-        TimeSpan? avgEta = GetEtaFromAverageSpeed(bytesRemaining);
+        var avgEta = GetEtaFromAverageSpeed(bytesRemaining);
         if (avgEta.HasValue)
         {
             return avgEta;

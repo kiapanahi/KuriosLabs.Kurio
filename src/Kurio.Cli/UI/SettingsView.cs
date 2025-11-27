@@ -3,12 +3,12 @@ using Spectre.Console;
 namespace KuriousLabs.Kurio.Cli.UI;
 
 /// <summary>
-/// View for managing application settings.
+///     View for managing application settings.
 /// </summary>
 public sealed class SettingsView
 {
     /// <summary>
-    /// Shows the settings view.
+    ///     Shows the settings view.
     /// </summary>
     public Task ShowAsync(CancellationToken cancellationToken)
     {
@@ -17,7 +17,7 @@ public sealed class SettingsView
 
         AnsiConsole.MarkupLine("[yellow]Settings management is not yet implemented.[/]");
         AnsiConsole.MarkupLine("This feature will be added in future releases.");
-        
+
         AnsiConsole.MarkupLine("\n[dim]Planned settings:[/]");
         AnsiConsole.MarkupLine("  • Max concurrent downloads");
         AnsiConsole.MarkupLine("  • Default download directory");
@@ -33,10 +33,7 @@ public sealed class SettingsView
 
     private static void ShowHeader()
     {
-        var rule = new Rule("[blue]Settings[/]")
-        {
-            Justification = Justify.Left
-        };
+        Rule rule = new("[blue]Settings[/]") { Justification = Justify.Left };
         AnsiConsole.Write(rule);
         AnsiConsole.WriteLine();
     }

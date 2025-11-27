@@ -1,9 +1,8 @@
-namespace Kurio.Core.Tests.Queue;
-
-using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
 using Kurio.Core.Queue;
+
+namespace Kurio.Core.Tests.Queue;
 
 public class DownloadQueueManagerTests
 {
@@ -16,13 +15,9 @@ public class DownloadQueueManagerTests
     {
         return new DownloadTask(
             new Uri("https://example.com/file.zip"),
-            new DownloadOptions
-            {
-                DestinationDirectory = "/tmp"
-            })
+            new DownloadOptions { DestinationDirectory = "/tmp" })
         {
-            Priority = priority,
-            State = DownloadState.Queued
+            Priority = priority, State = DownloadState.Queued
         };
     }
 
@@ -70,7 +65,7 @@ public class DownloadQueueManagerTests
         // Arrange
         var queueManager = CreateQueueManager();
         var lowTask = CreateTestTask(DownloadPriority.Low);
-        var normalTask = CreateTestTask(DownloadPriority.Normal);
+        var normalTask = CreateTestTask();
         var highTask = CreateTestTask(DownloadPriority.High);
         var criticalTask = CreateTestTask(DownloadPriority.Critical);
 
@@ -92,9 +87,9 @@ public class DownloadQueueManagerTests
     {
         // Arrange
         var queueManager = CreateQueueManager();
-        var task1 = CreateTestTask(DownloadPriority.Normal);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
-        var task3 = CreateTestTask(DownloadPriority.Normal);
+        var task1 = CreateTestTask();
+        var task2 = CreateTestTask();
+        var task3 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -154,7 +149,7 @@ public class DownloadQueueManagerTests
         // Arrange
         var queueManager = CreateQueueManager();
         var task1 = CreateTestTask(DownloadPriority.Low);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
+        var task2 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -185,9 +180,9 @@ public class DownloadQueueManagerTests
     {
         // Arrange
         var queueManager = CreateQueueManager();
-        var task1 = CreateTestTask(DownloadPriority.Normal);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
-        var task3 = CreateTestTask(DownloadPriority.Normal);
+        var task1 = CreateTestTask();
+        var task2 = CreateTestTask();
+        var task3 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -224,9 +219,9 @@ public class DownloadQueueManagerTests
     {
         // Arrange
         var queueManager = CreateQueueManager();
-        var task1 = CreateTestTask(DownloadPriority.Normal);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
-        var task3 = CreateTestTask(DownloadPriority.Normal);
+        var task1 = CreateTestTask();
+        var task2 = CreateTestTask();
+        var task3 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -263,9 +258,9 @@ public class DownloadQueueManagerTests
     {
         // Arrange
         var queueManager = CreateQueueManager();
-        var task1 = CreateTestTask(DownloadPriority.Normal);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
-        var task3 = CreateTestTask(DownloadPriority.Normal);
+        var task1 = CreateTestTask();
+        var task2 = CreateTestTask();
+        var task3 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -285,9 +280,9 @@ public class DownloadQueueManagerTests
     {
         // Arrange
         var queueManager = CreateQueueManager();
-        var task1 = CreateTestTask(DownloadPriority.Normal);
-        var task2 = CreateTestTask(DownloadPriority.Normal);
-        var task3 = CreateTestTask(DownloadPriority.Normal);
+        var task1 = CreateTestTask();
+        var task2 = CreateTestTask();
+        var task3 = CreateTestTask();
 
         queueManager.Enqueue(task1);
         queueManager.Enqueue(task2);
@@ -370,7 +365,7 @@ public class DownloadQueueManagerTests
     public void CanStartNewDownload_ReturnsTrueWhenBelowLimit()
     {
         // Arrange
-        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        var queueManager = CreateQueueManager(2);
         var task = CreateTestTask();
         queueManager.Enqueue(task);
         queueManager.MarkAsStarted(task.Id);
@@ -386,7 +381,7 @@ public class DownloadQueueManagerTests
     public void CanStartNewDownload_ReturnsFalseWhenAtLimit()
     {
         // Arrange
-        var queueManager = CreateQueueManager(maxConcurrent: 1);
+        var queueManager = CreateQueueManager(1);
         var task = CreateTestTask();
         queueManager.Enqueue(task);
         queueManager.MarkAsStarted(task.Id);
@@ -447,7 +442,7 @@ public class DownloadQueueManagerTests
         var queueManager = CreateQueueManager();
         var lowTask = CreateTestTask(DownloadPriority.Low);
         var highTask = CreateTestTask(DownloadPriority.High);
-        var normalTask = CreateTestTask(DownloadPriority.Normal);
+        var normalTask = CreateTestTask();
 
         queueManager.Enqueue(normalTask);
         queueManager.Enqueue(lowTask);
@@ -515,7 +510,7 @@ public class DownloadQueueManagerTests
     public void ConcurrencyLimit_PreventsExcessiveActiveDownloads()
     {
         // Arrange
-        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        var queueManager = CreateQueueManager(2);
         var task1 = CreateTestTask();
         var task2 = CreateTestTask();
         var task3 = CreateTestTask();

@@ -1,24 +1,29 @@
-using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
+
+using KuriousLabs.Kurio.Avalonia.Services;
+
 using ReactiveUI;
 
 namespace KuriousLabs.Kurio.Avalonia.ViewModels;
 
 public class DownloadListViewModel : ViewModelBase
 {
+    private readonly IKurioApiClient _apiClient;
     private ObservableCollection<DownloadItemViewModel> _downloads = new();
     private DownloadItemViewModel? _selectedDownload;
 
-    public DownloadListViewModel()
+    public DownloadListViewModel(IKurioApiClient apiClient)
     {
-        PauseCommand = ReactiveCommand.Create<DownloadItemViewModel>(Pause);
-        ResumeCommand = ReactiveCommand.Create<DownloadItemViewModel>(Resume);
-        CancelCommand = ReactiveCommand.Create<DownloadItemViewModel>(Cancel);
+        _apiClient = apiClient;
+
+        PauseCommand = ReactiveCommand.CreateFromTask<DownloadItemViewModel>(PauseAsync);
+        ResumeCommand = ReactiveCommand.CreateFromTask<DownloadItemViewModel>(ResumeAsync);
+        CancelCommand = ReactiveCommand.CreateFromTask<DownloadItemViewModel>(CancelAsync);
         RemoveCommand = ReactiveCommand.Create<DownloadItemViewModel>(Remove);
-        
-        // Add some sample data for demonstration
-        LoadSampleData();
+
+        // Load downloads from server
+        _ = LoadDownloadsAsync();
     }
 
     public ObservableCollection<DownloadItemViewModel> Downloads
@@ -38,22 +43,44 @@ public class DownloadListViewModel : ViewModelBase
     public ReactiveCommand<DownloadItemViewModel, Unit> CancelCommand { get; }
     public ReactiveCommand<DownloadItemViewModel, Unit> RemoveCommand { get; }
 
-    private void Pause(DownloadItemViewModel download)
+    private async Task PauseAsync(DownloadItemViewModel download)
     {
-        // TODO: Implement pause via API client
-        download.Status = "Paused";
+        try
+        {
+            await _apiClient.PauseDownloadAsync(download.Id);
+            download.Status = "Paused";
+        }
+        catch (Exception ex)
+        {
+            // TODO: Show error to user
+            Console.WriteLine($"Failed to pause download: {ex.Message}");
+        }
     }
 
-    private void Resume(DownloadItemViewModel download)
+    private async Task ResumeAsync(DownloadItemViewModel download)
     {
-        // TODO: Implement resume via API client
-        download.Status = "Downloading";
+        try
+        {
+            await _apiClient.ResumeDownloadAsync(download.Id);
+            download.Status = "Downloading";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to resume download: {ex.Message}");
+        }
     }
 
-    private void Cancel(DownloadItemViewModel download)
+    private async Task CancelAsync(DownloadItemViewModel download)
     {
-        // TODO: Implement cancel via API client
-        download.Status = "Cancelled";
+        try
+        {
+            await _apiClient.CancelDownloadAsync(download.Id, true);
+            Downloads.Remove(download);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to cancel download: {ex.Message}");
+        }
     }
 
     private void Remove(DownloadItemViewModel download)
@@ -61,42 +88,67 @@ public class DownloadListViewModel : ViewModelBase
         Downloads.Remove(download);
     }
 
-    private void LoadSampleData()
+    private async Task LoadDownloadsAsync()
     {
-        // Sample downloads for UI demonstration
-        Downloads.Add(new DownloadItemViewModel
+        try
         {
-            FileName = "ubuntu-24.04-desktop-amd64.iso",
-            Url = "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso",
-            Status = "Downloading",
-            Progress = 45.5,
-            DownloadedSize = "2.3 GB",
-            TotalSize = "5.0 GB",
-            Speed = "12.5 MB/s"
-        });
-        
-        Downloads.Add(new DownloadItemViewModel
+            var downloads = await _apiClient.GetDownloadsAsync();
+
+            Downloads.Clear();
+            foreach (var download in downloads)
+            {
+                Downloads.Add(new DownloadItemViewModel
+                {
+                    Id = download.Id,
+                    FileName = download.FileName ?? "Unknown",
+                    Url = download.Url,
+                    Status = download.State.ToString(),
+                    Progress = download.TotalBytes.HasValue && download.TotalBytes > 0
+                        ? (double)download.DownloadedBytes / download.TotalBytes.Value * 100
+                        : 0,
+                    DownloadedSize = FormatBytes(download.DownloadedBytes),
+                    TotalSize = download.TotalBytes.HasValue ? FormatBytes(download.TotalBytes.Value) : "Unknown",
+                    Speed = download.Speed.HasValue ? $"{FormatBytes((long)download.Speed.Value)}/s" : "0 B/s"
+                });
+            }
+        }
+        catch (Exception ex)
         {
-            FileName = "sample-video.mp4",
-            Url = "https://example.com/video.mp4",
-            Status = "Paused",
-            Progress = 25.0,
-            DownloadedSize = "250 MB",
-            TotalSize = "1.0 GB",
-            Speed = "0 MB/s"
-        });
+            Console.WriteLine($"Failed to load downloads: {ex.Message}");
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        var order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.##} {sizes[order]}";
     }
 }
 
 public class DownloadItemViewModel : ViewModelBase
 {
-    private string _fileName = string.Empty;
-    private string _url = string.Empty;
-    private string _status = string.Empty;
-    private double _progress;
     private string _downloadedSize = string.Empty;
-    private string _totalSize = string.Empty;
+    private string _fileName = string.Empty;
+    private Guid _id;
+    private double _progress;
     private string _speed = string.Empty;
+    private string _status = string.Empty;
+    private string _totalSize = string.Empty;
+    private string _url = string.Empty;
+
+    public Guid Id
+    {
+        get => _id;
+        set => this.RaiseAndSetIfChanged(ref _id, value);
+    }
 
     public string FileName
     {

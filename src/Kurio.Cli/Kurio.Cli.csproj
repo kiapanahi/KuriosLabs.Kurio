@@ -1,28 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <RootNamespace>$(RootNamespace).Cli</RootNamespace>
-    </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>$(RootNamespace).Cli</RootNamespace>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" />
-        <PackageReference Include="Spectre.Console" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client"/>
+    <PackageReference Include="Microsoft.Extensions.Hosting"/>
+    <PackageReference Include="Spectre.Console"/>
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj"/>
-        <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj"/>
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj"/>
+    <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj"/>
+  </ItemGroup>
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-    </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <None Update="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

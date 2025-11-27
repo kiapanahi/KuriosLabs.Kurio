@@ -8,7 +8,7 @@
              x:DataType="vm:AddDownloadViewModel">
 
     <Design.DataContext>
-        <vm:AddDownloadViewModel/>
+        <vm:AddDownloadViewModel />
     </Design.DataContext>
 
     <StackPanel Spacing="15" MaxWidth="600" HorizontalAlignment="Left">
@@ -25,7 +25,7 @@
             <TextBlock Text="Save Location:" FontWeight="SemiBold" />
             <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0" Text="{Binding SavePath}" Watermark="Choose download location..." />
-                <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}" 
+                <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}"
                         Margin="5,0,0,0" />
             </Grid>
         </StackPanel>
@@ -34,8 +34,8 @@
         <StackPanel Spacing="5">
             <TextBlock Text="Number of Segments:" FontWeight="SemiBold" />
             <NumericUpDown Value="{Binding Segments}" Minimum="1" Maximum="32" />
-            <TextBlock Text="More segments can increase download speed but use more connections." 
-                      FontSize="11" Foreground="Gray" />
+            <TextBlock Text="More segments can increase download speed but use more connections."
+                       FontSize="11" Foreground="Gray" />
         </StackPanel>
 
         <!-- Start Immediately -->

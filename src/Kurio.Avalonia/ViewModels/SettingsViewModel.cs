@@ -1,15 +1,14 @@
-using System;
 using ReactiveUI;
 
 namespace KuriousLabs.Kurio.Avalonia.ViewModels;
 
 public class SettingsViewModel : ViewModelBase
 {
-    private int _maxConcurrentDownloads = 3;
-    private int _defaultSegments = 8;
     private string _defaultSavePath = string.Empty;
+    private int _defaultSegments = 8;
+    private int _maxConcurrentDownloads = 3;
+    private int _maxSpeedKBps; // 0 = unlimited
     private bool _startDownloadsAutomatically = true;
-    private int _maxSpeedKBps = 0; // 0 = unlimited
 
     public int MaxConcurrentDownloads
     {

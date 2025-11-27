@@ -1,11 +1,11 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 using Kurio.Core;
 using Kurio.Core.Abstractions;
 
 using KuriousLabs.Kurio.Server.Hubs;
 using KuriousLabs.Kurio.Server.Services;
-
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,11 +44,11 @@ var allowedOrigins = builder.Configuration
     .GetSection("Kurio:Server:AllowedOrigins")
     .Get<string[]>() ?? ["http://localhost:5173", "http://localhost:3000"];
 
-builder.Services.AddCors(options => options.AddPolicy("AllowWebClients", policy => 
-                    policy.WithOrigins(allowedOrigins)
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials()));
+builder.Services.AddCors(options => options.AddPolicy("AllowWebClients", policy =>
+    policy.WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()));
 
 // Add response compression
 builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
@@ -84,32 +84,33 @@ app.MapHealthChecks("/health");
 
 // SSE endpoint for progress streaming
 app.MapGet("/api/downloads/stream", async (
-    IDownloadEngine engine,
-    Guid? taskId,
-    CancellationToken cancellationToken) =>
-{
-    return Results.Stream(async stream =>
+        IDownloadEngine engine,
+        Guid? taskId,
+        CancellationToken cancellationToken) =>
     {
-        await using var writer = new StreamWriter(stream) { AutoFlush = true };
-
-        await writer.WriteLineAsync("retry: 10000\n");
-
-        await foreach (var progress in engine.StreamProgressAsync(taskId, cancellationToken))
+        return Results.Stream(async stream =>
         {
-            var json = JsonSerializer.Serialize(progress, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Converters = { new JsonStringEnumConverter() }
-            });
+            await using StreamWriter writer = new(stream) { AutoFlush = true };
 
-            await writer.WriteLineAsync($"event: progress");
-            await writer.WriteLineAsync($"data: {json}");
-            await writer.WriteLineAsync();
-        }
-    }, "text/event-stream");
-})
-.WithName("StreamProgress")
-.WithTags("Progress")
-.Produces(200, contentType: "text/event-stream");
+            await writer.WriteLineAsync("retry: 10000\n");
+
+            await foreach (var progress in engine.StreamProgressAsync(taskId, cancellationToken))
+            {
+                var json = JsonSerializer.Serialize(progress,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        Converters = { new JsonStringEnumConverter() }
+                    });
+
+                await writer.WriteLineAsync("event: progress");
+                await writer.WriteLineAsync($"data: {json}");
+                await writer.WriteLineAsync();
+            }
+        }, "text/event-stream");
+    })
+    .WithName("StreamProgress")
+    .WithTags("Progress")
+    .Produces(200, contentType: "text/event-stream");
 
 app.Run();

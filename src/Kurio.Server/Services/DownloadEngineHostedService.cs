@@ -3,7 +3,7 @@ using Kurio.Core.Abstractions;
 namespace KuriousLabs.Kurio.Server.Services;
 
 /// <summary>
-/// Background service that hosts the download engine and manages its lifecycle.
+///     Background service that hosts the download engine and manages its lifecycle.
 /// </summary>
 public class DownloadEngineHostedService : IHostedService
 {

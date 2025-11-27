@@ -8,24 +8,24 @@
              x:DataType="vm:DownloadListViewModel">
 
     <Design.DataContext>
-        <vm:DownloadListViewModel/>
+        <vm:DownloadListViewModel />
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- Toolbar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="▶️ Resume" Command="{Binding ResumeCommand}" 
+            <Button Content="▶️ Resume" Command="{Binding ResumeCommand}"
                     CommandParameter="{Binding SelectedDownload}" Margin="0,0,5,0" />
-            <Button Content="⏸️ Pause" Command="{Binding PauseCommand}" 
+            <Button Content="⏸️ Pause" Command="{Binding PauseCommand}"
                     CommandParameter="{Binding SelectedDownload}" Margin="0,0,5,0" />
-            <Button Content="❌ Cancel" Command="{Binding CancelCommand}" 
+            <Button Content="❌ Cancel" Command="{Binding CancelCommand}"
                     CommandParameter="{Binding SelectedDownload}" Margin="0,0,5,0" />
-            <Button Content="🗑️ Remove" Command="{Binding RemoveCommand}" 
+            <Button Content="🗑️ Remove" Command="{Binding RemoveCommand}"
                     CommandParameter="{Binding SelectedDownload}" />
         </StackPanel>
 
         <!-- Download List -->
-        <DataGrid Grid.Row="1" 
+        <DataGrid Grid.Row="1"
                   ItemsSource="{Binding Downloads}"
                   SelectedItem="{Binding SelectedDownload}"
                   AutoGenerateColumns="False"
@@ -40,8 +40,8 @@
                         <DataTemplate>
                             <StackPanel>
                                 <ProgressBar Value="{Binding Progress}" Maximum="100" Height="20" />
-                                <TextBlock Text="{Binding Progress, StringFormat='{}{0:F1}%'}" 
-                                          HorizontalAlignment="Center" FontSize="10" />
+                                <TextBlock Text="{Binding Progress, StringFormat='{}{0:F1}%'}"
+                                           HorizontalAlignment="Center" FontSize="10" />
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

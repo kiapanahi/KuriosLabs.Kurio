@@ -8,7 +8,7 @@
              x:DataType="vm:StatisticsViewModel">
 
     <Design.DataContext>
-        <vm:StatisticsViewModel/>
+        <vm:StatisticsViewModel />
     </Design.DataContext>
 
     <ScrollViewer>
@@ -17,7 +17,7 @@
 
             <!-- Overall Statistics -->
             <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="20">
-                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,*"  Margin="0,0,0,0">
+                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,*" Margin="0,0,0,0">
                     <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,15">
                         <TextBlock Text="Total Downloads" Foreground="Gray" />
                         <TextBlock Text="{Binding TotalDownloads}" FontSize="32" FontWeight="Bold" />
@@ -30,14 +30,14 @@
 
                     <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,15">
                         <TextBlock Text="Completed Downloads" Foreground="Gray" />
-                        <TextBlock Text="{Binding CompletedDownloads}" FontSize="32" FontWeight="Bold" 
-                                  Foreground="Green" />
+                        <TextBlock Text="{Binding CompletedDownloads}" FontSize="32" FontWeight="Bold"
+                                   Foreground="Green" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,15">
                         <TextBlock Text="Failed Downloads" Foreground="Gray" />
-                        <TextBlock Text="{Binding FailedDownloads}" FontSize="32" FontWeight="Bold" 
-                                  Foreground="Red" />
+                        <TextBlock Text="{Binding FailedDownloads}" FontSize="32" FontWeight="Bold"
+                                   Foreground="Red" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,10,0">
@@ -56,8 +56,8 @@
             <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="20">
                 <StackPanel Spacing="10">
                     <TextBlock Text="Session Information" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="Statistics are calculated from the current session and historical data." 
-                              Foreground="Gray" />
+                    <TextBlock Text="Statistics are calculated from the current session and historical data."
+                               Foreground="Gray" />
                 </StackPanel>
             </Border>
         </StackPanel>

@@ -1,33 +1,35 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <RootNamespace>$(RootNamespace).Avalonia</RootNamespace>
-        <OutputType>WinExe</OutputType>
-        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-        <ApplicationManifest>app.manifest</ApplicationManifest>
-        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>$(RootNamespace).Avalonia</RootNamespace>
+    <OutputType>WinExe</OutputType>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Avalonia" />
-        <PackageReference Include="Avalonia.Controls.DataGrid" />
-        <PackageReference Include="Avalonia.Desktop" />
-        <PackageReference Include="Avalonia.Themes.Fluent" />
-        <PackageReference Include="Avalonia.Fonts.Inter" />
-        <PackageReference Include="Avalonia.ReactiveUI" />
-        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia"/>
+    <PackageReference Include="Avalonia.Controls.DataGrid"/>
+    <PackageReference Include="Avalonia.Desktop"/>
+    <PackageReference Include="Avalonia.Themes.Fluent"/>
+    <PackageReference Include="Avalonia.Fonts.Inter"/>
+    <PackageReference Include="Avalonia.ReactiveUI"/>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client"/>
+    <PackageReference Include="Microsoft.Extensions.Hosting"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj" />
-        <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj"/>
+    <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj"/>
+  </ItemGroup>
 
-    <ItemGroup>
-        <None Update="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

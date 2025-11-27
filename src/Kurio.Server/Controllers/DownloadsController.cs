@@ -1,12 +1,14 @@
 using Kurio.Core.Abstractions;
 using Kurio.Core.Models;
+
 using KuriousLabs.Kurio.Server.Models;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace KuriousLabs.Kurio.Server.Controllers;
 
 /// <summary>
-/// API controller for managing downloads.
+///     API controller for managing downloads.
 /// </summary>
 [ApiController]
 [Route("api/downloads")]
@@ -25,7 +27,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Adds a new download to the queue.
+    ///     Adds a new download to the queue.
     /// </summary>
     /// <param name="request">Download details.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -42,7 +44,7 @@ public class DownloadsController : ControllerBase
             if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri))
             {
                 return Problem(
-                    detail: $"The URL '{request.Url}' is not valid",
+                    $"The URL '{request.Url}' is not valid",
                     statusCode: StatusCodes.Status400BadRequest,
                     title: "Invalid URL");
             }
@@ -65,14 +67,14 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogError(ex, "Error adding download for URL: {Url}", request.Url);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Failed to add download");
         }
     }
 
     /// <summary>
-    /// Gets all downloads with optional filtering.
+    ///     Gets all downloads with optional filtering.
     /// </summary>
     /// <param name="filter">State filter (All, Active, Completed, Failed).</param>
     /// <returns>List of downloads.</returns>
@@ -89,7 +91,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets a specific download by ID.
+    ///     Gets a specific download by ID.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <returns>Download details.</returns>
@@ -102,7 +104,7 @@ public class DownloadsController : ControllerBase
         if (task == null)
         {
             return Problem(
-                detail: $"No download with ID {id} exists",
+                $"No download with ID {id} exists",
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found");
         }
@@ -111,7 +113,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Starts a queued download.
+    ///     Starts a queued download.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -130,7 +132,7 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Cannot start download {Id}", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Cannot start download");
         }
@@ -138,14 +140,14 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found");
         }
     }
 
     /// <summary>
-    /// Pauses an active download.
+    ///     Pauses an active download.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -164,7 +166,7 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Cannot pause download {Id}", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Cannot pause download");
         }
@@ -172,14 +174,14 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found");
         }
     }
 
     /// <summary>
-    /// Resumes a paused download.
+    ///     Resumes a paused download.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -198,7 +200,7 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Cannot resume download {Id}", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Cannot resume download");
         }
@@ -206,14 +208,14 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found");
         }
     }
 
     /// <summary>
-    /// Cancels a download and optionally removes partial files.
+    ///     Cancels a download and optionally removes partial files.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <param name="removeFiles">Whether to remove partial files.</param>
@@ -235,14 +237,14 @@ public class DownloadsController : ControllerBase
         {
             _logger.LogWarning(ex, "Error cancelling download {Id}", id);
             return Problem(
-                detail: ex.Message,
+                ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found");
         }
     }
 
     /// <summary>
-    /// Changes the priority of a queued download.
+    ///     Changes the priority of a queued download.
     /// </summary>
     /// <param name="id">Download ID.</param>
     /// <param name="request">New priority.</param>
@@ -256,7 +258,7 @@ public class DownloadsController : ControllerBase
         if (!success)
         {
             return Problem(
-                detail: $"Cannot change priority for download {id}",
+                $"Cannot change priority for download {id}",
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Download not found or not queued");
         }
@@ -265,7 +267,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Pauses all active downloads.
+    ///     Pauses all active downloads.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Number of downloads paused.</returns>
@@ -278,7 +280,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Clears all completed downloads from the queue.
+    ///     Clears all completed downloads from the queue.
     /// </summary>
     [HttpPost("clear-completed")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -289,7 +291,7 @@ public class DownloadsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets download queue statistics.
+    ///     Gets download queue statistics.
     /// </summary>
     /// <returns>Queue statistics.</returns>
     [HttpGet("statistics")]

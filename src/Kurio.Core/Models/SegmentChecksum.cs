@@ -42,10 +42,7 @@ public sealed class SegmentChecksum
     {
         return new SegmentChecksum
         {
-            Algorithm = algorithm,
-            Hash = hash,
-            ComputedAt = DateTime.UtcNow,
-            IsVerified = false
+            Algorithm = algorithm, Hash = hash, ComputedAt = DateTime.UtcNow, IsVerified = false
         };
     }
 

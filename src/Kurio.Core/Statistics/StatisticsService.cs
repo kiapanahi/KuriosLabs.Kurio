@@ -181,7 +181,7 @@ public sealed class StatisticsService : IStatisticsService
     /// <inheritdoc />
     public async Task<IDictionary<string, object>> ExportStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        DownloadStatistics stats = await GetStatisticsAsync(cancellationToken);
+        var stats = await GetStatisticsAsync(cancellationToken);
 
         return new Dictionary<string, object>
         {
@@ -216,7 +216,7 @@ public sealed class StatisticsService : IStatisticsService
 
         try
         {
-            await using FileStream fileStream = File.OpenRead(_statisticsFilePath);
+            await using var fileStream = File.OpenRead(_statisticsFilePath);
             _statistics = await JsonSerializer.DeserializeAsync<DownloadStatistics>(
                 fileStream, _jsonOptions, cancellationToken);
             _statistics ??=
@@ -239,8 +239,8 @@ public sealed class StatisticsService : IStatisticsService
 
         try
         {
-            string tempFilePath = $"{_statisticsFilePath}.tmp";
-            await using FileStream fileStream = File.Create(tempFilePath);
+            var tempFilePath = $"{_statisticsFilePath}.tmp";
+            await using var fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();
@@ -262,7 +262,7 @@ public sealed class StatisticsService : IStatisticsService
         }
 
         Dictionary<string, int> counts = new(_statistics!.FileTypeCounts);
-        counts.TryGetValue(fileExtension, out int count);
+        counts.TryGetValue(fileExtension, out var count);
         counts[fileExtension] = count + 1;
         _statistics.FileTypeCounts = counts;
     }
@@ -270,21 +270,21 @@ public sealed class StatisticsService : IStatisticsService
     private void UpdateDownloadsByHour(int hour)
     {
         Dictionary<int, int> hourCounts = new(_statistics!.DownloadsByHour);
-        hourCounts.TryGetValue(hour, out int count);
+        hourCounts.TryGetValue(hour, out var count);
         hourCounts[hour] = count + 1;
         _statistics.DownloadsByHour = hourCounts;
     }
 
     private async Task RecalculateAverageSpeedAsync(CancellationToken cancellationToken)
     {
-        IReadOnlyList<DownloadHistoryEntry> completedDownloads =
+        var completedDownloads =
             await _historyRepository.GetCompletedAsync(cancellationToken);
         if (completedDownloads.Count == 0)
         {
             return;
         }
 
-        long totalSpeed = completedDownloads.Sum(d => d.AverageSpeed);
+        var totalSpeed = completedDownloads.Sum(d => d.AverageSpeed);
         _statistics!.AverageDownloadSpeed = totalSpeed / completedDownloads.Count;
     }
 

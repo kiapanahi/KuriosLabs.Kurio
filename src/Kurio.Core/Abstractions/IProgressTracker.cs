@@ -56,5 +56,4 @@ public interface IProgressTracker
     /// <param name="taskId">The task identifier.</param>
     /// <returns>The enhanced progress information, or null if not being tracked.</returns>
     EnhancedDownloadProgress? GetProgress(Guid taskId);
-
 }

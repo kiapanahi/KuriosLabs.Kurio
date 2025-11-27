@@ -1,11 +1,15 @@
+using System.Globalization;
+
 using Kurio.Core.Models;
+
 using KuriousLabs.Kurio.Cli.Client;
+
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
 
 /// <summary>
-/// View for displaying and managing downloads.
+///     View for displaying and managing downloads.
 /// </summary>
 public sealed class DownloadListView
 {
@@ -17,7 +21,7 @@ public sealed class DownloadListView
     }
 
     /// <summary>
-    /// Shows the download list view.
+    ///     Shows the download list view.
     /// </summary>
     public async Task ShowAsync(CancellationToken cancellationToken)
     {
@@ -26,7 +30,8 @@ public sealed class DownloadListView
             AnsiConsole.Clear();
             ShowHeader();
 
-            var downloads = await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
+            var downloads =
+                await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
 
             if (downloads.Count == 0)
             {
@@ -41,19 +46,9 @@ public sealed class DownloadListView
             var choice = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("\n[blue]Actions:[/]")
-                    .AddChoices(new[]
-                    {
-                        "▶️  Start Selected",
-                        "⏸️  Pause Selected",
-                        "🔄 Resume Selected",
-                        "❌ Cancel Selected",
-                        "⬆️  Move Up",
-                        "⬇️  Move Down",
-                        "🔄 Refresh",
-                        "🗑️  Clear Completed",
-                        "⏸️  Pause All",
-                        "⬅️  Back"
-                    }));
+                    .AddChoices("▶️  Start Selected", "⏸️  Pause Selected", "🔄 Resume Selected", "❌ Cancel Selected",
+                        "⬆️  Move Up", "⬇️  Move Down", "🔄 Refresh", "🗑️  Clear Completed", "⏸️  Pause All",
+                        "⬅️  Back"));
 
             if (choice == "⬅️  Back")
             {
@@ -86,7 +81,7 @@ public sealed class DownloadListView
             var size = FormatSize(download.FileSize);
 
             table.AddRow(
-                (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                (i + 1).ToString(CultureInfo.InvariantCulture),
                 statusIcon,
                 Markup.Escape(download.FileName ?? "Unknown"),
                 progressBar,
@@ -98,7 +93,8 @@ public sealed class DownloadListView
         AnsiConsole.Write(table);
 
         var stats = await _apiClient.GetStatisticsAsync(cancellationToken);
-        AnsiConsole.MarkupLine($"\n[dim]Active: {stats.ActiveDownloads} | Queued: {stats.QueuedDownloads} | Total: {downloads.Count}[/]");
+        AnsiConsole.MarkupLine(
+            $"\n[dim]Active: {stats.ActiveDownloads} | Queued: {stats.QueuedDownloads} | Total: {downloads.Count}[/]");
     }
 
     private static string GetStatusIcon(DownloadState state)
@@ -154,7 +150,8 @@ public sealed class DownloadListView
         };
     }
 
-    private async Task HandleActionAsync(string action, List<DownloadResponse> downloads, CancellationToken cancellationToken)
+    private async Task HandleActionAsync(string action, List<DownloadResponse> downloads,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -182,6 +179,7 @@ public sealed class DownloadListView
                     {
                         await ExecuteDownloadActionAsync(action, selected, cancellationToken);
                     }
+
                     break;
             }
         }
@@ -211,11 +209,12 @@ public sealed class DownloadListView
             return null;
         }
 
-        var index = int.Parse(selection.Split('.')[0], System.Globalization.CultureInfo.InvariantCulture) - 1;
+        var index = int.Parse(selection.Split('.')[0], CultureInfo.InvariantCulture) - 1;
         return downloads[index];
     }
 
-    private async Task ExecuteDownloadActionAsync(string action, DownloadResponse download, CancellationToken cancellationToken)
+    private async Task ExecuteDownloadActionAsync(string action, DownloadResponse download,
+        CancellationToken cancellationToken)
     {
         switch (action)
         {
@@ -243,6 +242,7 @@ public sealed class DownloadListView
                 {
                     await _apiClient.CancelDownloadAsync(download.Id, false, cancellationToken);
                 }
+
                 AnsiConsole.MarkupLine("[green]Download cancelled.[/]");
                 break;
 
@@ -260,10 +260,7 @@ public sealed class DownloadListView
 
     private static void ShowHeader()
     {
-        var rule = new Rule("[blue]Downloads[/]")
-        {
-            Justification = Justify.Left
-        };
+        Rule rule = new("[blue]Downloads[/]") { Justification = Justify.Left };
         AnsiConsole.Write(rule);
         AnsiConsole.WriteLine();
     }

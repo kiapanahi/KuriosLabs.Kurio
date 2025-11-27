@@ -1,3 +1,5 @@
+using Kurio.Core.Configuration;
+
 namespace Kurio.Core.Models;
 
 /// <summary>
@@ -88,7 +90,7 @@ public sealed class DownloadOptions
     /// <summary>
     ///     Gets or sets the authentication options.
     /// </summary>
-    public Configuration.AuthenticationOptions? Authentication { get; set; }
+    public AuthenticationOptions? Authentication { get; set; }
 
     /// <summary>
     ///     Gets or sets the retry policy for this download.
@@ -108,7 +110,7 @@ public sealed class DownloadOptions
     /// <summary>
     ///     Gets or sets checksum verification options.
     /// </summary>
-    public Configuration.ChecksumOptions? Checksum { get; set; }
+    public ChecksumOptions? Checksum { get; set; }
 
     /// <summary>
     ///     Gets or sets the maximum download speed in bytes per second (0 = unlimited).

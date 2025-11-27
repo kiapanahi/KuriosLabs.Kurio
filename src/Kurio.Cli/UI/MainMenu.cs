@@ -1,18 +1,19 @@
 using KuriousLabs.Kurio.Cli.Client;
+
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
 
 /// <summary>
-/// Main menu for the Kurio TUI.
+///     Main menu for the Kurio TUI.
 /// </summary>
 public sealed class MainMenu
 {
+    private readonly AddDownloadView _addDownloadView;
     private readonly IKurioApiClient _apiClient;
     private readonly DownloadListView _downloadListView;
-    private readonly AddDownloadView _addDownloadView;
-    private readonly StatisticsView _statisticsView;
     private readonly SettingsView _settingsView;
+    private readonly StatisticsView _statisticsView;
 
     public MainMenu(
         IKurioApiClient apiClient,
@@ -29,7 +30,7 @@ public sealed class MainMenu
     }
 
     /// <summary>
-    /// Shows the main menu and handles navigation.
+    ///     Shows the main menu and handles navigation.
     /// </summary>
     public async Task ShowAsync(CancellationToken cancellationToken)
     {
@@ -42,14 +43,7 @@ public sealed class MainMenu
                 new SelectionPrompt<string>()
                     .Title("[blue]Select an option:[/]")
                     .PageSize(10)
-                    .AddChoices(new[]
-                    {
-                        "📥 Downloads",
-                        "➕ Add Download",
-                        "📊 Statistics",
-                        "⚙️  Settings",
-                        "❌ Exit"
-                    }));
+                    .AddChoices("📥 Downloads", "➕ Add Download", "📊 Statistics", "⚙️  Settings", "❌ Exit"));
 
             try
             {
@@ -61,7 +55,7 @@ public sealed class MainMenu
                 AnsiConsole.MarkupLine("\n[red]Press any key to continue...[/]");
                 Console.ReadKey(true);
             }
-            
+
             if (choice == "❌ Exit")
             {
                 break;
@@ -91,23 +85,22 @@ public sealed class MainMenu
                     var statistics = await _apiClient.GetStatisticsAsync(cancellationToken);
                     if (statistics.ActiveDownloads > 0)
                     {
-                        if (AnsiConsole.Confirm($"[yellow]{statistics.ActiveDownloads} downloads are still active. Pause them before exiting?[/]"))
+                        if (AnsiConsole.Confirm(
+                                $"[yellow]{statistics.ActiveDownloads} downloads are still active. Pause them before exiting?[/]"))
                         {
                             await _apiClient.PauseAllAsync(cancellationToken);
                             AnsiConsole.MarkupLine("[green]All downloads paused.[/]");
                         }
                     }
                 }
+
                 break;
         }
     }
 
     private static void ShowHeader()
     {
-        var rule = new Rule("[blue]Kurio Download Manager[/]")
-        {
-            Justification = Justify.Center
-        };
+        Rule rule = new("[blue]Kurio Download Manager[/]") { Justification = Justify.Center };
         AnsiConsole.Write(rule);
         AnsiConsole.WriteLine();
     }

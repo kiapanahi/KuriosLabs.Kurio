@@ -1,11 +1,15 @@
+using System.Globalization;
+
 using Kurio.Core.Models;
+
 using KuriousLabs.Kurio.Cli.Client;
+
 using Spectre.Console;
 
 namespace KuriousLabs.Kurio.Cli.UI;
 
 /// <summary>
-/// View for displaying download statistics.
+///     View for displaying download statistics.
 /// </summary>
 public sealed class StatisticsView
 {
@@ -17,14 +21,15 @@ public sealed class StatisticsView
     }
 
     /// <summary>
-    /// Shows the statistics view.
+    ///     Shows the statistics view.
     /// </summary>
     public async Task ShowAsync(CancellationToken cancellationToken)
     {
         AnsiConsole.Clear();
         ShowHeader();
 
-        var downloads = await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
+        var downloads =
+            await _apiClient.GetDownloadsAsync(DownloadStateFilter.All, cancellationToken);
         var stats = await _apiClient.GetStatisticsAsync(cancellationToken);
 
         var activeCount = downloads.Count(d => d.State == DownloadState.Downloading);
@@ -44,7 +49,7 @@ public sealed class StatisticsView
             .AddColumn(new TableColumn("[blue]Metric[/]"))
             .AddColumn(new TableColumn("[blue]Value[/]"));
 
-        table.AddRow("📥 Total Downloads", downloads.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        table.AddRow("📥 Total Downloads", downloads.Count.ToString(CultureInfo.InvariantCulture));
         table.AddRow("✅ Completed", $"[green]{completedCount}[/]");
         table.AddRow("⬇️  Active", $"[green]{activeCount}[/]");
         table.AddRow("⏳ Queued", $"[yellow]{queuedCount}[/]");
@@ -95,10 +100,7 @@ public sealed class StatisticsView
 
     private static void ShowHeader()
     {
-        var rule = new Rule("[blue]Statistics[/]")
-        {
-            Justification = Justify.Left
-        };
+        Rule rule = new("[blue]Statistics[/]") { Justification = Justify.Left };
         AnsiConsole.Write(rule);
         AnsiConsole.WriteLine();
     }

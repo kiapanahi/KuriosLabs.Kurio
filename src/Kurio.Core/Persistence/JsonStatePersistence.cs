@@ -47,14 +47,14 @@ public sealed class JsonStatePersistence : IStatePersistence
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        string filePath = GetStateFilePath(state.TaskId);
+        var filePath = GetStateFilePath(state.TaskId);
         state.LastUpdateAt = DateTime.UtcNow;
 
         try
         {
             // Write to a temporary file first for atomic operation
-            string tempFilePath = $"{filePath}.tmp";
-            await using FileStream fileStream = File.Create(tempFilePath);
+            var tempFilePath = $"{filePath}.tmp";
+            await using var fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, state, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();
@@ -74,7 +74,7 @@ public sealed class JsonStatePersistence : IStatePersistence
     /// <inheritdoc />
     public async Task<DownloadTaskState?> LoadStateAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        string filePath = GetStateFilePath(taskId);
+        var filePath = GetStateFilePath(taskId);
 
         if (!File.Exists(filePath))
         {
@@ -84,8 +84,8 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         try
         {
-            await using FileStream fileStream = File.OpenRead(filePath);
-            DownloadTaskState? state =
+            await using var fileStream = File.OpenRead(filePath);
+            var state =
                 await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
 
             _logger.LogDebug("Loaded state for task {TaskId} from {FilePath}", taskId, filePath);
@@ -98,7 +98,7 @@ public sealed class JsonStatePersistence : IStatePersistence
             // Move corrupted file to backup
             try
             {
-                string backupPath = $"{filePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
+                var backupPath = $"{filePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(filePath, backupPath);
                 _logger.LogWarning("Moved corrupted state file to {BackupPath}", backupPath);
             }
@@ -114,7 +114,7 @@ public sealed class JsonStatePersistence : IStatePersistence
     /// <inheritdoc />
     public async Task DeleteStateAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        string filePath = GetStateFilePath(taskId);
+        var filePath = GetStateFilePath(taskId);
 
         if (!File.Exists(filePath))
         {
@@ -142,15 +142,15 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         try
         {
-            string[] stateFiles = Directory.GetFiles(StateDirectory, "*.json");
+            var stateFiles = Directory.GetFiles(StateDirectory, "*.json");
             _logger.LogInformation("Found {Count} state files in {Directory}", stateFiles.Length, StateDirectory);
 
-            foreach (string filePath in stateFiles)
+            foreach (var filePath in stateFiles)
             {
                 try
                 {
-                    await using FileStream fileStream = File.OpenRead(filePath);
-                    DownloadTaskState? state =
+                    await using var fileStream = File.OpenRead(filePath);
+                    var state =
                         await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions,
                             cancellationToken);
 

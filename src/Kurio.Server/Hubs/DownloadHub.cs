@@ -1,11 +1,13 @@
 using Kurio.Core.Abstractions;
+
 using KuriousLabs.Kurio.Server.Models;
+
 using Microsoft.AspNetCore.SignalR;
 
 namespace KuriousLabs.Kurio.Server.Hubs;
 
 /// <summary>
-/// SignalR hub for real-time download updates and operations.
+///     SignalR hub for real-time download updates and operations.
 /// </summary>
 public class DownloadHub : Hub
 {
@@ -21,7 +23,7 @@ public class DownloadHub : Hub
     }
 
     /// <summary>
-    /// Subscribe to progress updates for a specific task or all tasks.
+    ///     Subscribe to progress updates for a specific task or all tasks.
     /// </summary>
     /// <param name="taskId">Optional task ID to filter progress updates. If null, receives all progress.</param>
     public async Task SubscribeToProgress(Guid? taskId = null)
@@ -35,7 +37,7 @@ public class DownloadHub : Hub
     }
 
     /// <summary>
-    /// Unsubscribe from progress updates.
+    ///     Unsubscribe from progress updates.
     /// </summary>
     public async Task UnsubscribeFromProgress()
     {
@@ -46,7 +48,7 @@ public class DownloadHub : Hub
     }
 
     /// <summary>
-    /// Get download details for a specific task.
+    ///     Get download details for a specific task.
     /// </summary>
     /// <param name="id">Download task ID.</param>
     /// <returns>Download details.</returns>

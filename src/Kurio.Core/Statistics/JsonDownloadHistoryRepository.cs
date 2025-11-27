@@ -164,7 +164,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            string term = searchTerm.ToLowerInvariant();
+            var term = searchTerm.ToLowerInvariant();
             return _entries
                 .Where(e => e.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                             e.Url.Contains(term, StringComparison.OrdinalIgnoreCase))
@@ -181,15 +181,15 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     public async Task<int> CleanupOldEntriesAsync(TimeSpan retentionPeriod,
         CancellationToken cancellationToken = default)
     {
-        DateTime cutoff = DateTime.UtcNow - retentionPeriod;
+        var cutoff = DateTime.UtcNow - retentionPeriod;
 
         await _fileLock.WaitAsync(cancellationToken);
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            int originalCount = _entries.Count;
+            var originalCount = _entries.Count;
             _entries = _entries.Where(e => (e.CompletedAt ?? e.CreatedAt) >= cutoff).ToList();
-            int deletedCount = originalCount - _entries.Count;
+            var deletedCount = originalCount - _entries.Count;
 
             if (deletedCount > 0)
             {
@@ -213,7 +213,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         try
         {
             await EnsureLoadedAsync(cancellationToken);
-            DownloadHistoryEntry? entry = _entries.Find(e => e.Id == id);
+            var entry = _entries.Find(e => e.Id == id);
             if (entry == null)
             {
                 return false;
@@ -277,8 +277,8 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
 
         try
         {
-            await using FileStream fileStream = File.OpenRead(_historyFilePath);
-            List<DownloadHistoryEntry>? entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
+            await using var fileStream = File.OpenRead(_historyFilePath);
+            var entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
                 fileStream, _jsonOptions, cancellationToken);
             _entries = entries ?? [];
             _isLoaded = true;
@@ -293,7 +293,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             // Backup corrupted file
             try
             {
-                string backupPath = $"{_historyFilePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
+                var backupPath = $"{_historyFilePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(_historyFilePath, backupPath);
                 _logger.LogWarning("Moved corrupted history file to {BackupPath}", backupPath);
             }
@@ -308,8 +308,8 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     {
         try
         {
-            string tempFilePath = $"{_historyFilePath}.tmp";
-            await using FileStream fileStream = File.Create(tempFilePath);
+            var tempFilePath = $"{_historyFilePath}.tmp";
+            await using var fileStream = File.Create(tempFilePath);
             await JsonSerializer.SerializeAsync(fileStream, _entries, _jsonOptions, cancellationToken);
             await fileStream.FlushAsync(cancellationToken);
             fileStream.Close();

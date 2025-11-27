@@ -24,11 +24,10 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     public ProgressTracker(int speedWindowSize = 10)
     {
         _speedWindowSize = speedWindowSize;
-        
+
         _progressChannel = Channel.CreateUnbounded<EnhancedDownloadProgress>(new UnboundedChannelOptions
         {
-            SingleWriter = false,
-            SingleReader = false
+            SingleWriter = false, SingleReader = false
         });
     }
 
@@ -79,25 +78,25 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     public void RecordProgress(Guid taskId, long bytesDownloaded,
         IReadOnlyList<SegmentProgressInfo>? segmentProgress = null)
     {
-        if (!_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
+        if (!_trackingStates.TryGetValue(taskId, out var state))
         {
             return;
         }
 
-        DateTime now = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
         state.SpeedCalculator.RecordSample(bytesDownloaded, now);
         state.BytesDownloaded = bytesDownloaded;
         state.SegmentProgress = segmentProgress ?? [];
         state.ActiveConnections = segmentProgress?.Count(s => s.IsActive) ?? 0;
 
-        EnhancedDownloadProgress progress = CreateProgress(taskId, state, now);
+        var progress = CreateProgress(taskId, state, now);
         _progressChannel.Writer.TryWrite(progress);
     }
 
     /// <inheritdoc />
     public void Pause(Guid taskId)
     {
-        if (_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
+        if (_trackingStates.TryGetValue(taskId, out var state))
         {
             state.SpeedCalculator.Pause();
         }
@@ -106,7 +105,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     /// <inheritdoc />
     public void Resume(Guid taskId)
     {
-        if (_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
+        if (_trackingStates.TryGetValue(taskId, out var state))
         {
             state.SpeedCalculator.Resume();
         }
@@ -121,7 +120,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
     /// <inheritdoc />
     public EnhancedDownloadProgress? GetProgress(Guid taskId)
     {
-        if (!_trackingStates.TryGetValue(taskId, out DownloadTrackingState? state))
+        if (!_trackingStates.TryGetValue(taskId, out var state))
         {
             return null;
         }
@@ -131,10 +130,10 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
 
     private EnhancedDownloadProgress CreateProgress(Guid taskId, DownloadTrackingState state, DateTime now)
     {
-        long bytesRemaining = state.TotalBytes - state.BytesDownloaded;
-        TimeSpan totalElapsed = now - state.StartTime;
-        TimeSpan pausedTime = TimeSpan.FromMilliseconds(state.SpeedCalculator.TotalPausedDurationMs);
-        TimeSpan activeTime = totalElapsed - pausedTime;
+        var bytesRemaining = state.TotalBytes - state.BytesDownloaded;
+        var totalElapsed = now - state.StartTime;
+        var pausedTime = TimeSpan.FromMilliseconds(state.SpeedCalculator.TotalPausedDurationMs);
+        var activeTime = totalElapsed - pausedTime;
 
         return new EnhancedDownloadProgress
         {

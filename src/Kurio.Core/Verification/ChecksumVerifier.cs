@@ -53,8 +53,8 @@ public sealed class ChecksumVerifier : IChecksumVerifier
             throw new ArgumentException("Stream must be readable.", nameof(stream));
         }
 
-        using HashAlgorithm hashAlgorithm = CreateHashAlgorithm(algorithm);
-        byte[] hashBytes = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken);
+        using var hashAlgorithm = CreateHashAlgorithm(algorithm);
+        var hashBytes = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken);
 
         return BytesToHexString(hashBytes);
     }
@@ -69,7 +69,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedChecksum);
 
-        string calculatedChecksum = await CalculateChecksumAsync(filePath, algorithm, cancellationToken);
+        var calculatedChecksum = await CalculateChecksumAsync(filePath, algorithm, cancellationToken);
 
         return new ChecksumResult
         {
@@ -93,16 +93,16 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         }
 
         Dictionary<string, string> checksums = new(StringComparer.OrdinalIgnoreCase);
-        string[] lines = await File.ReadAllLinesAsync(checksumFilePath, cancellationToken);
+        var lines = await File.ReadAllLinesAsync(checksumFilePath, cancellationToken);
 
-        foreach (string line in lines)
+        foreach (var line in lines)
         {
             if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith('#'))
             {
                 continue; // Skip empty lines and comments
             }
 
-            (string FileName, string Checksum)? parsed = ParseChecksumLine(line);
+            var parsed = ParseChecksumLine(line);
             if (parsed.HasValue)
             {
                 checksums[parsed.Value.FileName] = parsed.Value.Checksum;
@@ -119,7 +119,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         ArgumentNullException.ThrowIfNull(headers);
 
         // Check for common checksum headers
-        (string, ChecksumAlgorithm)[] headerMappings = new[]
+        var headerMappings = new[]
         {
             ("Content-MD5", ChecksumAlgorithm.MD5), ("X-Checksum-MD5", ChecksumAlgorithm.MD5),
             ("X-Checksum-SHA1", ChecksumAlgorithm.SHA1), ("X-Checksum-SHA-1", ChecksumAlgorithm.SHA1),
@@ -128,26 +128,26 @@ public sealed class ChecksumVerifier : IChecksumVerifier
             ("Digest", ChecksumAlgorithm.SHA256) // RFC 3230
         };
 
-        foreach ((string headerName, ChecksumAlgorithm algorithm) in headerMappings)
+        foreach (var (headerName, algorithm) in headerMappings)
         {
-            if (headers.TryGetValue(headerName, out IEnumerable<string>? values))
+            if (headers.TryGetValue(headerName, out var values))
             {
-                string? value = values.FirstOrDefault();
+                var value = values.FirstOrDefault();
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     // Handle RFC 3230 Digest header format: "SHA-256=base64hash"
                     if (headerName == "Digest" && value.Contains('='))
                     {
-                        string[] parts = value.Split('=', 2);
+                        var parts = value.Split('=', 2);
                         if (parts.Length == 2)
                         {
-                            ChecksumAlgorithm? digestAlgorithm = ParseDigestAlgorithm(parts[0].Trim());
-                            string digestValue = parts[1].Trim();
+                            var digestAlgorithm = ParseDigestAlgorithm(parts[0].Trim());
+                            var digestValue = parts[1].Trim();
 
                             if (digestAlgorithm.HasValue)
                             {
                                 // Convert base64 to hex if needed
-                                string hexValue = ConvertBase64ToHex(digestValue);
+                                var hexValue = ConvertBase64ToHex(digestValue);
                                 return (digestAlgorithm.Value, hexValue);
                             }
                         }
@@ -183,7 +183,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
     private static string BytesToHexString(byte[] bytes)
     {
         StringBuilder builder = new(bytes.Length * 2);
-        foreach (byte b in bytes)
+        foreach (var b in bytes)
         {
             builder.Append(b.ToString("x2", CultureInfo.InvariantCulture));
         }
@@ -197,14 +197,14 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         // 1. "checksum *filename" or "checksum  filename" (GNU format)
         // 2. "checksum filename" (BSD format)
 
-        string[] parts = line.Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries);
+        var parts = line.Split(SpaceSeparator, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
         {
             return null;
         }
 
-        string checksum = parts[0];
-        string fileName = string.Join(" ", parts.Skip(1)).TrimStart('*'); // Remove leading asterisk if present
+        var checksum = parts[0];
+        var fileName = string.Join(" ", parts.Skip(1)).TrimStart('*'); // Remove leading asterisk if present
 
         return (fileName, checksum);
     }
@@ -225,7 +225,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
     {
         try
         {
-            byte[] bytes = Convert.FromBase64String(base64);
+            var bytes = Convert.FromBase64String(base64);
             return BytesToHexString(bytes);
         }
         catch

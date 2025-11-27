@@ -4,7 +4,8 @@ A cross-platform desktop application for Kurio Download Manager built with [Aval
 
 ## Overview
 
-Kurio.Avalonia is a modern, cross-platform desktop client for the Kurio download manager. It provides a rich graphical user interface for managing downloads with features like:
+Kurio.Avalonia is a modern, cross-platform desktop client for the Kurio download manager. It provides a rich graphical
+user interface for managing downloads with features like:
 
 - 📥 Download queue management
 - ⏸️ Pause, resume, and cancel downloads
@@ -16,12 +17,14 @@ Kurio.Avalonia is a modern, cross-platform desktop client for the Kurio download
 ## Features
 
 ### Download Management
+
 - View all downloads in a data grid with progress indicators
 - Add new downloads with customizable settings
 - Control individual downloads (pause, resume, cancel, remove)
 - Real-time progress updates
 
 ### Statistics
+
 - Total downloads count
 - Completed and failed downloads tracking
 - Total data downloaded
@@ -29,6 +32,7 @@ Kurio.Avalonia is a modern, cross-platform desktop client for the Kurio download
 - Active downloads monitoring
 
 ### Settings
+
 - Configure maximum concurrent downloads
 - Set default number of segments for downloads
 - Specify default save location
@@ -110,26 +114,31 @@ dotnet watch --project src/Kurio.Avalonia/Kurio.Avalonia.csproj
 
 ### Hot Reload
 
-Avalonia supports hot reload for XAML changes. Make changes to `.axaml` files and they will be reflected immediately in the running application.
+Avalonia supports hot reload for XAML changes. Make changes to `.axaml` files and they will be reflected immediately in
+the running application.
 
 ## Platform-Specific Notes
 
 ### Windows
+
 - Requires .NET Desktop Runtime
 - Full Fluent Design theme support
 
 ### macOS
+
 - Requires .NET Runtime
 - Native menu integration
 - Supports both Intel and Apple Silicon
 
 ### Linux
+
 - Requires .NET Runtime and X11 or Wayland
 - Install dependencies: `sudo apt-get install libx11-dev libxrandr-dev` (Ubuntu/Debian)
 
 ## Roadmap
 
 ### Phase 1 (Current)
+
 - ✅ Basic UI structure with navigation
 - ✅ Download list view with sample data
 - ✅ Add download form
@@ -137,6 +146,7 @@ Avalonia supports hot reload for XAML changes. Make changes to `.axaml` files an
 - ✅ Statistics view
 
 ### Phase 2 (Next)
+
 - [ ] Integrate with Kurio.Core API client
 - [ ] Real-time download progress updates via SignalR
 - [ ] File browser dialog integration
@@ -144,6 +154,7 @@ Avalonia supports hot reload for XAML changes. Make changes to `.axaml` files an
 - [ ] System tray integration
 
 ### Phase 3 (Future)
+
 - [ ] Download categories and filtering
 - [ ] Scheduler for timed downloads
 - [ ] Browser extension integration

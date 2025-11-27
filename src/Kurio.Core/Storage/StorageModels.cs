@@ -1,7 +1,7 @@
 namespace Kurio.Core.Storage;
 
 /// <summary>
-/// Handle for a temporary download file
+///     Handle for a temporary download file
 /// </summary>
 public sealed class TempFileHandle : IDisposable
 {
@@ -16,29 +16,31 @@ public sealed class TempFileHandle : IDisposable
     }
 
     /// <summary>
-    /// Task ID associated with this temporary file
+    ///     Task ID associated with this temporary file
     /// </summary>
     public Guid TaskId { get; }
 
     /// <summary>
-    /// Full path to the temporary file
+    ///     Full path to the temporary file
     /// </summary>
     public string FilePath { get; }
 
     /// <summary>
-    /// File stream for writing
+    ///     File stream for writing
     /// </summary>
     public FileStream Stream { get; }
 
     /// <summary>
-    /// Expected final size of the file
+    ///     Expected final size of the file
     /// </summary>
     public long ExpectedSize { get; }
 
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
         Stream?.Dispose();
         _disposed = true;
@@ -46,7 +48,7 @@ public sealed class TempFileHandle : IDisposable
 }
 
 /// <summary>
-/// Information about disk space
+///     Information about disk space
 /// </summary>
 public sealed record DiskSpaceInfo(
     string Path,
@@ -56,7 +58,7 @@ public sealed record DiskSpaceInfo(
     double UsagePercentage);
 
 /// <summary>
-/// Information about orphaned temporary files
+///     Information about orphaned temporary files
 /// </summary>
 public sealed record OrphanedFilesInfo(
     int FileCount,
@@ -64,7 +66,7 @@ public sealed record OrphanedFilesInfo(
     List<OrphanedFile> Files);
 
 /// <summary>
-/// Information about a single orphaned file
+///     Information about a single orphaned file
 /// </summary>
 public sealed record OrphanedFile(
     string Path,
@@ -73,7 +75,7 @@ public sealed record OrphanedFile(
     Guid? TaskId);
 
 /// <summary>
-/// Result of cleanup operation
+///     Result of cleanup operation
 /// </summary>
 public sealed record CleanupResult(
     int FilesDeleted,

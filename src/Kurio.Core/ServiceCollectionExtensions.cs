@@ -1,10 +1,12 @@
 using Kurio.Core.Abstractions;
+using Kurio.Core.Configuration;
 using Kurio.Core.Engine;
 using Kurio.Core.ErrorHandling;
 using Kurio.Core.Models;
 using Kurio.Core.Persistence;
 using Kurio.Core.Protocols;
 using Kurio.Core.Queue;
+using Kurio.Core.Resilience;
 using Kurio.Core.Statistics;
 using Kurio.Core.Storage;
 using Kurio.Core.Verification;
@@ -37,7 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStorageManager>(sp =>
         {
             // Configure default storage options - can be overridden via configuration
-            var storageOptions = new StorageOptions
+            StorageOptions storageOptions = new()
             {
                 Mode = StorageMode.PerSegmentFiles, // Use per-segment files to avoid file locking contention
                 VerifyWrites = false, // Disabled by default for performance
@@ -45,13 +47,13 @@ public static class ServiceCollectionExtensions
                 CleanupSegmentFiles = true
             };
 
-            return new StorageManager(tempDirectory, stateDirectory, pathProvider: null, options: storageOptions);
+            return new StorageManager(tempDirectory, stateDirectory, null, storageOptions);
         });
 
         // Register state persistence
         services.AddSingleton<IStatePersistence>(sp =>
         {
-            ILogger<JsonStatePersistence> logger = sp.GetRequiredService<ILogger<JsonStatePersistence>>();
+            var logger = sp.GetRequiredService<ILogger<JsonStatePersistence>>();
             return new JsonStatePersistence(stateDirectory, logger);
         });
 
@@ -65,13 +67,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
 
         // Register resilience services (Polly-based)
-        services.AddSingleton<Resilience.ResiliencePolicyFactory>();
+        services.AddSingleton<ResiliencePolicyFactory>();
 
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();
         services.AddSingleton<CircuitBreakerFactory>(sp =>
         {
-            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
         });
 
@@ -81,7 +83,7 @@ public static class ServiceCollectionExtensions
         // Register protocol handler factory
         services.AddSingleton<IProtocolHandlerFactory>(sp =>
         {
-            IEnumerable<IProtocolHandler> handlers = sp.GetServices<IProtocolHandler>();
+            var handlers = sp.GetServices<IProtocolHandler>();
             return new ProtocolHandlerFactory(handlers);
         });
 
@@ -103,10 +105,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProgressTracker, ProgressTracker>();
 
         // Register download history repository
-        string historyDirectory = Path.Combine(stateDirectory, "history");
+        var historyDirectory = Path.Combine(stateDirectory, "history");
         services.AddSingleton<IDownloadHistoryRepository>(sp =>
         {
-            ILogger<JsonDownloadHistoryRepository> logger =
+            var logger =
                 sp.GetRequiredService<ILogger<JsonDownloadHistoryRepository>>();
             return new JsonDownloadHistoryRepository(historyDirectory, logger);
         });
@@ -114,20 +116,20 @@ public static class ServiceCollectionExtensions
         // Register statistics service
         services.AddSingleton<IStatisticsService>(sp =>
         {
-            IDownloadHistoryRepository historyRepository = sp.GetRequiredService<IDownloadHistoryRepository>();
-            ILogger<StatisticsService> logger = sp.GetRequiredService<ILogger<StatisticsService>>();
+            var historyRepository = sp.GetRequiredService<IDownloadHistoryRepository>();
+            var logger = sp.GetRequiredService<ILogger<StatisticsService>>();
             return new StatisticsService(stateDirectory, historyRepository, logger);
         });
 
         // Register download engine as singleton
         services.AddSingleton<IDownloadEngine>(sp =>
         {
-            IProtocolHandler protocolHandler = sp.GetRequiredService<IProtocolHandler>();
-            IStorageManager storageManager = sp.GetRequiredService<IStorageManager>();
-            ISegmentManager segmentManager = sp.GetRequiredService<ISegmentManager>();
-            IStatePersistence statePersistence = sp.GetRequiredService<IStatePersistence>();
-            IDownloadQueueManager queueManager = sp.GetRequiredService<IDownloadQueueManager>();
-            ILogger<DownloadEngine> logger = sp.GetRequiredService<ILogger<DownloadEngine>>();
+            var protocolHandler = sp.GetRequiredService<IProtocolHandler>();
+            var storageManager = sp.GetRequiredService<IStorageManager>();
+            var segmentManager = sp.GetRequiredService<ISegmentManager>();
+            var statePersistence = sp.GetRequiredService<IStatePersistence>();
+            var queueManager = sp.GetRequiredService<IDownloadQueueManager>();
+            var logger = sp.GetRequiredService<ILogger<DownloadEngine>>();
 
             return new DownloadEngine(
                 protocolHandler,
@@ -149,9 +151,9 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddKurioDownloadEngine(this IServiceCollection services)
     {
-        string homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string tempDirectory = Path.Combine(homeDirectory, ".kurio", "temp");
-        string stateDirectory = Path.Combine(homeDirectory, ".kurio", "state");
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var tempDirectory = Path.Combine(homeDirectory, ".kurio", "temp");
+        var stateDirectory = Path.Combine(homeDirectory, ".kurio", "state");
 
         return services.AddKurioDownloadEngine(tempDirectory, stateDirectory);
     }
@@ -166,18 +168,18 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string? configFilePath = null)
     {
-        services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
+        services.AddSingleton<IPlatformPathProvider, PlatformPathProvider>();
 
-        services.AddSingleton<Configuration.IConfigurationService>(sp =>
+        services.AddSingleton<IConfigurationService>(sp =>
         {
-            var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
-            var logger = sp.GetRequiredService<ILogger<Configuration.ConfigurationService>>();
+            var pathProvider = sp.GetRequiredService<IPlatformPathProvider>();
+            var logger = sp.GetRequiredService<ILogger<ConfigurationService>>();
 
             var defaultPath = Path.Combine(
                 pathProvider.GetAppDataDirectory(),
                 "config.json");
 
-            return new Configuration.ConfigurationService(
+            return new ConfigurationService(
                 configFilePath ?? defaultPath,
                 logger);
         });
@@ -192,14 +194,14 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddKurioStorage(this IServiceCollection services)
     {
-        services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
+        services.AddSingleton<IPlatformPathProvider, PlatformPathProvider>();
 
-        services.AddSingleton<Storage.ITempFileCleanupService>(sp =>
+        services.AddSingleton<ITempFileCleanupService>(sp =>
         {
-            var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
-            var logger = sp.GetRequiredService<ILogger<Storage.TempFileCleanupService>>();
+            var pathProvider = sp.GetRequiredService<IPlatformPathProvider>();
+            var logger = sp.GetRequiredService<ILogger<TempFileCleanupService>>();
 
-            return new Storage.TempFileCleanupService(
+            return new TempFileCleanupService(
                 pathProvider.GetTempDirectory(),
                 logger);
         });

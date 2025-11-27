@@ -1,10 +1,4 @@
-namespace Kurio.Core.Tests.Engine;
-
-using System;
 using System.Collections.Concurrent;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
@@ -14,17 +8,17 @@ using Microsoft.Extensions.Logging;
 
 using Moq;
 
-using Xunit;
+namespace Kurio.Core.Tests.Engine;
 
 /// <summary>
-/// Advanced tests for segment manager including parallel downloads and error handling.
+///     Advanced tests for segment manager including parallel downloads and error handling.
 /// </summary>
 public class SegmentManagerAdvancedTests : IDisposable
 {
-    private readonly Mock<IStorageManager> _mockStorageManager;
-    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
     private readonly Mock<ILogger<SegmentManager>> _mockLogger;
     private readonly Mock<IProtocolHandler> _mockProtocolHandler;
+    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
+    private readonly Mock<IStorageManager> _mockStorageManager;
     private readonly SegmentManager _segmentManager;
     private readonly string _tempDirectory;
 
@@ -34,10 +28,21 @@ public class SegmentManagerAdvancedTests : IDisposable
         _mockSegmentVerifier = new Mock<ISegmentVerifier>();
         _mockLogger = new Mock<ILogger<SegmentManager>>();
         _mockProtocolHandler = new Mock<IProtocolHandler>();
-        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
+        _segmentManager =
+            new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDirectory))
+        {
+            Directory.Delete(_tempDirectory, true);
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     [Fact]
@@ -45,18 +50,17 @@ public class SegmentManagerAdvancedTests : IDisposable
     {
         // Arrange
         var fileSize = 10 * 1024 * 1024L; // 10 MB
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 4,
-            MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 4, MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
         var tempFilePath = Path.Combine(_tempDirectory, "test.part");
         File.WriteAllBytes(tempFilePath, new byte[fileSize]);
 
-        var downloadedSegments = new ConcurrentBag<int>();
-        var progressReports = new ConcurrentBag<SegmentProgress>();
+        ConcurrentBag<int> downloadedSegments = new();
+        ConcurrentBag<SegmentProgress> progressReports = new();
 
         // Mock protocol handler to simulate segment downloads
         _mockProtocolHandler
@@ -67,21 +71,21 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, opts, progress, ct) =>
-                {
-                    // Simulate download of random data
-                    var data = new byte[range.Length];
-                    new Random().NextBytes(data);
-                    await stream.WriteAsync(data, ct);
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, opts, progress, ct) =>
+            {
+                // Simulate download of random data
+                var data = new byte[range.Length];
+                new Random().NextBytes(data);
+                await stream.WriteAsync(data, ct);
 
-                    // Report progress
-                    progress?.Report(range.Length);
+                // Report progress
+                progress?.Report(range.Length);
 
-                    // Track downloaded segment
-                    var segmentIndex = Array.FindIndex(config.Ranges, r => r.Start == range.Start);
-                    downloadedSegments.Add(segmentIndex);
-                });
+                // Track downloaded segment
+                var segmentIndex = Array.FindIndex(config.Ranges, r => r.Start == range.Start);
+                downloadedSegments.Add(segmentIndex);
+            });
 
         // Mock storage manager
         _mockStorageManager
@@ -93,7 +97,7 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var progress = new Progress<SegmentProgress>(p => progressReports.Add(p));
+        Progress<SegmentProgress> progress = new(p => progressReports.Add(p));
 
         // Act
         await _segmentManager.DownloadSegmentsAsync(
@@ -116,13 +120,12 @@ public class SegmentManagerAdvancedTests : IDisposable
     {
         // Arrange
         var fileSize = 2 * 1024 * 1024L; // 2 MB
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 2,
-            MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 2, MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
         var tempFilePath = Path.Combine(_tempDirectory, "test.part");
         File.WriteAllBytes(tempFilePath, new byte[fileSize]);
 
@@ -137,20 +140,20 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, opts, progress, ct) =>
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, opts, progress, ct) =>
+            {
+                attemptCount++;
+                if (attemptCount == 1)
                 {
-                    attemptCount++;
-                    if (attemptCount == 1)
-                    {
-                        throw new IOException("Simulated network error");
-                    }
+                    throw new IOException("Simulated network error");
+                }
 
-                    // Succeed on retry
-                    var data = new byte[range.Length];
-                    await stream.WriteAsync(data, ct);
-                    progress?.Report(range.Length);
-                });
+                // Succeed on retry
+                var data = new byte[range.Length];
+                await stream.WriteAsync(data, ct);
+                progress?.Report(range.Length);
+            });
 
         // Second segment succeeds immediately
         _mockProtocolHandler
@@ -161,13 +164,13 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, opts, progress, ct) =>
-                {
-                    var data = new byte[range.Length];
-                    await stream.WriteAsync(data, ct);
-                    progress?.Report(range.Length);
-                });
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, opts, progress, ct) =>
+            {
+                var data = new byte[range.Length];
+                await stream.WriteAsync(data, ct);
+                progress?.Report(range.Length);
+            });
 
         _mockStorageManager
             .Setup(s => s.WriteSegmentAsync(
@@ -198,13 +201,9 @@ public class SegmentManagerAdvancedTests : IDisposable
     {
         // Arrange
         var fileSize = 1024 * 1024L; // 1 MB
-        var options = new SegmentOptions
-        {
-            MaxConnections = 1,
-            MinSegmentSize = 1024 * 1024
-        };
+        SegmentOptions options = new() { MaxConnections = 1, MinSegmentSize = 1024 * 1024 };
 
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
         var tempFilePath = Path.Combine(_tempDirectory, "test.part");
         File.WriteAllBytes(tempFilePath, new byte[fileSize]);
 
@@ -217,13 +216,13 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, opts, progress, ct) =>
-                {
-                    // Write less data than expected
-                    var data = new byte[range.Length / 2];
-                    await stream.WriteAsync(data, ct);
-                });
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, opts, progress, ct) =>
+            {
+                // Write less data than expected
+                var data = new byte[range.Length / 2];
+                await stream.WriteAsync(data, ct);
+            });
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<AggregateException>(async () =>
@@ -245,13 +244,9 @@ public class SegmentManagerAdvancedTests : IDisposable
     {
         // Arrange
         var fileSize = 4 * 1024 * 1024L; // 4 MB
-        var options = new SegmentOptions
-        {
-            MaxConnections = 4,
-            MinSegmentSize = 1024 * 1024
-        };
+        SegmentOptions options = new() { MaxConnections = 4, MinSegmentSize = 1024 * 1024 };
 
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
         var tempFilePath = Path.Combine(_tempDirectory, "test.part");
         File.WriteAllBytes(tempFilePath, new byte[fileSize]);
 
@@ -261,7 +256,7 @@ public class SegmentManagerAdvancedTests : IDisposable
         config.States[2].Status = SegmentStatus.Completed;
         config.States[2].BytesDownloaded = config.States[2].TotalSize;
 
-        var downloadedSegmentIndices = new ConcurrentBag<int>();
+        ConcurrentBag<int> downloadedSegmentIndices = new();
 
         _mockProtocolHandler
             .Setup(h => h.DownloadRangeAsync(
@@ -271,18 +266,18 @@ public class SegmentManagerAdvancedTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, opts, progress, ct) =>
-                {
-                    var data = new byte[range.Length];
-                    await stream.WriteAsync(data, ct);
-                    progress?.Report(range.Length);
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, opts, progress, ct) =>
+            {
+                var data = new byte[range.Length];
+                await stream.WriteAsync(data, ct);
+                progress?.Report(range.Length);
 
-                    // Track which segment was downloaded
-                    var segmentIndex = Array.FindIndex(config.Ranges, r =>
-                        range.Start >= r.Start && range.End <= r.End);
-                    downloadedSegmentIndices.Add(segmentIndex);
-                });
+                // Track which segment was downloaded
+                var segmentIndex = Array.FindIndex(config.Ranges, r =>
+                    range.Start >= r.Start && range.End <= r.End);
+                downloadedSegmentIndices.Add(segmentIndex);
+            });
 
         _mockStorageManager
             .Setup(s => s.WriteSegmentAsync(
@@ -321,14 +316,13 @@ public class SegmentManagerAdvancedTests : IDisposable
     public void CalculateSegments_WithVariousFileSizes_ShouldCalculateCorrectly(long fileSize)
     {
         // Arrange
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 8,
-            MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
 
         // Assert
         Assert.True(config.SegmentCount > 0);
@@ -354,7 +348,7 @@ public class SegmentManagerAdvancedTests : IDisposable
     public void CalculateSegments_WithEdgeCases_ShouldHandleCorrectly()
     {
         // Test edge case: 1 byte file
-        var options = new SegmentOptions { MaxConnections = 8, MinSegmentSize = 1 };
+        SegmentOptions options = new() { MaxConnections = 8, MinSegmentSize = 1 };
         var config = _segmentManager.CalculateSegments(1, true, options);
         Assert.Equal(1, config.SegmentCount);
         Assert.Equal(0, config.Ranges[0].Start);
@@ -366,15 +360,5 @@ public class SegmentManagerAdvancedTests : IDisposable
         options = new SegmentOptions { MaxConnections = 8, MinSegmentSize = 1024 * 1024 };
         config = _segmentManager.CalculateSegments(fileSize, true, options);
         Assert.Equal(8, config.SegmentCount);
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_tempDirectory))
-        {
-            Directory.Delete(_tempDirectory, recursive: true);
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

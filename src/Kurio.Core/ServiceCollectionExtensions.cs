@@ -33,109 +33,111 @@ public static class ServiceCollectionExtensions
         string stateDirectory,
         int maxConcurrentDownloads = 3)
     {
-            // Register storage manager as singleton with configured directories
-            services.AddSingleton<IStorageManager>(sp =>
+        // Register storage manager as singleton with configured directories
+        services.AddSingleton<IStorageManager>(sp =>
+        {
+            // Configure default storage options - can be overridden via configuration
+            var storageOptions = new StorageOptions
             {
-                // Configure default storage options - can be overridden via configuration
-                var storageOptions = new StorageOptions
-                {
-                    Mode = StorageMode.SingleFile,
-                    VerifyWrites = false, // Disabled by default for performance
-                    WriteBufferSize = 81920, // 80KB
-                    CleanupSegmentFiles = true
-                };
-                
-                return new StorageManager(tempDirectory, stateDirectory, pathProvider: null, options: storageOptions);
+                Mode = StorageMode.PerSegmentFiles, // Use per-segment files to avoid file locking contention
+                VerifyWrites = false, // Disabled by default for performance
+                WriteBufferSize = 81920, // 80KB
+                CleanupSegmentFiles = true
+            };
+
+            return new StorageManager(tempDirectory, stateDirectory, pathProvider: null, options: storageOptions);
+        });
+
+        // Register state persistence
+        services.AddSingleton<IStatePersistence>(sp =>
+        {
+            ILogger<JsonStatePersistence> logger = sp.GetRequiredService<ILogger<JsonStatePersistence>>();
+            return new JsonStatePersistence(stateDirectory, logger);
+        });
+
+        // Register segment verifier for checksum operations
+        services.AddSingleton<ISegmentVerifier, SegmentVerifier>();
+
+        // Register segment manager
+        services.AddTransient<ISegmentManager, SegmentManager>();
+
+        // Register checksum verifier
+        services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
+
+        // Register resilience services (Polly-based)
+        services.AddSingleton<Resilience.ResiliencePolicyFactory>();
+
+        // Register error handling services
+        services.AddSingleton<IErrorClassifier, ErrorClassifier>();
+        services.AddSingleton<CircuitBreakerFactory>(sp =>
+        {
+            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
+        });
+
+        // Register protocol handlers
+        services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
+
+        // Register protocol handler factory
+        services.AddSingleton<IProtocolHandlerFactory>(sp =>
+        {
+            IEnumerable<IProtocolHandler> handlers = sp.GetServices<IProtocolHandler>();
+            return new ProtocolHandlerFactory(handlers);
+        });
+
+        // Configure HttpClient for downloads
+        services.AddHttpClient("KurioDownloader", client => { client.DefaultRequestHeaders.Add("Accept", "*/*"); })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                MaxConnectionsPerServer = 8,
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5
             });
 
-            // Register state persistence
-            services.AddSingleton<IStatePersistence>(sp =>
-            {
-                ILogger<JsonStatePersistence> logger = sp.GetRequiredService<ILogger<JsonStatePersistence>>();
-                return new JsonStatePersistence(stateDirectory, logger);
-            });
+        // Register queue manager
+        services.AddSingleton<IDownloadQueueManager>(sp =>
+            new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads });
 
-            // Register segment verifier for checksum operations
-            services.AddSingleton<ISegmentVerifier, SegmentVerifier>();
+        // Register progress tracker
+        services.AddSingleton<IProgressTracker, ProgressTracker>();
 
-            // Register segment manager
-            services.AddTransient<ISegmentManager, SegmentManager>();
+        // Register download history repository
+        string historyDirectory = Path.Combine(stateDirectory, "history");
+        services.AddSingleton<IDownloadHistoryRepository>(sp =>
+        {
+            ILogger<JsonDownloadHistoryRepository> logger =
+                sp.GetRequiredService<ILogger<JsonDownloadHistoryRepository>>();
+            return new JsonDownloadHistoryRepository(historyDirectory, logger);
+        });
 
-            // Register checksum verifier
-            services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
+        // Register statistics service
+        services.AddSingleton<IStatisticsService>(sp =>
+        {
+            IDownloadHistoryRepository historyRepository = sp.GetRequiredService<IDownloadHistoryRepository>();
+            ILogger<StatisticsService> logger = sp.GetRequiredService<ILogger<StatisticsService>>();
+            return new StatisticsService(stateDirectory, historyRepository, logger);
+        });
 
-            // Register resilience services (Polly-based)
-            services.AddSingleton<Resilience.ResiliencePolicyFactory>();
-            
-            // Register error handling services
-            services.AddSingleton<IErrorClassifier, ErrorClassifier>();
-            services.AddSingleton<CircuitBreakerFactory>(sp =>
-            {
-                ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-                return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
-            });
+        // Register download engine as singleton
+        services.AddSingleton<IDownloadEngine>(sp =>
+        {
+            IProtocolHandler protocolHandler = sp.GetRequiredService<IProtocolHandler>();
+            IStorageManager storageManager = sp.GetRequiredService<IStorageManager>();
+            ISegmentManager segmentManager = sp.GetRequiredService<ISegmentManager>();
+            IStatePersistence statePersistence = sp.GetRequiredService<IStatePersistence>();
+            IDownloadQueueManager queueManager = sp.GetRequiredService<IDownloadQueueManager>();
+            ILogger<DownloadEngine> logger = sp.GetRequiredService<ILogger<DownloadEngine>>();
 
-            // Register protocol handlers
-            services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
-
-            // Register protocol handler factory
-            services.AddSingleton<IProtocolHandlerFactory>(sp =>
-            {
-                IEnumerable<IProtocolHandler> handlers = sp.GetServices<IProtocolHandler>();
-                return new ProtocolHandlerFactory(handlers);
-            });
-
-            // Configure HttpClient for downloads
-            services.AddHttpClient("KurioDownloader", client => { client.DefaultRequestHeaders.Add("Accept", "*/*"); })
-                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-                {
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-                    MaxConnectionsPerServer = 8,
-                    AllowAutoRedirect = true,
-                    MaxAutomaticRedirections = 5
-                });
-
-            // Register queue manager
-            services.AddSingleton<IDownloadQueueManager>(sp =>
-                new DownloadQueueManager { MaxConcurrentDownloads = maxConcurrentDownloads });
-
-            // Register progress tracker
-            services.AddSingleton<IProgressTracker, ProgressTracker>();
-
-            // Register download history repository
-            string historyDirectory = Path.Combine(stateDirectory, "history");
-            services.AddSingleton<IDownloadHistoryRepository>(sp =>
-            {
-                ILogger<JsonDownloadHistoryRepository> logger =
-                    sp.GetRequiredService<ILogger<JsonDownloadHistoryRepository>>();
-                return new JsonDownloadHistoryRepository(historyDirectory, logger);
-            });
-
-            // Register statistics service
-            services.AddSingleton<IStatisticsService>(sp =>
-            {
-                IDownloadHistoryRepository historyRepository = sp.GetRequiredService<IDownloadHistoryRepository>();
-                ILogger<StatisticsService> logger = sp.GetRequiredService<ILogger<StatisticsService>>();
-                return new StatisticsService(stateDirectory, historyRepository, logger);
-            });
-
-            // Register download engine as singleton
-            services.AddSingleton<IDownloadEngine>(sp =>
-            {
-                IProtocolHandler protocolHandler = sp.GetRequiredService<IProtocolHandler>();
-                IStorageManager storageManager = sp.GetRequiredService<IStorageManager>();
-                ISegmentManager segmentManager = sp.GetRequiredService<ISegmentManager>();
-                IStatePersistence statePersistence = sp.GetRequiredService<IStatePersistence>();
-                IDownloadQueueManager queueManager = sp.GetRequiredService<IDownloadQueueManager>();
-
-                return new DownloadEngine(
-                    protocolHandler,
-                    storageManager,
-                    segmentManager,
-                    statePersistence,
-                    queueManager,
-                    maxConcurrentDownloads);
-            });
+            return new DownloadEngine(
+                protocolHandler,
+                storageManager,
+                segmentManager,
+                statePersistence,
+                logger,
+                queueManager,
+                maxConcurrentDownloads);
+        });
 
         return services;
     }
@@ -165,16 +167,16 @@ public static class ServiceCollectionExtensions
         string? configFilePath = null)
     {
         services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
-        
+
         services.AddSingleton<Configuration.IConfigurationService>(sp =>
         {
             var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
             var logger = sp.GetRequiredService<ILogger<Configuration.ConfigurationService>>();
-            
+
             var defaultPath = Path.Combine(
                 pathProvider.GetAppDataDirectory(),
                 "config.json");
-            
+
             return new Configuration.ConfigurationService(
                 configFilePath ?? defaultPath,
                 logger);
@@ -191,12 +193,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddKurioStorage(this IServiceCollection services)
     {
         services.AddSingleton<Storage.IPlatformPathProvider, Storage.PlatformPathProvider>();
-        
+
         services.AddSingleton<Storage.ITempFileCleanupService>(sp =>
         {
             var pathProvider = sp.GetRequiredService<Storage.IPlatformPathProvider>();
             var logger = sp.GetRequiredService<ILogger<Storage.TempFileCleanupService>>();
-            
+
             return new Storage.TempFileCleanupService(
                 pathProvider.GetTempDirectory(),
                 logger);

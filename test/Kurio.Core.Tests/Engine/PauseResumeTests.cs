@@ -13,6 +13,7 @@ using Kurio.Core.Engine;
 using Kurio.Core.Models;
 using Kurio.Core.Persistence;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Moq;
@@ -117,6 +118,7 @@ public sealed class PauseResumeTests : IDisposable
             _mockStorageManager.Object,
             _segmentManager,
             _mockStatePersistence.Object,
+            Mock.Of<ILogger<DownloadEngine>>(),
             maxConcurrentDownloads: 1);
     }
 

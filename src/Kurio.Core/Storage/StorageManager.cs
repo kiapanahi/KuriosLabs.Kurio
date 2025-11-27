@@ -55,7 +55,16 @@ public sealed class StorageManager : IStorageManager
 
         string tempFilePath = Path.Combine(taskDirectory, "download.part");
 
-        // Pre-allocate file to the expected size for better performance
+        // In PerSegmentFiles mode, we don't create/pre-allocate the main file
+        // Segments will be written to individual files and merged later
+        if (_options.Mode == StorageMode.PerSegmentFiles)
+        {
+            // Just return the path where the merged file will be created
+            // Segment files will be created by SegmentManager as needed
+            return Task.FromResult(tempFilePath);
+        }
+
+        // In SingleFile mode, pre-allocate the file to the expected size for better performance
         using (FileStream fileStream = new(
                    tempFilePath,
                    FileMode.Create,

@@ -51,6 +51,11 @@ public sealed class SegmentState
     public SegmentChecksum? Checksum { get; set; }
 
     /// <summary>
+    ///     Gets or sets the path to the segment file (for per-segment file mode).
+    /// </summary>
+    public string? SegmentFilePath { get; set; }
+
+    /// <summary>
     ///     Gets the total size of this segment in bytes.
     /// </summary>
     public long TotalSize => EndByte - StartByte + 1;

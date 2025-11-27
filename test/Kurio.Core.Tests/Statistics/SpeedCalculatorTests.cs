@@ -136,7 +136,7 @@ public class SpeedCalculatorTests
         calculator.Resume();
 
         // Assert
-        calculator.TotalPausedDurationMs.Should().BeGreaterOrEqualTo(40); // Account for timing variability
+        calculator.TotalPausedDurationMs.Should().BeGreaterThanOrEqualTo(40); // Account for timing variability
     }
 
     [Fact]

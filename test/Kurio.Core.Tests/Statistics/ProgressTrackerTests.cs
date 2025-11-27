@@ -127,7 +127,7 @@ public class ProgressTrackerTests
 
         // Assert
         progress.Should().NotBeNull();
-        progress!.TotalPausedTime.TotalMilliseconds.Should().BeGreaterOrEqualTo(40);
+        progress!.TotalPausedTime.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(40);
     }
 
     [Fact]
@@ -255,7 +255,7 @@ public class ProgressTrackerTests
 
         // Assert
         progress.Should().NotBeNull();
-        progress!.ElapsedActiveTime.TotalMilliseconds.Should().BeGreaterOrEqualTo(90);
+        progress!.ElapsedActiveTime.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(90);
     }
 
     [Fact]

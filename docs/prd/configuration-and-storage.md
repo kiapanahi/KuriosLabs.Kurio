@@ -4,13 +4,16 @@
 **Date:** November 26, 2025  
 **Status:** Draft  
 **Author:** Kurio Development Team  
-**Related Issues:** [#17](https://github.com/kiapanahi/KuriosLabs.Kurio/issues/17), [#16](https://github.com/kiapanahi/KuriosLabs.Kurio/issues/16)
+**Related Issues:
+** [#17](https://github.com/kiapanahi/KuriosLabs.Kurio/issues/17), [#16](https://github.com/kiapanahi/KuriosLabs.Kurio/issues/16)
 
 ---
 
 ## Executive Summary
 
-This document defines the requirements for Kurio's configuration management and storage systems. These foundational components enable flexible user customization while ensuring safe, reliable file management across all supported platforms.
+This document defines the requirements for Kurio's configuration management and storage systems. These foundational
+components enable flexible user customization while ensuring safe, reliable file management across all supported
+platforms.
 
 ---
 
@@ -19,7 +22,8 @@ This document defines the requirements for Kurio's configuration management and 
 ### Primary Goals
 
 - **Configuration System**: Provide flexible, hierarchical configuration supporting global and per-download settings
-- **Storage Management**: Implement reliable file system operations with atomic guarantees and cross-platform compatibility
+- **Storage Management**: Implement reliable file system operations with atomic guarantees and cross-platform
+  compatibility
 - **User Experience**: Enable easy customization while maintaining sensible defaults
 - **Data Safety**: Ensure no data loss or corruption during file operations
 
@@ -222,7 +226,7 @@ public interface IDownloadOptionsBuilder
 ### 2.5 Configuration Validation Rules
 
 | Setting                   | Validation Rule              | Default Value |
-| ------------------------- | ---------------------------- | ------------- |
+|---------------------------|------------------------------|---------------|
 | MaxConcurrentDownloads    | 1 ≤ x ≤ 20                   | 3             |
 | MaxConnectionsPerDownload | 1 ≤ x ≤ 32                   | 8             |
 | MinSegmentSize            | 512 KB ≤ x ≤ 100 MB          | 1 MB          |
@@ -445,7 +449,7 @@ public interface IPlatformPathProvider
 **Platform Defaults:**
 
 | Platform | Downloads Directory       | App Data                              | Temp                     |
-| -------- | ------------------------- | ------------------------------------- | ------------------------ |
+|----------|---------------------------|---------------------------------------|--------------------------|
 | Windows  | `%USERPROFILE%\Downloads` | `%APPDATA%\Kurio`                     | `%TEMP%\Kurio`           |
 | macOS    | `~/Downloads`             | `~/Library/Application Support/Kurio` | `~/Library/Caches/Kurio` |
 | Linux    | `~/Downloads`             | `~/.config/kurio`                     | `/tmp/kurio`             |
@@ -536,7 +540,7 @@ public class CategoryRule
 **Default Categories:**
 
 | Category  | Extensions                                          | MIME Types        |
-| --------- | --------------------------------------------------- | ----------------- |
+|-----------|-----------------------------------------------------|-------------------|
 | Documents | `.pdf`, `.doc`, `.docx`, `.txt`, `.md`              | `application/pdf` |
 | Images    | `.jpg`, `.png`, `.gif`, `.svg`                      | `image/*`         |
 | Videos    | `.mp4`, `.mkv`, `.avi`, `.mov`                      | `video/*`         |
@@ -612,6 +616,7 @@ public record CleanupResult(
 6. Write unit tests for configuration management
 
 **Deliverables:**
+
 - Configuration models and interfaces
 - Configuration service implementation
 - Validation logic
@@ -631,6 +636,7 @@ public record CleanupResult(
 7. Write comprehensive tests
 
 **Deliverables:**
+
 - Storage manager implementation
 - Platform-specific path handling
 - Atomic file operations

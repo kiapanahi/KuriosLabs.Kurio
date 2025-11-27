@@ -1,6 +1,7 @@
 # Kurio
 
-A powerful, cross-platform download manager built with .NET that provides advanced features for managing and accelerating your downloads.
+A powerful, cross-platform download manager built with .NET that provides advanced features for managing and
+accelerating your downloads.
 
 ## Features
 
@@ -84,7 +85,8 @@ dotnet run --project src/Kurio
 
 ## Contributing
 
-We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to the project.
+We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to
+contribute to the project.
 
 ## Technology Stack
 
@@ -106,4 +108,5 @@ See [CHANGELOG.md](CHANGELOG.md) for a history of changes and releases.
 
 ## Support
 
-For issues, questions, or feature requests, please use the [GitHub Issues](https://github.com/kiapanahi/KuriosLabs.Kurio/issues) page.
+For issues, questions, or feature requests, please use
+the [GitHub Issues](https://github.com/kiapanahi/KuriosLabs.Kurio/issues) page.

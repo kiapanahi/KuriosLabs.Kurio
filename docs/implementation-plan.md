@@ -1,13 +1,15 @@
 # Kurio Implementation Plan
 
 **Created:** November 26, 2025  
-**Status:** Ready for Implementation  
+**Status:** Ready for Implementation
 
 ---
 
 ## Overview
 
-This document outlines the complete implementation plan for transforming Kurio into a robust, client-server architecture download manager. The plan is divided into three phases, addressing critical bugs, modernizing APIs, and building a web service architecture.
+This document outlines the complete implementation plan for transforming Kurio into a robust, client-server architecture
+download manager. The plan is divided into three phases, addressing critical bugs, modernizing APIs, and building a web
+service architecture.
 
 ---
 
@@ -18,39 +20,43 @@ This document outlines the complete implementation plan for transforming Kurio i
 **Priority:** Critical - Must complete before moving to Phase 2/3
 
 ### Issue #43: Migrate to Polly for Resilience and Retry Policies
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/43
 - **Type:** Refactoring
 - **Priority:** High
 - **Effort:** Medium (1-2 weeks)
-- **Description:** Replace custom `RetryHandler` with Polly, an industry-standard resilience library already referenced in ServiceDefaults
+- **Description:** Replace custom `RetryHandler` with Polly, an industry-standard resilience library already referenced
+  in ServiceDefaults
 - **Benefits:**
-  - Battle-tested resilience patterns
-  - Better telemetry and metrics integration
-  - Sophisticated policy composition
-  - Active community support
+    - Battle-tested resilience patterns
+    - Better telemetry and metrics integration
+    - Sophisticated policy composition
+    - Active community support
 
 ### Issue #44: Fix Concurrent Write Issues in Multi-Segment Downloads
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/44
 - **Type:** Bug Fix
 - **Priority:** Critical
 - **Effort:** High (2-3 weeks)
 - **Description:** Eliminate file corruption during pause/resume cycles by implementing proper write synchronization
 - **Solutions:**
-  - **Mode 1:** Enhanced single-file approach with proper locking
-  - **Mode 2:** Per-segment files with merge at completion (configurable)
+    - **Mode 1:** Enhanced single-file approach with proper locking
+    - **Mode 2:** Per-segment files with merge at completion (configurable)
 - **Impact:** Resolves data corruption issues reported after pause/resume
 
 ### Issue #45: Add Segment-Level Checksum Verification
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/45
 - **Type:** Feature
 - **Priority:** High
 - **Effort:** Medium (1-2 weeks)
 - **Description:** Add SHA256 checksums for each segment to ensure data integrity
 - **Features:**
-  - Compute checksum during download
-  - Verify after writing to disk
-  - Verify during resume
-  - Detect corrupted segments early
+    - Compute checksum during download
+    - Verify after writing to disk
+    - Verify during resume
+    - Detect corrupted segments early
 
 ---
 
@@ -61,17 +67,18 @@ This document outlines the complete implementation plan for transforming Kurio i
 **Priority:** High - Required before Phase 3
 
 ### Issue #46: Migrate from IObservable to IAsyncEnumerable
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/46
 - **Type:** Refactoring (Breaking Change)
 - **Priority:** High
 - **Effort:** Medium (1-2 weeks)
 - **Description:** Replace `IObservable<DownloadProgress>` (System.Reactive) with `IAsyncEnumerable<DownloadProgress>`
 - **Benefits:**
-  - Native C# async/await support
-  - Built-in backpressure handling
-  - Perfect for HTTP streaming (SSE/SignalR)
-  - Remove System.Reactive dependency
-  - More familiar to developers
+    - Native C# async/await support
+    - Built-in backpressure handling
+    - Perfect for HTTP streaming (SSE/SignalR)
+    - Remove System.Reactive dependency
+    - More familiar to developers
 - **Blocks:** Issue #47 (Kurio.Server)
 
 ---
@@ -85,32 +92,34 @@ This document outlines the complete implementation plan for transforming Kurio i
 **PRD:** [docs/prd/web-service-architecture.md](./prd/web-service-architecture.md)
 
 ### Issue #47: Create Kurio.Server ASP.NET Core Web Service
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/47
 - **Type:** Feature
 - **Priority:** High
 - **Effort:** Very High (3-4 weeks)
 - **Description:** Create ASP.NET Core web service that hosts the download engine
 - **Features:**
-  - REST API for all download operations
-  - SignalR hub for real-time updates
-  - Server-sent events (SSE) for simple clients
-  - Background service hosting download engine
-  - OpenAPI/Swagger documentation
-  - Health checks and monitoring
+    - REST API for all download operations
+    - SignalR hub for real-time updates
+    - Server-sent events (SSE) for simple clients
+    - Background service hosting download engine
+    - OpenAPI/Swagger documentation
+    - Health checks and monitoring
 - **Depends on:** Issue #46
 
 ### Issue #48: Update CLI to Use API Client
+
 - **URL:** https://github.com/kiapanahi/KuriosLabs.Kurio/issues/48
 - **Type:** Refactoring
 - **Priority:** High
 - **Effort:** High (1-2 weeks)
 - **Description:** Convert `Kurio.Cli` from hosting engine in-process to connecting to Kurio.Server
 - **Features:**
-  - HTTP-based API client
-  - SignalR connection for real-time updates
-  - Connection state management
-  - Automatic reconnection
-  - Support local and remote servers
+    - HTTP-based API client
+    - SignalR connection for real-time updates
+    - Connection state management
+    - Automatic reconnection
+    - Support local and remote servers
 - **Depends on:** Issue #47
 
 ---
@@ -118,6 +127,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 ## Architecture Evolution
 
 ### Current Architecture (In-Process)
+
 ```
 ┌──────────────┐
 │  Kurio.Cli   │
@@ -132,6 +142,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 ```
 
 ### Future Architecture (Client-Server)
+
 ```
 ┌──────────────┐         ┌──────────────┐
 │  Kurio.Cli   │         │Kurio.Server  │
@@ -153,6 +164,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 ## Implementation Timeline
 
 ### Week 1-2: Polly Migration (#43)
+
 - Add Polly packages
 - Create resilience policy factory
 - Update SegmentManager
@@ -160,6 +172,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 - Write tests
 
 ### Week 3-5: Concurrent Write Fixes (#44)
+
 - Implement write locking
 - Add per-segment file mode
 - Implement merge logic
@@ -167,12 +180,14 @@ This document outlines the complete implementation plan for transforming Kurio i
 - Performance benchmarking
 
 ### Week 6-7: Checksum Verification (#45)
+
 - Create SegmentVerifier
 - Integrate with SegmentManager
 - Add resume verification
 - Testing and validation
 
 ### Week 8-9: IAsyncEnumerable Migration (#46)
+
 - Update interface
 - Implement Channel-based streaming
 - Update all consumers
@@ -180,6 +195,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 - Testing
 
 ### Week 10-13: Kurio.Server (#47)
+
 - Create ASP.NET Core project
 - Implement REST API
 - Implement SignalR hub
@@ -188,6 +204,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 - Testing
 
 ### Week 14-15: CLI Client (#48)
+
 - Create API client
 - Update UI views
 - Connection management
@@ -198,6 +215,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 ## Success Criteria
 
 ### Phase 1 Success
+
 - [ ] No file corruption in any scenario
 - [ ] Polly policies working correctly
 - [ ] Segment checksums detecting corruption
@@ -205,12 +223,14 @@ This document outlines the complete implementation plan for transforming Kurio i
 - [ ] Performance acceptable
 
 ### Phase 2 Success
+
 - [ ] IAsyncEnumerable streaming working
 - [ ] System.Reactive removed
 - [ ] No performance regression
 - [ ] All clients updated
 
 ### Phase 3 Success
+
 - [ ] Server running as standalone service
 - [ ] REST API fully functional
 - [ ] Real-time updates working (SignalR/SSE)
@@ -224,6 +244,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 ## Testing Strategy
 
 ### Unit Tests
+
 - All core business logic
 - Policy configurations
 - Checksum calculations
@@ -231,6 +252,7 @@ This document outlines the complete implementation plan for transforming Kurio i
 - API client operations
 
 ### Integration Tests
+
 - Full download workflows
 - Pause/resume functionality
 - API endpoints
@@ -238,12 +260,14 @@ This document outlines the complete implementation plan for transforming Kurio i
 - SSE streaming
 
 ### Performance Tests
+
 - Load testing (100+ downloads)
 - Stress testing (large files)
 - Endurance testing (24+ hours)
 - Memory leak detection
 
 ### End-to-End Tests
+
 - TUI connecting to server
 - Multiple clients simultaneously
 - Network failure scenarios
@@ -256,14 +280,17 @@ This document outlines the complete implementation plan for transforming Kurio i
 ### High Risks
 
 **File Corruption (Issue #44)**
+
 - **Mitigation:** Comprehensive testing with simulated failures
 - **Fallback:** Per-segment file mode as safe alternative
 
 **Breaking Changes (Issue #46)**
+
 - **Mitigation:** Clear migration guide, thorough testing
 - **Impact:** Only internal APIs, no user-facing changes
 
 **Web Service Complexity (Issues #47, #48)**
+
 - **Mitigation:** Incremental implementation, extensive testing
 - **Fallback:** Keep in-process mode as fallback option
 
@@ -285,12 +312,14 @@ This document outlines the complete implementation plan for transforming Kurio i
 ## Dependencies
 
 ### External Dependencies
+
 - Polly (v8.5.0+)
 - ASP.NET Core 10.0
 - SignalR Client
 - System.Threading.Channels (built-in)
 
 ### Internal Dependencies
+
 ```
 #43 ──┐
 #44 ──┤

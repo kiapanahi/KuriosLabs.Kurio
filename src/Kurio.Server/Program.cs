@@ -1,8 +1,9 @@
 using Kurio.Core;
 using Kurio.Core.Abstractions;
+
 using KuriousLabs.Kurio.Server.Hubs;
-using KuriousLabs.Kurio.Server.Middleware;
 using KuriousLabs.Kurio.Server.Services;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -19,6 +20,9 @@ builder.Services.AddControllers()
 
 // Add Swagger without OpenAPI source generators
 builder.Services.AddSwaggerGen();
+
+// Add problem details service for standardized error responses
+builder.Services.AddProblemDetails();
 
 // Add SignalR
 builder.Services.AddSignalR(options =>
@@ -40,22 +44,14 @@ var allowedOrigins = builder.Configuration
     .GetSection("Kurio:Server:AllowedOrigins")
     .Get<string[]>() ?? ["http://localhost:5173", "http://localhost:3000"];
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowWebClients", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+builder.Services.AddCors(options => options.AddPolicy("AllowWebClients", policy => 
+                    policy.WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials()));
 
 // Add response compression
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-});
+builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
 
 // Add health checks
 builder.Services.AddHealthChecks()
@@ -64,7 +60,8 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 // Configure pipeline
-app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {

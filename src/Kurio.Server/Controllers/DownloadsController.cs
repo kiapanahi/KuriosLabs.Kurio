@@ -32,7 +32,7 @@ public class DownloadsController : ControllerBase
     /// <returns>Created download details.</returns>
     [HttpPost]
     [ProducesResponseType(typeof(DownloadResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DownloadResponse>> AddDownload(
         [FromBody] AddDownloadRequest request,
         CancellationToken cancellationToken)
@@ -41,12 +41,10 @@ public class DownloadsController : ControllerBase
         {
             if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri))
             {
-                return BadRequest(new ErrorResponse
-                {
-                    Message = "Invalid URL",
-                    Details = $"The URL '{request.Url}' is not valid",
-                    StatusCode = StatusCodes.Status400BadRequest
-                });
+                return Problem(
+                    detail: $"The URL '{request.Url}' is not valid",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Invalid URL");
             }
 
             var task = await _engine.AddDownloadAsync(
@@ -66,12 +64,10 @@ public class DownloadsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding download for URL: {Url}", request.Url);
-            return BadRequest(new ErrorResponse
-            {
-                Message = "Failed to add download",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status400BadRequest
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Failed to add download");
         }
     }
 
@@ -99,18 +95,16 @@ public class DownloadsController : ControllerBase
     /// <returns>Download details.</returns>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(DownloadResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public ActionResult<DownloadResponse> GetDownload(Guid id)
     {
         var task = _engine.GetDownload(id);
         if (task == null)
         {
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found",
-                Details = $"No download with ID {id} exists",
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            return Problem(
+                detail: $"No download with ID {id} exists",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
         }
 
         return Ok(DownloadResponse.FromTask(task));
@@ -123,8 +117,8 @@ public class DownloadsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost("{id:guid}/start")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> StartDownload(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -135,22 +129,18 @@ public class DownloadsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Cannot start download {Id}", id);
-            return BadRequest(new ErrorResponse
-            {
-                Message = "Cannot start download",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status400BadRequest
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Cannot start download");
         }
         catch (KeyNotFoundException ex)
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
         }
     }
 
@@ -161,8 +151,8 @@ public class DownloadsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost("{id:guid}/pause")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PauseDownload(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -173,22 +163,18 @@ public class DownloadsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Cannot pause download {Id}", id);
-            return BadRequest(new ErrorResponse
-            {
-                Message = "Cannot pause download",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status400BadRequest
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Cannot pause download");
         }
         catch (KeyNotFoundException ex)
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
         }
     }
 
@@ -199,8 +185,8 @@ public class DownloadsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost("{id:guid}/resume")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResumeDownload(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -211,22 +197,18 @@ public class DownloadsController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Cannot resume download {Id}", id);
-            return BadRequest(new ErrorResponse
-            {
-                Message = "Cannot resume download",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status400BadRequest
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Cannot resume download");
         }
         catch (KeyNotFoundException ex)
         {
             _logger.LogWarning(ex, "Download {Id} not found", id);
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
         }
     }
 
@@ -238,7 +220,7 @@ public class DownloadsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CancelDownload(
         Guid id,
         CancellationToken cancellationToken,
@@ -249,15 +231,13 @@ public class DownloadsController : ControllerBase
             await _engine.CancelDownloadAsync(id, removeFiles, cancellationToken);
             return NoContent();
         }
-        catch (KeyNotFoundException ex)
+        catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Download {Id} not found", id);
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found",
-                Details = ex.Message,
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            _logger.LogWarning(ex, "Error cancelling download {Id}", id);
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
         }
     }
 
@@ -268,19 +248,17 @@ public class DownloadsController : ControllerBase
     /// <param name="request">New priority.</param>
     [HttpPost("{id:guid}/priority")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public IActionResult ChangePriority(Guid id, [FromBody] ChangePriorityRequest request)
     {
         var success = _engine.ChangePriority(id, request.Priority);
         if (!success)
         {
-            return NotFound(new ErrorResponse
-            {
-                Message = "Download not found or not queued",
-                Details = $"Cannot change priority for download {id}",
-                StatusCode = StatusCodes.Status404NotFound
-            });
+            return Problem(
+                detail: $"Cannot change priority for download {id}",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found or not queued");
         }
 
         return NoContent();

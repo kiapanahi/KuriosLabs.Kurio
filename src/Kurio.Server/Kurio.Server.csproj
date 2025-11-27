@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <RootNamespace>KuriousLabs.Kurio.Server</RootNamespace>
+    <RootNamespace>$(RootNamespace).Server</RootNamespace>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj" />
+    <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

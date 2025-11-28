@@ -13,8 +13,10 @@ namespace Kurio.Core.Engine;
 public sealed class SegmentManager : ISegmentManager
 {
     private readonly ILogger<SegmentManager>? _logger;
-    private readonly IStorageManager _storageManager;
+    private readonly Resilience.ResiliencePolicyFactory? _resiliencePolicyFactory;
+    private readonly Resilience.ConnectionResilienceOptions? _connectionResilienceOptions;
     private readonly ISegmentVerifier _segmentVerifier;
+    private readonly IStorageManager _storageManager;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SegmentManager" /> class.
@@ -22,14 +24,20 @@ public sealed class SegmentManager : ISegmentManager
     /// <param name="storageManager">The storage manager for file operations.</param>
     /// <param name="segmentVerifier">The segment verifier for checksum operations.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <param name="resiliencePolicyFactory">Optional resilience policy factory for network failure recovery.</param>
+    /// <param name="connectionResilienceOptions">Optional connection resilience options.</param>
     public SegmentManager(
-        IStorageManager storageManager, 
+        IStorageManager storageManager,
         ISegmentVerifier segmentVerifier,
-        ILogger<SegmentManager>? logger = null)
+        ILogger<SegmentManager>? logger = null,
+        Resilience.ResiliencePolicyFactory? resiliencePolicyFactory = null,
+        Resilience.ConnectionResilienceOptions? connectionResilienceOptions = null)
     {
         _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
         _segmentVerifier = segmentVerifier ?? throw new ArgumentNullException(nameof(segmentVerifier));
         _logger = logger;
+        _resiliencePolicyFactory = resiliencePolicyFactory;
+        _connectionResilienceOptions = connectionResilienceOptions;
     }
 
     /// <inheritdoc />
@@ -57,36 +65,33 @@ public sealed class SegmentManager : ISegmentManager
                 FileSize = fileSize,
                 SegmentCount = 1,
                 SupportsRanges = false,
-                Ranges = new[] { new ByteRange(0, fileSize - 1) },
-                States = new[]
-                {
+                Ranges = [new ByteRange(0, fileSize - 1)],
+                States =
+                [
                     new SegmentState
                     {
-                        SegmentIndex = 0,
-                        StartByte = 0,
-                        EndByte = fileSize - 1,
-                        Status = SegmentStatus.Pending
+                        SegmentIndex = 0, StartByte = 0, EndByte = fileSize - 1, Status = SegmentStatus.Pending
                     }
-                }
+                ]
             };
         }
 
         // Calculate ideal number of segments
-        int idealSegmentCount = Math.Min(
+        var idealSegmentCount = Math.Min(
             options.MaxConnections,
             (int)(fileSize / options.MinSegmentSize));
 
         // Ensure at least one segment
         idealSegmentCount = Math.Max(1, idealSegmentCount);
 
-        long segmentSize = fileSize / idealSegmentCount;
-        ByteRange[] ranges = new ByteRange[idealSegmentCount];
-        SegmentState[] states = new SegmentState[idealSegmentCount];
+        var segmentSize = fileSize / idealSegmentCount;
+        var ranges = new ByteRange[idealSegmentCount];
+        var states = new SegmentState[idealSegmentCount];
 
-        for (int i = 0; i < idealSegmentCount; i++)
+        for (var i = 0; i < idealSegmentCount; i++)
         {
-            long start = i * segmentSize;
-            long end = i == idealSegmentCount - 1 ? fileSize - 1 : start + segmentSize - 1;
+            var start = i * segmentSize;
+            var end = i == idealSegmentCount - 1 ? fileSize - 1 : start + segmentSize - 1;
 
             ranges[i] = new ByteRange(start, end);
             states[i] = new SegmentState
@@ -132,15 +137,15 @@ public sealed class SegmentManager : ISegmentManager
         // Create tasks for all segments
         List<Task> tasks = new(config.SegmentCount);
 
-        for (int i = 0; i < config.SegmentCount; i++)
+        for (var i = 0; i < config.SegmentCount; i++)
         {
-            int segmentIndex = i;
-            ByteRange range = config.Ranges[i];
-            SegmentState state = config.States[i];
+            var segmentIndex = i;
+            var range = config.Ranges[i];
+            var state = config.States[i];
 
             await semaphore.WaitAsync(cancellationToken);
 
-            Task task = Task.Run(async () =>
+            var task = Task.Run(async () =>
             {
                 try
                 {
@@ -204,9 +209,9 @@ public sealed class SegmentManager : ISegmentManager
         // Find incomplete segments
         List<Task> incompleteTasks = new();
 
-        for (int i = 0; i < segmentStates.Length; i++)
+        for (var i = 0; i < segmentStates.Length; i++)
         {
-            SegmentState state = segmentStates[i];
+            var state = segmentStates[i];
 
             if (state.Status == SegmentStatus.Completed)
             {
@@ -214,7 +219,7 @@ public sealed class SegmentManager : ISegmentManager
             }
 
             // Calculate remaining range for this segment
-            long remainingStart = state.StartByte + state.BytesDownloaded;
+            var remainingStart = state.StartByte + state.BytesDownloaded;
             ByteRange remainingRange = new(remainingStart, state.EndByte);
 
             // Reset state for retry
@@ -238,7 +243,7 @@ public sealed class SegmentManager : ISegmentManager
     }
 
     /// <summary>
-    ///     Downloads a segment with automatic retry logic.
+    ///     Downloads a segment with automatic retry logic and network resilience.
     /// </summary>
     private async Task DownloadSegmentWithRetryAsync(
         IProtocolHandler handler,
@@ -251,7 +256,31 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken,
         int maxRetries = 3)
     {
-        int retryCount = 0;
+        // Use resilience policy if available
+        if (_resiliencePolicyFactory != null && _connectionResilienceOptions != null)
+        {
+            var pipeline = _resiliencePolicyFactory.CreateNetworkRetryPolicy<int>(_connectionResilienceOptions);
+
+            await pipeline.ExecuteAsync(async ct =>
+            {
+                await DownloadSegmentAsync(
+                    handler,
+                    url,
+                    range,
+                    state,
+                    tempFilePath,
+                    options,
+                    progress,
+                    ct);
+
+                return 0; // Success indicator
+            }, cancellationToken);
+
+            return;
+        }
+
+        // Fallback to manual retry logic if resilience policy not available
+        var retryCount = 0;
         Exception? lastException = null;
 
         while (retryCount <= maxRetries)
@@ -284,7 +313,7 @@ public sealed class SegmentManager : ISegmentManager
 
                 if (retryCount <= maxRetries)
                 {
-                    TimeSpan delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
                     _logger?.LogWarning(
                         ex,
                         "Segment {SegmentIndex} failed (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}s...",
@@ -326,18 +355,18 @@ public sealed class SegmentManager : ISegmentManager
             range.Length);
 
         // Get the directory containing the temp file
-        string? tempDir = Path.GetDirectoryName(tempFilePath);
+        var tempDir = Path.GetDirectoryName(tempFilePath);
         if (string.IsNullOrEmpty(tempDir))
         {
             throw new InvalidOperationException("Invalid temporary file path");
         }
-        
+
         // Create segment-specific file path
-        string segmentFilePath = Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
-        
+        var segmentFilePath = Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
+
         // Store the initial bytes downloaded (for resume scenarios)
         // This represents bytes that were previously written to disk
-        long initialBytesDownloaded = isResume ? state.BytesDownloaded : 0;
+        var initialBytesDownloaded = isResume ? state.BytesDownloaded : 0;
 
         // Open segment file for writing - stream directly to disk, no in-memory buffering
         // Use OpenOrCreate for resume support
@@ -346,8 +375,8 @@ public sealed class SegmentManager : ISegmentManager
             FileMode.OpenOrCreate,
             FileAccess.Write,
             FileShare.None,
-            bufferSize: 81920,
-            useAsync: true);
+            81920,
+            true);
 
         // For resumed downloads, seek to the position where we left off
         segmentStream.Seek(initialBytesDownloaded, SeekOrigin.Begin);
@@ -362,7 +391,7 @@ public sealed class SegmentManager : ISegmentManager
         {
             // bytesRead is cumulative bytes written to disk in this session
             bytesWrittenThisSession = bytesRead;
-            long totalForSegment = initialBytesDownloaded + bytesRead;
+            var totalForSegment = initialBytesDownloaded + bytesRead;
 
             // Update state for live progress aggregation (not persisted until completion)
             state.BytesDownloaded = totalForSegment;
@@ -389,9 +418,9 @@ public sealed class SegmentManager : ISegmentManager
         await segmentStream.FlushAsync(cancellationToken);
 
         // Verify downloaded size matches expected
-        long finalPosition = segmentStream.Position;
-        long expectedPosition = initialBytesDownloaded + range.Length;
-        
+        var finalPosition = segmentStream.Position;
+        var expectedPosition = initialBytesDownloaded + range.Length;
+
         if (finalPosition != expectedPosition)
         {
             throw new InvalidOperationException(
@@ -412,32 +441,32 @@ public sealed class SegmentManager : ISegmentManager
         // This is important for resume scenarios where we need to verify the complete segment
         // Read the entire segment from its file to compute checksum
         using (FileStream fileStream = new(
-            segmentFilePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 81920,
-            useAsync: true))
+                   segmentFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.Read,
+                   81920,
+                   true))
         {
-            byte[] segmentData = new byte[state.TotalSize];
-            int totalRead = 0;
-            
+            var segmentData = new byte[state.TotalSize];
+            var totalRead = 0;
+
             while (totalRead < state.TotalSize)
             {
-                int bytesRead = await fileStream.ReadAsync(
+                var bytesRead = await fileStream.ReadAsync(
                     segmentData.AsMemory(totalRead, (int)(state.TotalSize - totalRead)),
                     cancellationToken);
-                
+
                 if (bytesRead == 0)
                 {
                     throw new InvalidOperationException(
                         $"Unexpected end of file while reading segment {state.SegmentIndex}");
                 }
-                
+
                 totalRead += bytesRead;
             }
-            
-            string checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken);
+
+            var checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken);
             state.Checksum = SegmentChecksum.Create("SHA256", checksum);
 
             _logger?.LogDebug(
@@ -475,7 +504,7 @@ public sealed class SegmentManager : ISegmentManager
         _logger?.LogInformation("Verifying segment boundaries...");
 
         // Verify all segments are completed
-        List<int> incompleteSegments = config.States
+        var incompleteSegments = config.States
             .Where(s => s.Status != SegmentStatus.Completed)
             .Select(s => s.SegmentIndex)
             .ToList();
@@ -487,11 +516,11 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Verify segment boundaries don't overlap or have gaps
-        SegmentState[] sortedStates = config.States.OrderBy(s => s.StartByte).ToArray();
-        for (int i = 0; i < sortedStates.Length - 1; i++)
+        var sortedStates = config.States.OrderBy(s => s.StartByte).ToArray();
+        for (var i = 0; i < sortedStates.Length - 1; i++)
         {
-            SegmentState current = sortedStates[i];
-            SegmentState next = sortedStates[i + 1];
+            var current = sortedStates[i];
+            var next = sortedStates[i + 1];
 
             if (current.EndByte + 1 != next.StartByte)
             {
@@ -503,17 +532,17 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Verify segment files exist and have correct sizes
-        string? tempDir = Path.GetDirectoryName(tempFilePath);
+        var tempDir = Path.GetDirectoryName(tempFilePath);
         if (string.IsNullOrEmpty(tempDir))
         {
             throw new InvalidOperationException("Invalid temporary file path");
         }
 
         long totalBytesVerified = 0;
-        foreach (SegmentState state in config.States)
+        foreach (var state in config.States)
         {
-            string segmentFilePath = state.SegmentFilePath ?? 
-                Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
+            var segmentFilePath = state.SegmentFilePath ??
+                                  Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
 
             if (!File.Exists(segmentFilePath))
             {
@@ -537,7 +566,7 @@ public sealed class SegmentManager : ISegmentManager
                 $"Total downloaded size mismatch. Expected: {config.FileSize}, Got: {totalBytesVerified}");
         }
 
-        _logger?.LogInformation("Segment boundary verification completed successfully. Total size: {TotalSize} bytes", 
+        _logger?.LogInformation("Segment boundary verification completed successfully. Total size: {TotalSize} bytes",
             totalBytesVerified);
     }
 
@@ -549,12 +578,12 @@ public sealed class SegmentManager : ISegmentManager
         string tempFilePath,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Verifying checksums for {CompletedCount} completed segments", 
+        _logger?.LogInformation("Verifying checksums for {CompletedCount} completed segments",
             segmentStates.Count(s => s.Status == SegmentStatus.Completed));
 
-        var corruptedSegments = new List<int>();
+        List<int> corruptedSegments = new();
 
-        foreach (SegmentState state in segmentStates)
+        foreach (var state in segmentStates)
         {
             // Only verify completed segments with checksums
             if (state.Status != SegmentStatus.Completed || state.Checksum == null)
@@ -563,11 +592,11 @@ public sealed class SegmentManager : ISegmentManager
             }
 
             // Get segment file path
-            string? segmentFile = state.SegmentFilePath;
+            var segmentFile = state.SegmentFilePath;
             if (string.IsNullOrEmpty(segmentFile))
             {
                 // Fallback: construct segment file path from temp file directory
-                string? tempDir = Path.GetDirectoryName(tempFilePath);
+                var tempDir = Path.GetDirectoryName(tempFilePath);
                 if (!string.IsNullOrEmpty(tempDir))
                 {
                     segmentFile = Path.Combine(tempDir, $"segment_{state.SegmentIndex:D4}.part");
@@ -577,13 +606,13 @@ public sealed class SegmentManager : ISegmentManager
             // Skip if segment file doesn't exist (shouldn't happen but be defensive)
             if (string.IsNullOrEmpty(segmentFile) || !File.Exists(segmentFile))
             {
-                _logger?.LogWarning("Segment file not found for segment {SegmentIndex}, skipping verification", 
+                _logger?.LogWarning("Segment file not found for segment {SegmentIndex}, skipping verification",
                     state.SegmentIndex);
                 continue;
             }
 
             // Verify the segment from its file (offset is 0 since each segment has its own file)
-            bool isValid = await _segmentVerifier.VerifySegmentAsync(
+            var isValid = await _segmentVerifier.VerifySegmentAsync(
                 segmentFile,
                 0, // Offset is 0 for per-segment files
                 state.TotalSize,
@@ -602,7 +631,7 @@ public sealed class SegmentManager : ISegmentManager
                 state.Status = SegmentStatus.Failed;
                 state.BytesDownloaded = 0; // Reset to re-download
                 corruptedSegments.Add(state.SegmentIndex);
-                
+
                 _logger?.LogWarning(
                     "Segment {SegmentIndex} checksum verification failed. Expected: {ExpectedChecksum}, will re-download",
                     state.SegmentIndex,

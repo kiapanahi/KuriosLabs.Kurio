@@ -1,5 +1,3 @@
-namespace Kurio.Core.Tests.Statistics;
-
 using FluentAssertions;
 
 using Kurio.Core.Models;
@@ -8,6 +6,8 @@ using Kurio.Core.Statistics;
 using Microsoft.Extensions.Logging;
 
 using Moq;
+
+namespace Kurio.Core.Tests.Statistics;
 
 public class JsonDownloadHistoryRepositoryTests
 {
@@ -101,8 +101,8 @@ public class JsonDownloadHistoryRepositoryTests
     {
         // Arrange
         var repo = CreateRepository();
-        var successful = CreateEntry(isSuccessful: true);
-        var failed = CreateEntry(isSuccessful: false);
+        var successful = CreateEntry();
+        var failed = CreateEntry(false);
 
         await repo.AddAsync(successful);
         await repo.AddAsync(failed);
@@ -120,8 +120,8 @@ public class JsonDownloadHistoryRepositoryTests
     {
         // Arrange
         var repo = CreateRepository();
-        var successful = CreateEntry(isSuccessful: true);
-        var failed = CreateEntry(isSuccessful: false);
+        var successful = CreateEntry();
+        var failed = CreateEntry(false);
 
         await repo.AddAsync(successful);
         await repo.AddAsync(failed);
@@ -188,7 +188,7 @@ public class JsonDownloadHistoryRepositoryTests
     {
         // Arrange
         var repo = CreateRepository();
-        var entry = new DownloadHistoryEntry
+        DownloadHistoryEntry entry = new()
         {
             Id = Guid.NewGuid(),
             Url = "https://github.com/file.zip",

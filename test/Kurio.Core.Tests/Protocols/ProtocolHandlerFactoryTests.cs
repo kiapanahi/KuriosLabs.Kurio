@@ -1,8 +1,3 @@
-namespace Kurio.Core.Tests.Protocols;
-
-using System;
-using System.Collections.Generic;
-
 using FluentAssertions;
 
 using Kurio.Core.Abstractions;
@@ -10,7 +5,7 @@ using Kurio.Core.Protocols;
 
 using Moq;
 
-using Xunit;
+namespace Kurio.Core.Tests.Protocols;
 
 public sealed class ProtocolHandlerFactoryTests
 {
@@ -41,8 +36,8 @@ public sealed class ProtocolHandlerFactoryTests
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
         var ftpHandler = CreateMockHandler(new[] { "ftp", "ftps" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler, ftpHandler });
-        var url = new Uri("https://example.com/file.zip");
+        ProtocolHandlerFactory factory = new(new[] { httpHandler, ftpHandler });
+        Uri url = new("https://example.com/file.zip");
 
         // Act
         var result = factory.GetHandler(url);
@@ -56,8 +51,8 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
-        var url = new Uri("ftp://example.com/file.zip");
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
+        Uri url = new("ftp://example.com/file.zip");
 
         // Act & Assert
         var act = () => factory.GetHandler(url);
@@ -70,7 +65,7 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
 
         // Act & Assert
         var act = () => factory.GetHandler(null!);
@@ -82,8 +77,8 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
-        var url = new Uri("file:///path/to/file", UriKind.Absolute);
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
+        Uri url = new("file:///path/to/file", UriKind.Absolute);
 
         // Act & Assert - file: scheme should work but we don't have handler
         var act = () => factory.GetHandler(url);
@@ -95,8 +90,8 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
-        var url = new Uri("https://example.com/file.zip");
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
+        Uri url = new("https://example.com/file.zip");
 
         // Act
         var result = factory.IsSupported(url);
@@ -110,8 +105,8 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
-        var url = new Uri("ftp://example.com/file.zip");
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
+        Uri url = new("ftp://example.com/file.zip");
 
         // Act
         var result = factory.IsSupported(url);
@@ -125,7 +120,7 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
 
         // Act & Assert
         var act = () => factory.IsSupported(null!);
@@ -138,7 +133,7 @@ public sealed class ProtocolHandlerFactoryTests
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
         var ftpHandler = CreateMockHandler(new[] { "ftp", "ftps" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler, ftpHandler });
+        ProtocolHandlerFactory factory = new(new[] { httpHandler, ftpHandler });
 
         // Act
         var result = factory.GetAllHandlers();
@@ -154,9 +149,9 @@ public sealed class ProtocolHandlerFactoryTests
     {
         // Arrange
         var httpHandler = CreateMockHandler(new[] { "http", "https" });
-        var factory = new ProtocolHandlerFactory(new[] { httpHandler });
-        var url1 = new Uri("HTTP://example.com/file.zip");
-        var url2 = new Uri("HtTpS://example.com/file.zip");
+        ProtocolHandlerFactory factory = new(new[] { httpHandler });
+        Uri url1 = new("HTTP://example.com/file.zip");
+        Uri url2 = new("HtTpS://example.com/file.zip");
 
         // Act
         var result1 = factory.GetHandler(url1);
@@ -169,7 +164,7 @@ public sealed class ProtocolHandlerFactoryTests
 
     private static IProtocolHandler CreateMockHandler(string[] supportedSchemes)
     {
-        var mock = new Mock<IProtocolHandler>();
+        Mock<IProtocolHandler> mock = new();
         mock.Setup(h => h.SupportedSchemes)
             .Returns(new HashSet<string>(supportedSchemes, StringComparer.OrdinalIgnoreCase));
         return mock.Object;

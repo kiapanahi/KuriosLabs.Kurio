@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:KuriousLabs.Kurio.Avalonia.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KuriousLabs.Kurio.Avalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <Design.DataContext>
+        <vm:SettingsViewModel />
+    </Design.DataContext>
+
+    <ScrollViewer>
+        <StackPanel Spacing="20" MaxWidth="600" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Margin="0,0,0,10" />
+
+            <!-- Download Settings -->
+            <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="Download Settings" FontSize="18" FontWeight="SemiBold" />
+
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Maximum Concurrent Downloads:" />
+                        <NumericUpDown Value="{Binding MaxConcurrentDownloads}"
+                                       Minimum="1" Maximum="10" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Default Number of Segments:" />
+                        <NumericUpDown Value="{Binding DefaultSegments}"
+                                       Minimum="1" Maximum="32" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Default Save Location:" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding DefaultSavePath}" />
+                            <Button Grid.Column="1" Content="Browse..." Margin="5,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+
+                    <CheckBox Content="Start downloads automatically"
+                              IsChecked="{Binding StartDownloadsAutomatically}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Speed Limit -->
+            <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15">
+                <StackPanel Spacing="15">
+                    <TextBlock Text="Speed Limit" FontSize="18" FontWeight="SemiBold" />
+
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Maximum Download Speed (KB/s):" />
+                        <NumericUpDown Value="{Binding MaxSpeedKBps}"
+                                       Minimum="0" Maximum="1000000" />
+                        <TextBlock Text="Set to 0 for unlimited speed"
+                                   FontSize="11" Foreground="Gray" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Action Buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Save Settings" />
+                <Button Content="Reset to Defaults" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

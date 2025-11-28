@@ -1,8 +1,8 @@
-namespace Kurio.Core.Tests.Statistics;
-
 using FluentAssertions;
 
 using Kurio.Core.Statistics;
+
+namespace Kurio.Core.Tests.Statistics;
 
 public class SpeedCalculatorTests
 {
@@ -18,7 +18,7 @@ public class SpeedCalculatorTests
     public void Constructor_WithValidWindowSize_CreatesInstance()
     {
         // Act
-        var calculator = new SpeedCalculator(5);
+        SpeedCalculator calculator = new(5);
 
         // Assert
         calculator.CurrentSpeed.Should().Be(0);
@@ -30,7 +30,7 @@ public class SpeedCalculatorTests
     public void RecordSample_FirstSample_DoesNotCalculateSpeed()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
 
         // Act
         calculator.RecordSample(1000, DateTime.UtcNow);
@@ -44,7 +44,7 @@ public class SpeedCalculatorTests
     public void RecordSample_TwoSamples_CalculatesCurrentSpeed()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
         var time1 = DateTime.UtcNow;
         var time2 = time1.AddSeconds(1);
 
@@ -60,7 +60,7 @@ public class SpeedCalculatorTests
     public void RecordSample_MultipleSamples_CalculatesRollingAverage()
     {
         // Arrange
-        var calculator = new SpeedCalculator(3);
+        SpeedCalculator calculator = new(3);
         var baseTime = DateTime.UtcNow;
 
         // Act
@@ -77,7 +77,7 @@ public class SpeedCalculatorTests
     public void RecordSample_UpdatesPeakSpeed()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
         var baseTime = DateTime.UtcNow;
 
         // Act
@@ -93,7 +93,7 @@ public class SpeedCalculatorTests
     public void Pause_PreventsSampleRecording()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
         var baseTime = DateTime.UtcNow;
         calculator.RecordSample(0, baseTime);
         calculator.RecordSample(1000, baseTime.AddSeconds(1));
@@ -111,7 +111,7 @@ public class SpeedCalculatorTests
     public void Resume_AllowsSampleRecordingAgain()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
         var baseTime = DateTime.UtcNow;
         calculator.RecordSample(0, baseTime);
         calculator.Pause();
@@ -128,7 +128,7 @@ public class SpeedCalculatorTests
     public void PauseAndResume_TracksPausedDuration()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
 
         // Act
         calculator.Pause();
@@ -136,14 +136,14 @@ public class SpeedCalculatorTests
         calculator.Resume();
 
         // Assert
-        calculator.TotalPausedDurationMs.Should().BeGreaterOrEqualTo(40); // Account for timing variability
+        calculator.TotalPausedDurationMs.Should().BeGreaterThanOrEqualTo(40); // Account for timing variability
     }
 
     [Fact]
     public void Reset_ClearsAllValues()
     {
         // Arrange
-        var calculator = new SpeedCalculator();
+        SpeedCalculator calculator = new();
         var baseTime = DateTime.UtcNow;
         calculator.RecordSample(0, baseTime);
         calculator.RecordSample(1000, baseTime.AddSeconds(1));
@@ -164,7 +164,7 @@ public class SpeedCalculatorTests
     public void RecordSample_MaintainsWindowSize()
     {
         // Arrange
-        var calculator = new SpeedCalculator(3);
+        SpeedCalculator calculator = new(3);
         var baseTime = DateTime.UtcNow;
 
         // Act - record 5 samples, window size is 3

@@ -3,50 +3,50 @@ using System.Runtime.InteropServices;
 namespace Kurio.Core.Storage;
 
 /// <summary>
-/// Provides platform-specific path information
+///     Provides platform-specific path information
 /// </summary>
 public interface IPlatformPathProvider
 {
     /// <summary>
-    /// Gets the default downloads directory for the current platform
+    ///     Gets the default downloads directory for the current platform
     /// </summary>
     string GetDefaultDownloadsDirectory();
 
     /// <summary>
-    /// Gets the application data directory for storing config and state
+    ///     Gets the application data directory for storing config and state
     /// </summary>
     string GetAppDataDirectory();
 
     /// <summary>
-    /// Gets the temporary directory for downloads
+    ///     Gets the temporary directory for downloads
     /// </summary>
     string GetTempDirectory();
 
     /// <summary>
-    /// Expands a path with environment variables and user home directory
+    ///     Expands a path with environment variables and user home directory
     /// </summary>
     /// <param name="path">Path to expand (supports ~ for home directory)</param>
     string ExpandPath(string path);
 
     /// <summary>
-    /// Gets invalid filename characters for the current platform
+    ///     Gets invalid filename characters for the current platform
     /// </summary>
     char[] GetInvalidFileNameChars();
 
     /// <summary>
-    /// Checks if a path is valid for the current platform
+    ///     Checks if a path is valid for the current platform
     /// </summary>
     bool IsValidPath(string path);
 }
 
 /// <summary>
-/// Default implementation of IPlatformPathProvider
+///     Default implementation of IPlatformPathProvider
 /// </summary>
 public sealed class PlatformPathProvider : IPlatformPathProvider
 {
-    private readonly string _homeDirectory;
-    private readonly string _downloadsDirectory;
     private readonly string _appDataDirectory;
+    private readonly string _downloadsDirectory;
+    private readonly string _homeDirectory;
     private readonly string _tempDirectory;
 
     public PlatformPathProvider()
@@ -57,7 +57,7 @@ public sealed class PlatformPathProvider : IPlatformPathProvider
         {
             _downloadsDirectory = Path.Combine(_homeDirectory, "Downloads");
             _appDataDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "Kurio");
             _tempDirectory = Path.Combine(Path.GetTempPath(), "Kurio");
         }
@@ -79,11 +79,20 @@ public sealed class PlatformPathProvider : IPlatformPathProvider
         }
     }
 
-    public string GetDefaultDownloadsDirectory() => _downloadsDirectory;
+    public string GetDefaultDownloadsDirectory()
+    {
+        return _downloadsDirectory;
+    }
 
-    public string GetAppDataDirectory() => _appDataDirectory;
+    public string GetAppDataDirectory()
+    {
+        return _appDataDirectory;
+    }
 
-    public string GetTempDirectory() => _tempDirectory;
+    public string GetTempDirectory()
+    {
+        return _tempDirectory;
+    }
 
     public string ExpandPath(string path)
     {
@@ -111,7 +120,9 @@ public sealed class PlatformPathProvider : IPlatformPathProvider
     public bool IsValidPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
+        {
             return false;
+        }
 
         try
         {

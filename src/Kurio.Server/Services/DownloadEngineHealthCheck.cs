@@ -1,10 +1,11 @@
 using Kurio.Core.Abstractions;
+
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace KuriousLabs.Kurio.Server.Services;
 
 /// <summary>
-/// Health check for the download engine.
+///     Health check for the download engine.
 /// </summary>
 public class DownloadEngineHealthCheck : IHealthCheck
 {
@@ -24,11 +25,7 @@ public class DownloadEngineHealthCheck : IHealthCheck
             // Check if engine is responsive by getting queue statistics
             var (active, queued) = _engine.GetQueueStatistics();
 
-            var data = new Dictionary<string, object>
-            {
-                { "activeDownloads", active },
-                { "queuedDownloads", queued }
-            };
+            Dictionary<string, object> data = new() { { "activeDownloads", active }, { "queuedDownloads", queued } };
 
             return Task.FromResult(
                 HealthCheckResult.Healthy("Download engine is operational", data));

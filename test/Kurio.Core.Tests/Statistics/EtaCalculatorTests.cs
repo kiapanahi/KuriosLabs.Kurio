@@ -1,8 +1,8 @@
-namespace Kurio.Core.Tests.Statistics;
-
 using FluentAssertions;
 
 using Kurio.Core.Statistics;
+
+namespace Kurio.Core.Tests.Statistics;
 
 public class EtaCalculatorTests
 {
@@ -18,8 +18,8 @@ public class EtaCalculatorTests
     public void GetEtaFromCurrentSpeed_WithZeroBytesRemaining_ReturnsZero()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromCurrentSpeed(0);
@@ -32,8 +32,8 @@ public class EtaCalculatorTests
     public void GetEtaFromCurrentSpeed_WithNegativeBytesRemaining_ReturnsZero()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromCurrentSpeed(-100);
@@ -46,8 +46,8 @@ public class EtaCalculatorTests
     public void GetEtaFromCurrentSpeed_WithZeroSpeed_ReturnsNull()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromCurrentSpeed(1000);
@@ -60,12 +60,12 @@ public class EtaCalculatorTests
     public void GetEtaFromCurrentSpeed_CalculatesCorrectly()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
+        SpeedCalculator speedCalculator = new();
         var baseTime = DateTime.UtcNow;
         speedCalculator.RecordSample(0, baseTime);
         speedCalculator.RecordSample(1000, baseTime.AddSeconds(1)); // 1000 B/s
 
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromCurrentSpeed(5000); // 5000 bytes at 1000 B/s = 5 seconds
@@ -79,8 +79,8 @@ public class EtaCalculatorTests
     public void GetEtaFromAverageSpeed_WithZeroBytesRemaining_ReturnsZero()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromAverageSpeed(0);
@@ -93,8 +93,8 @@ public class EtaCalculatorTests
     public void GetEtaFromAverageSpeed_WithZeroAverageSpeed_ReturnsNull()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Only one sample - no average calculated yet
         speedCalculator.RecordSample(1000, DateTime.UtcNow);
@@ -110,12 +110,12 @@ public class EtaCalculatorTests
     public void GetEtaFromAverageSpeed_CalculatesCorrectly()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
+        SpeedCalculator speedCalculator = new();
         var baseTime = DateTime.UtcNow;
         speedCalculator.RecordSample(0, baseTime);
         speedCalculator.RecordSample(2000, baseTime.AddSeconds(2)); // 1000 B/s average
 
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetEtaFromAverageSpeed(3000); // 3000 bytes at 1000 B/s = 3 seconds
@@ -129,13 +129,13 @@ public class EtaCalculatorTests
     public void GetBestEta_PreferAverageSpeedWhenAvailable()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
+        SpeedCalculator speedCalculator = new();
         var baseTime = DateTime.UtcNow;
         speedCalculator.RecordSample(0, baseTime);
         speedCalculator.RecordSample(1000, baseTime.AddSeconds(1)); // Current: 1000 B/s
         speedCalculator.RecordSample(2000, baseTime.AddSeconds(2)); // Current: 1000 B/s, Avg: 1000 B/s
 
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetBestEta(2000);
@@ -149,12 +149,12 @@ public class EtaCalculatorTests
     public void GetBestEta_FallsBackToCurrentSpeedWhenAverageNotAvailable()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
+        SpeedCalculator speedCalculator = new();
         var baseTime = DateTime.UtcNow;
         speedCalculator.RecordSample(0, baseTime);
         speedCalculator.RecordSample(1000, baseTime.AddSeconds(1)); // Only current speed available
 
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetBestEta(2000); // 2000 bytes at 1000 B/s = 2 seconds
@@ -168,8 +168,8 @@ public class EtaCalculatorTests
     public void GetBestEta_WithZeroBytesRemaining_ReturnsZero()
     {
         // Arrange
-        var speedCalculator = new SpeedCalculator();
-        var etaCalculator = new EtaCalculator(speedCalculator);
+        SpeedCalculator speedCalculator = new();
+        EtaCalculator etaCalculator = new(speedCalculator);
 
         // Act
         var eta = etaCalculator.GetBestEta(0);

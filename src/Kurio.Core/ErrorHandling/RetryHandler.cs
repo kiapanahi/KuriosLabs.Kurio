@@ -25,7 +25,7 @@ public sealed class RetryHandler : IRetryHandler
         CancellationToken cancellationToken = default)
     {
         policy ??= RetryPolicy.Default;
-        int attemptNumber = 0;
+        var attemptNumber = 0;
         Exception? lastException = null;
 
         while (attemptNumber <= policy.MaxRetryAttempts)
@@ -46,7 +46,7 @@ public sealed class RetryHandler : IRetryHandler
                 _logger.LogWarning(ex, "Operation failed on attempt {Attempt}/{MaxAttempts}",
                     attemptNumber, policy.MaxRetryAttempts + 1);
 
-                TimeSpan delay = CalculateDelay(attemptNumber, policy);
+                var delay = CalculateDelay(attemptNumber, policy);
                 _logger.LogDebug("Retrying after {Delay}ms", delay.TotalMilliseconds);
 
                 await Task.Delay(delay, cancellationToken);
@@ -74,7 +74,7 @@ public sealed class RetryHandler : IRetryHandler
     /// <inheritdoc />
     public TimeSpan CalculateDelay(int attemptNumber, RetryPolicy policy)
     {
-        TimeSpan delay = policy.Strategy switch
+        var delay = policy.Strategy switch
         {
             RetryStrategy.None => TimeSpan.Zero,
             RetryStrategy.Fixed => policy.InitialDelay,
@@ -94,7 +94,7 @@ public sealed class RetryHandler : IRetryHandler
         // Apply jitter if enabled
         if (policy.UseJitter)
         {
-            double jitter = _random.NextDouble() * 0.3; // +/- 30% jitter
+            var jitter = _random.NextDouble() * 0.3; // +/- 30% jitter
             delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * (1 + jitter - 0.15));
         }
 

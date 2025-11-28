@@ -3,19 +3,23 @@
 **Status:** Draft  
 **Version:** 1.0  
 **Last Updated:** November 26, 2025  
-**Owner:** Engineering Team  
+**Owner:** Engineering Team
 
 ---
 
 ## Executive Summary
 
-Transform Kurio from a library-based download manager into a client-server architecture where the download engine runs as a standalone web service. This enables multiple UI clients (TUI, GUI, Web UI, browser extensions) to connect to a centralized download service, providing better resource management, remote access capabilities, and real-time progress updates.
+Transform Kurio from a library-based download manager into a client-server architecture where the download engine runs
+as a standalone web service. This enables multiple UI clients (TUI, GUI, Web UI, browser extensions) to connect to a
+centralized download service, providing better resource management, remote access capabilities, and real-time progress
+updates.
 
 ---
 
 ## Background
 
 ### Current Architecture
+
 - Download engine runs in-process within each client application
 - Progress updates use `IObservable<DownloadProgress>` (Reactive Extensions)
 - Single-threaded segment downloads with custom retry logic
@@ -23,6 +27,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 - State persistence for pause/resume functionality
 
 ### Problems with Current Approach
+
 1. **Tight coupling**: Engine lifecycle tied to UI process
 2. **Resource duplication**: Each client needs its own engine instance
 3. **No remote management**: Cannot control downloads from different devices
@@ -35,6 +40,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 ## Goals
 
 ### Primary Goals
+
 1. **Separation of Concerns**: Decouple download engine from UI clients
 2. **Multi-client Support**: Allow multiple UIs to connect to same engine
 3. **Real-time Updates**: Stream progress updates efficiently to connected clients
@@ -43,6 +49,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 6. **Better Performance**: Optimize concurrent operations and file I/O
 
 ### Non-Goals
+
 - Cloud-hosted service (this is for local/network deployments)
 - Multi-user authentication (single-user or trusted network for v1)
 - Distributed downloads across multiple servers
@@ -93,6 +100,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 ### Component Responsibilities
 
 #### Kurio.Server
+
 - **ASP.NET Core Minimal API** or **MVC** project
 - Hosts the download engine as a background service
 - Exposes REST API for download operations
@@ -101,6 +109,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 - Manages cross-origin requests for web clients
 
 #### Kurio.Core (Enhanced)
+
 - **IAsyncEnumerable** for progress streaming
 - **Polly** for resilience and retry policies
 - **Per-segment file storage** option (configurable)
@@ -108,6 +117,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 - **Improved concurrent write handling**
 
 #### Client Applications
+
 - **Kurio.Cli**: TUI client using Spectre.Console
 - **Kurio.GUI**: Future desktop GUI client
 - **Web UI**: Browser-based interface
@@ -124,6 +134,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 **Objective**: Replace custom retry logic with Polly policies.
 
 **Implementation Details**:
+
 - Remove `IRetryHandler` and `RetryHandler` classes
 - Add Polly to `Kurio.Core` dependencies
 - Create `ResiliencePolicyFactory` for building policies
@@ -132,6 +143,7 @@ Transform Kurio from a library-based download manager into a client-server archi
 - Add telemetry hooks for monitoring
 
 **Polly Policies to Implement**:
+
 ```csharp
 // Retry policy with exponential backoff
 var retryPolicy = Policy
@@ -161,6 +173,7 @@ var resiliencePolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy, timeo
 ```
 
 **Configuration Model**:
+
 ```csharp
 public class ResiliencePolicyOptions
 {
@@ -174,6 +187,7 @@ public class ResiliencePolicyOptions
 ```
 
 **Migration Tasks**:
+
 - [ ] Add `Polly` NuGet package to `Directory.Packages.props`
 - [ ] Create `ResiliencePolicyFactory` class
 - [ ] Create `ResiliencePolicyOptions` configuration model
@@ -191,6 +205,7 @@ public class ResiliencePolicyOptions
 
 **Root Cause Analysis**:
 Current implementation uses `FileStream` with `FileShare.Write`, but:
+
 - No explicit synchronization between concurrent writes
 - Potential race conditions in buffer flushing
 - No verification that bytes were written correctly
@@ -198,6 +213,7 @@ Current implementation uses `FileStream` with `FileShare.Write`, but:
 **Solution Strategy**:
 
 **Option A: Enhanced Single-File Approach** (Recommended for Phase 1)
+
 ```csharp
 public class StorageManager
 {
@@ -244,6 +260,7 @@ public class StorageManager
 ```
 
 **Option B: Per-Segment Files** (Configurable Alternative)
+
 ```csharp
 public async Task<string> CreateSegmentFileAsync(
     Guid taskId,
@@ -300,6 +317,7 @@ public async Task MergeSegmentFilesAsync(
 ```
 
 **Configuration**:
+
 ```csharp
 public class StorageOptions
 {
@@ -316,6 +334,7 @@ public enum StorageMode
 ```
 
 **Implementation Tasks**:
+
 - [ ] Add `StorageOptions` configuration model
 - [ ] Implement serialized write lock in `StorageManager`
 - [ ] Add write verification logic
@@ -333,6 +352,7 @@ public enum StorageMode
 **Objective**: Verify integrity of each segment before and after writing.
 
 **Implementation**:
+
 ```csharp
 public class SegmentChecksum
 {
@@ -420,6 +440,7 @@ public class SegmentVerifier : ISegmentVerifier
 ```
 
 **Update SegmentState**:
+
 ```csharp
 public class SegmentState
 {
@@ -429,6 +450,7 @@ public class SegmentState
 ```
 
 **Integration with SegmentManager**:
+
 ```csharp
 private async Task DownloadSegmentAsync(
     // ... parameters ...
@@ -461,6 +483,7 @@ private async Task DownloadSegmentAsync(
 ```
 
 **Implementation Tasks**:
+
 - [ ] Create `SegmentChecksum` model
 - [ ] Create `ISegmentVerifier` interface and implementation
 - [ ] Add `Checksum` property to `SegmentState`
@@ -481,6 +504,7 @@ private async Task DownloadSegmentAsync(
 **Objective**: Replace `IObservable<DownloadProgress>` with `IAsyncEnumerable<DownloadProgress>`.
 
 **Benefits**:
+
 - Native C# async/await support
 - Built-in backpressure handling
 - Better cancellation token integration
@@ -488,6 +512,7 @@ private async Task DownloadSegmentAsync(
 - No external library dependency (System.Linq.Async is optional)
 
 **Updated Interface**:
+
 ```csharp
 public interface IDownloadEngine
 {
@@ -502,6 +527,7 @@ public interface IDownloadEngine
 ```
 
 **Implementation**:
+
 ```csharp
 public class DownloadEngine : IDownloadEngine
 {
@@ -533,6 +559,7 @@ public class DownloadEngine : IDownloadEngine
 ```
 
 **Update DownloadProgress Model**:
+
 ```csharp
 public class DownloadProgress
 {
@@ -550,6 +577,7 @@ public class DownloadProgress
 ```
 
 **Client Consumption** (TUI example):
+
 ```csharp
 // Old way with IObservable
 _engine.ProgressUpdates.Subscribe(progress => 
@@ -565,6 +593,7 @@ await foreach (var progress in _engine.StreamProgressAsync(taskId, cancellationT
 ```
 
 **Implementation Tasks**:
+
 - [ ] Replace `IObservable` with `IAsyncEnumerable` in `IDownloadEngine`
 - [ ] Implement `Channel<DownloadProgress>` for progress streaming
 - [ ] Add `TaskId` to `DownloadProgress` model
@@ -585,6 +614,7 @@ await foreach (var progress in _engine.StreamProgressAsync(taskId, cancellationT
 This was covered in section 1.2 (Option B). Implementation tasks are the same.
 
 **Additional Considerations**:
+
 - Add performance benchmarks comparing both modes
 - Document when to use each mode
 - Consider memory-mapped files for very large files
@@ -599,6 +629,7 @@ This was covered in section 1.2 (Option B). Implementation tasks are the same.
 **Objective**: Create ASP.NET Core web service hosting the download engine.
 
 **Project Structure**:
+
 ```
 src/Kurio.Server/
 ├── Program.cs                      # Application entry point
@@ -622,6 +653,7 @@ src/Kurio.Server/
 ```
 
 **Program.cs Setup**:
+
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
@@ -689,6 +721,7 @@ app.Run();
 ```
 
 **Implementation Tasks**:
+
 - [ ] Create `Kurio.Server` project
 - [ ] Add required NuGet packages
 - [ ] Implement `Program.cs` with minimal API setup
@@ -831,6 +864,7 @@ public class DownloadsController : ControllerBase
 ```
 
 **Request/Response Models**:
+
 ```csharp
 public record AddDownloadRequest(
     string Url,
@@ -858,6 +892,7 @@ public record ErrorResponse(
 ```
 
 **Implementation Tasks**:
+
 - [ ] Create `DownloadsController` with all CRUD operations
 - [ ] Create request/response DTOs
 - [ ] Add input validation with FluentValidation
@@ -876,6 +911,7 @@ public record ErrorResponse(
 **Objective**: Real-time progress updates via SignalR (bidirectional) and SSE (server-to-client).
 
 **SignalR Hub**:
+
 ```csharp
 public class DownloadHub : Hub
 {
@@ -912,6 +948,7 @@ public class DownloadHub : Hub
 ```
 
 **Progress Broadcaster** (Background Service):
+
 ```csharp
 public class ProgressBroadcaster : BackgroundService
 {
@@ -943,6 +980,7 @@ public class ProgressBroadcaster : BackgroundService
 ```
 
 **SSE Endpoint** (already shown in Program.cs):
+
 ```csharp
 app.MapGet("/api/downloads/stream", async (
     IDownloadEngine engine,
@@ -973,6 +1011,7 @@ app.MapGet("/api/downloads/stream", async (
 **Client Examples**:
 
 **SignalR (TypeScript)**:
+
 ```typescript
 import * as signalR from '@microsoft/signalr';
 
@@ -991,6 +1030,7 @@ await connection.invoke('SubscribeToProgress', null); // null = all tasks
 ```
 
 **SSE (JavaScript)**:
+
 ```javascript
 const eventSource = new EventSource('http://localhost:5000/api/downloads/stream');
 
@@ -1006,6 +1046,7 @@ eventSource.onerror = (error) => {
 ```
 
 **Implementation Tasks**:
+
 - [ ] Create `DownloadHub` SignalR hub
 - [ ] Create `ProgressBroadcaster` background service
 - [ ] Implement SSE endpoint
@@ -1024,6 +1065,7 @@ eventSource.onerror = (error) => {
 **Objective**: Refactor `Kurio.Cli` to connect to `Kurio.Server` instead of hosting engine in-process.
 
 **Architecture Changes**:
+
 ```
 Before:
 Kurio.Cli → IDownloadEngine (in-process)
@@ -1033,6 +1075,7 @@ Kurio.Cli → KurioApiClient → HTTP/SignalR → Kurio.Server → IDownloadEngi
 ```
 
 **API Client**:
+
 ```csharp
 public interface IKurioApiClient
 {
@@ -1120,6 +1163,7 @@ public class KurioApiClient : IKurioApiClient
 ```
 
 **Updated Program.cs**:
+
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -1145,6 +1189,7 @@ await app.RunAsync();
 ```
 
 **Configuration** (appsettings.json):
+
 ```json
 {
   "Kurio": {
@@ -1156,6 +1201,7 @@ await app.RunAsync();
 ```
 
 **Implementation Tasks**:
+
 - [ ] Create `IKurioApiClient` interface
 - [ ] Implement `KurioApiClient` with HTTP and SignalR
 - [ ] Add connection state management
@@ -1175,6 +1221,7 @@ await app.RunAsync();
 ### Kurio.Server Configuration
 
 **appsettings.json**:
+
 ```json
 {
   "Logging": {
@@ -1208,7 +1255,9 @@ await app.RunAsync();
     },
     "Server": {
       "EnableCors": true,
-      "AllowedOrigins": ["http://localhost:5173"],
+      "AllowedOrigins": [
+        "http://localhost:5173"
+      ],
       "EnableSwagger": true,
       "EnableHealthChecks": true
     }
@@ -1221,12 +1270,14 @@ await app.RunAsync();
 ## Security Considerations
 
 ### Phase 1 (v1.0)
+
 - Single-user, localhost deployment
 - No authentication/authorization
 - Trust localhost connections
 - File system permissions only
 
 ### Future Phases
+
 - [ ] Add API key authentication
 - [ ] Add JWT-based authentication
 - [ ] Add role-based authorization
@@ -1243,16 +1294,19 @@ await app.RunAsync();
 ## Performance Requirements
 
 ### Latency
+
 - API response time: < 100ms (p95)
 - Progress update latency: < 50ms
 - Download start time: < 1s
 
 ### Throughput
+
 - Support 100+ concurrent downloads
 - Handle 1000+ progress updates/second
 - Support 50+ connected clients
 
 ### Resource Usage
+
 - Memory: < 2GB for 100 downloads
 - CPU: < 20% idle, < 80% during downloads
 - Disk I/O: Maximize write throughput
@@ -1262,12 +1316,14 @@ await app.RunAsync();
 ## Testing Strategy
 
 ### Unit Tests
+
 - All core business logic
 - Policy configurations
 - Checksum calculations
 - Storage operations
 
 ### Integration Tests
+
 - Full download workflows
 - Pause/resume functionality
 - API endpoints
@@ -1275,12 +1331,14 @@ await app.RunAsync();
 - SSE streaming
 
 ### Performance Tests
+
 - Load testing with 100+ downloads
 - Stress testing with large files
 - Endurance testing (24+ hours)
 - Memory leak detection
 
 ### End-to-End Tests
+
 - TUI client connecting to server
 - Web UI connecting to server
 - Multiple clients simultaneously
@@ -1304,6 +1362,7 @@ await app.RunAsync();
 ## Deployment
 
 ### Local Development
+
 ```bash
 # Start server
 cd src/Kurio.Server
@@ -1315,6 +1374,7 @@ dotnet run
 ```
 
 ### Docker Deployment
+
 ```dockerfile
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
@@ -1344,21 +1404,22 @@ docker run -d -p 5000:5000 -v ~/Downloads:/downloads kurio-server
 ```
 
 ### systemd Service
+
 ```ini
 [Unit]
-Description=Kurio Download Manager Server
-After=network.target
+Description = Kurio Download Manager Server
+After = network.target
 
 [Service]
-Type=notify
-ExecStart=/usr/bin/dotnet /opt/kurio/Kurio.Server.dll
-Restart=on-failure
-User=kurio
-WorkingDirectory=/opt/kurio
-Environment=ASPNETCORE_ENVIRONMENT=Production
+Type = notify
+ExecStart = /usr/bin/dotnet /opt/kurio/Kurio.Server.dll
+Restart = on-failure
+User = kurio
+WorkingDirectory = /opt/kurio
+Environment = ASPNETCORE_ENVIRONMENT=Production
 
 [Install]
-WantedBy=multi-user.target
+WantedBy = multi-user.target
 ```
 
 ---

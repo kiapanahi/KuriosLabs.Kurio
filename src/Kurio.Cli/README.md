@@ -8,22 +8,22 @@ A modern, cross-platform Terminal User Interface (TUI) for the Kurio download ma
 
 - **Interactive Menu System**: Easy navigation with arrow keys and Enter
 - **Download Management**:
-  - Add new downloads with customizable options
-  - View all downloads with status and progress
-  - Start, pause, resume, and cancel downloads
-  - Move downloads up/down in queue
-  - Clear completed downloads
-  - Pause all active downloads
+    - Add new downloads with customizable options
+    - View all downloads with status and progress
+    - Start, pause, resume, and cancel downloads
+    - Move downloads up/down in queue
+    - Clear completed downloads
+    - Pause all active downloads
 - **Real-time Progress Display**:
-  - Visual progress bars
-  - Download speed (B/s, KB/s, MB/s, GB/s)
-  - File size formatting
-  - Status indicators (Queued, Downloading, Paused, Completed, Failed)
+    - Visual progress bars
+    - Download speed (B/s, KB/s, MB/s, GB/s)
+    - File size formatting
+    - Status indicators (Queued, Downloading, Paused, Completed, Failed)
 - **Statistics Dashboard**:
-  - Total downloads count
-  - Active, queued, paused, completed, and failed counts
-  - Total bytes downloaded
-  - Current download speed
+    - Total downloads count
+    - Active, queued, paused, completed, and failed counts
+    - Total bytes downloaded
+    - Current download speed
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
 ### Coming Soon
@@ -54,7 +54,7 @@ When you start Kurio CLI, you'll see the main menu with the following options:
 1. **📥 Downloads**: View and manage your downloads
 2. **➕ Add Download**: Add a new download
 3. **📊 Statistics**: View download statistics
-4. **⚙️  Settings**: Configure application settings (coming soon)
+4. **⚙️ Settings**: Configure application settings (coming soon)
 5. **❌ Exit**: Exit the application
 
 ### Adding a Download
@@ -70,16 +70,16 @@ When you start Kurio CLI, you'll see the main menu with the following options:
 
 In the Downloads view, you can:
 
-- **▶️  Start Selected**: Start a queued download
-- **⏸️  Pause Selected**: Pause an active download
+- **▶️ Start Selected**: Start a queued download
+- **⏸️ Pause Selected**: Pause an active download
 - **🔄 Resume Selected**: Resume a paused download
 - **❌ Cancel Selected**: Cancel a download (with option to remove partial files)
-- **⬆️  Move Up**: Move a download higher in the queue
-- **⬇️  Move Down**: Move a download lower in the queue
+- **⬆️ Move Up**: Move a download higher in the queue
+- **⬇️ Move Down**: Move a download lower in the queue
 - **🔄 Refresh**: Refresh the download list
-- **🗑️  Clear Completed**: Remove completed downloads from the list
-- **⏸️  Pause All**: Pause all active downloads
-- **⬅️  Back**: Return to main menu
+- **🗑️ Clear Completed**: Remove completed downloads from the list
+- **⏸️ Pause All**: Pause all active downloads
+- **⬅️ Back**: Return to main menu
 
 ## Architecture
 

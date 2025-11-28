@@ -9,7 +9,9 @@
 
 ## Overview
 
-This document describes the domain model and core abstractions that form the foundation of the Kurio download manager. The architecture follows SOLID principles with a clear separation of concerns through well-defined interfaces and cohesive domain entities.
+This document describes the domain model and core abstractions that form the foundation of the Kurio download manager.
+The architecture follows SOLID principles with a clear separation of concerns through well-defined interfaces and
+cohesive domain entities.
 
 ---
 
@@ -64,7 +66,8 @@ This document describes the domain model and core abstractions that form the fou
 
 ### 1.2 IDownloadEngine
 
-The main orchestrator for all download operations. Manages the download queue, coordinates between components, and provides observable progress updates.
+The main orchestrator for all download operations. Manages the download queue, coordinates between components, and
+provides observable progress updates.
 
 **Location:** `src/Kurio.Core/Abstractions/IDownloadEngine.cs`
 
@@ -90,6 +93,7 @@ public interface IDownloadEngine
 ```
 
 **Responsibilities:**
+
 - Download lifecycle management (add, start, pause, resume, cancel)
 - Concurrent download limits enforcement
 - Progress aggregation and streaming via Reactive Extensions
@@ -122,6 +126,7 @@ public interface IDownloadTask
 ```
 
 **Responsibilities:**
+
 - Immutable download identification (Id, Url)
 - Mutable state tracking (State, Progress, Metadata)
 - Configuration holding (Options)
@@ -147,6 +152,7 @@ public interface IProtocolHandler
 ```
 
 **Responsibilities:**
+
 - Protocol-specific network operations
 - Range request support detection
 - Metadata retrieval (ETag, Last-Modified, Content-Type)
@@ -175,6 +181,7 @@ public interface ISegmentManager
 ```
 
 **Responsibilities:**
+
 - Optimal segment calculation based on file size and connection limits
 - Parallel segment download orchestration
 - Resume support for incomplete segments
@@ -198,6 +205,7 @@ public interface IStorageManager
 ```
 
 **Responsibilities:**
+
 - Temporary file creation with pre-allocation
 - Concurrent segment writing at specific offsets
 - Atomic file commit with naming conflict resolution
@@ -283,22 +291,22 @@ Configuration for a download task.
 
 **Location:** `src/Kurio.Core/Models/DownloadOptions.cs`
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `DestinationDirectory` | `string` | required | Target directory for downloaded file |
-| `FileName` | `string?` | null | Override filename (inferred from URL if not provided) |
-| `MaxConnections` | `int` | 8 | Maximum parallel connections |
-| `MinSegmentSize` | `long` | 1 MB | Minimum bytes per segment |
-| `FileNamingPolicy` | `FileNamingPolicy` | AutoRename | Conflict resolution strategy |
-| `Headers` | `IDictionary<string, string>` | empty | Custom HTTP headers |
-| `Credentials` | `string?` | null | Basic auth (username:password) |
-| `UserAgent` | `string` | "Kurio/1.0" | User-Agent header value |
-| `TimeoutSeconds` | `int` | 30 | Request timeout |
-| `FollowRedirects` | `bool` | true | Follow HTTP redirects |
-| `MaxRedirects` | `int` | 5 | Maximum redirect count |
-| `ValidateCertificate` | `bool` | true | SSL certificate validation |
-| `ExpectedChecksum` | `string?` | null | Checksum for verification |
-| `ChecksumAlgorithm` | `string?` | null | Algorithm (SHA256, MD5) |
+| Property               | Type                          | Default     | Description                                           |
+|------------------------|-------------------------------|-------------|-------------------------------------------------------|
+| `DestinationDirectory` | `string`                      | required    | Target directory for downloaded file                  |
+| `FileName`             | `string?`                     | null        | Override filename (inferred from URL if not provided) |
+| `MaxConnections`       | `int`                         | 8           | Maximum parallel connections                          |
+| `MinSegmentSize`       | `long`                        | 1 MB        | Minimum bytes per segment                             |
+| `FileNamingPolicy`     | `FileNamingPolicy`            | AutoRename  | Conflict resolution strategy                          |
+| `Headers`              | `IDictionary<string, string>` | empty       | Custom HTTP headers                                   |
+| `Credentials`          | `string?`                     | null        | Basic auth (username:password)                        |
+| `UserAgent`            | `string`                      | "Kurio/1.0" | User-Agent header value                               |
+| `TimeoutSeconds`       | `int`                         | 30          | Request timeout                                       |
+| `FollowRedirects`      | `bool`                        | true        | Follow HTTP redirects                                 |
+| `MaxRedirects`         | `int`                         | 5           | Maximum redirect count                                |
+| `ValidateCertificate`  | `bool`                        | true        | SSL certificate validation                            |
+| `ExpectedChecksum`     | `string?`                     | null        | Checksum for verification                             |
+| `ChecksumAlgorithm`    | `string?`                     | null        | Algorithm (SHA256, MD5)                               |
 
 #### ResourceMetadata
 
@@ -306,15 +314,15 @@ Metadata about the remote resource retrieved from server.
 
 **Location:** `src/Kurio.Core/Models/ResourceMetadata.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `ETag` | `string?` | HTTP ETag header for cache validation |
-| `LastModified` | `DateTimeOffset?` | Last-Modified timestamp |
-| `ContentType` | `string?` | MIME type of the resource |
-| `ContentLength` | `long` | File size in bytes |
-| `SupportsRanges` | `bool` | Whether server supports range requests |
-| `SuggestedFileName` | `string?` | Filename from Content-Disposition |
-| `AdditionalHeaders` | `IDictionary<string, string>` | Non-standard headers |
+| Property            | Type                          | Description                            |
+|---------------------|-------------------------------|----------------------------------------|
+| `ETag`              | `string?`                     | HTTP ETag header for cache validation  |
+| `LastModified`      | `DateTimeOffset?`             | Last-Modified timestamp                |
+| `ContentType`       | `string?`                     | MIME type of the resource              |
+| `ContentLength`     | `long`                        | File size in bytes                     |
+| `SupportsRanges`    | `bool`                        | Whether server supports range requests |
+| `SuggestedFileName` | `string?`                     | Filename from Content-Disposition      |
+| `AdditionalHeaders` | `IDictionary<string, string>` | Non-standard headers                   |
 
 ### 2.3 Progress Tracking Entities
 
@@ -324,15 +332,15 @@ Tracks overall download progress.
 
 **Location:** `src/Kurio.Core/Models/DownloadProgress.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `BytesDownloaded` | `long` | Total bytes received |
-| `TotalBytes` | `long` | Total file size (0 if unknown) |
-| `Percentage` | `double` | Completion percentage (0-100) |
-| `BytesPerSecond` | `long` | Current download speed |
-| `EstimatedTimeRemaining` | `TimeSpan?` | ETA to completion |
-| `ActiveConnections` | `int` | Number of active segments |
-| `Timestamp` | `DateTime` | Time of this progress update |
+| Property                 | Type        | Description                    |
+|--------------------------|-------------|--------------------------------|
+| `BytesDownloaded`        | `long`      | Total bytes received           |
+| `TotalBytes`             | `long`      | Total file size (0 if unknown) |
+| `Percentage`             | `double`    | Completion percentage (0-100)  |
+| `BytesPerSecond`         | `long`      | Current download speed         |
+| `EstimatedTimeRemaining` | `TimeSpan?` | ETA to completion              |
+| `ActiveConnections`      | `int`       | Number of active segments      |
+| `Timestamp`              | `DateTime`  | Time of this progress update   |
 
 #### SegmentProgress
 
@@ -340,12 +348,12 @@ Progress for an individual download segment.
 
 **Location:** `src/Kurio.Core/Models/SegmentProgress.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `SegmentIndex` | `int` | Zero-based segment identifier |
-| `BytesDownloaded` | `long` | Bytes downloaded for this segment |
-| `Status` | `SegmentStatus` | Current segment status |
-| `Timestamp` | `DateTime` | Time of this progress update |
+| Property          | Type            | Description                       |
+|-------------------|-----------------|-----------------------------------|
+| `SegmentIndex`    | `int`           | Zero-based segment identifier     |
+| `BytesDownloaded` | `long`          | Bytes downloaded for this segment |
+| `Status`          | `SegmentStatus` | Current segment status            |
+| `Timestamp`       | `DateTime`      | Time of this progress update      |
 
 ### 2.4 State Representations
 
@@ -363,16 +371,16 @@ Created → Queued → Analyzing → Downloading → Completed
                                 Cancelled
 ```
 
-| Value | Description |
-|-------|-------------|
-| `Created` | Task created but not queued |
-| `Queued` | Waiting in queue to start |
-| `Analyzing` | Retrieving metadata (size, range support) |
-| `Downloading` | Actively transferring data |
-| `Paused` | Paused by user or system |
-| `Completed` | Successfully finished |
-| `Failed` | Terminated due to error |
-| `Cancelled` | Cancelled by user |
+| Value         | Description                               |
+|---------------|-------------------------------------------|
+| `Created`     | Task created but not queued               |
+| `Queued`      | Waiting in queue to start                 |
+| `Analyzing`   | Retrieving metadata (size, range support) |
+| `Downloading` | Actively transferring data                |
+| `Paused`      | Paused by user or system                  |
+| `Completed`   | Successfully finished                     |
+| `Failed`      | Terminated due to error                   |
+| `Cancelled`   | Cancelled by user                         |
 
 #### SegmentState
 
@@ -380,18 +388,18 @@ State tracking for an individual download segment.
 
 **Location:** `src/Kurio.Core/Models/SegmentState.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `SegmentIndex` | `int` | Zero-based segment identifier |
-| `StartByte` | `long` | Start position (inclusive) |
-| `EndByte` | `long` | End position (inclusive) |
-| `BytesDownloaded` | `long` | Bytes completed for segment |
-| `Status` | `SegmentStatus` | Segment download status |
-| `StartedAt` | `DateTime?` | When segment started |
-| `CompletedAt` | `DateTime?` | When segment completed |
-| `RetryCount` | `int` | Number of retry attempts |
-| `TotalSize` | `long` | Calculated segment size |
-| `IsComplete` | `bool` | Whether segment is finished |
+| Property          | Type            | Description                   |
+|-------------------|-----------------|-------------------------------|
+| `SegmentIndex`    | `int`           | Zero-based segment identifier |
+| `StartByte`       | `long`          | Start position (inclusive)    |
+| `EndByte`         | `long`          | End position (inclusive)      |
+| `BytesDownloaded` | `long`          | Bytes completed for segment   |
+| `Status`          | `SegmentStatus` | Segment download status       |
+| `StartedAt`       | `DateTime?`     | When segment started          |
+| `CompletedAt`     | `DateTime?`     | When segment completed        |
+| `RetryCount`      | `int`           | Number of retry attempts      |
+| `TotalSize`       | `long`          | Calculated segment size       |
+| `IsComplete`      | `bool`          | Whether segment is finished   |
 
 #### SegmentStatus
 
@@ -399,13 +407,13 @@ Status enumeration for segments.
 
 **Location:** `src/Kurio.Core/Models/SegmentStatus.cs`
 
-| Value | Description |
-|-------|-------------|
-| `Pending` | Not yet started |
+| Value         | Description            |
+|---------------|------------------------|
+| `Pending`     | Not yet started        |
 | `Downloading` | Currently transferring |
-| `Paused` | Paused |
-| `Completed` | Successfully finished |
-| `Failed` | Error occurred |
+| `Paused`      | Paused                 |
+| `Completed`   | Successfully finished  |
+| `Failed`      | Error occurred         |
 
 ### 2.5 Configuration Models
 
@@ -415,13 +423,13 @@ Complete configuration for a segmented download.
 
 **Location:** `src/Kurio.Core/Models/SegmentConfiguration.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `FileSize` | `long` | Total file size |
-| `SegmentCount` | `int` | Number of segments |
-| `SupportsRanges` | `bool` | Range request support |
-| `Ranges` | `ByteRange[]` | Byte ranges for each segment |
-| `States` | `SegmentState[]` | State for each segment |
+| Property         | Type             | Description                  |
+|------------------|------------------|------------------------------|
+| `FileSize`       | `long`           | Total file size              |
+| `SegmentCount`   | `int`            | Number of segments           |
+| `SupportsRanges` | `bool`           | Range request support        |
+| `Ranges`         | `ByteRange[]`    | Byte ranges for each segment |
+| `States`         | `SegmentState[]` | State for each segment       |
 
 #### ByteRange
 
@@ -446,13 +454,13 @@ Error information for failed downloads.
 
 **Location:** `src/Kurio.Core/Models/DownloadError.cs`
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Message` | `string` | Human-readable error message |
-| `ExceptionType` | `string?` | .NET exception type name |
-| `StackTrace` | `string?` | Stack trace for debugging |
-| `Timestamp` | `DateTime` | When error occurred |
-| `IsRecoverable` | `bool` | Whether retry is possible |
+| Property        | Type       | Description                  |
+|-----------------|------------|------------------------------|
+| `Message`       | `string`   | Human-readable error message |
+| `ExceptionType` | `string?`  | .NET exception type name     |
+| `StackTrace`    | `string?`  | Stack trace for debugging    |
+| `Timestamp`     | `DateTime` | When error occurred          |
+| `IsRecoverable` | `bool`     | Whether retry is possible    |
 
 ### 2.7 Enumerations
 
@@ -462,12 +470,12 @@ Priority levels for queue ordering.
 
 **Location:** `src/Kurio.Core/Models/DownloadPriority.cs`
 
-| Value | Level | Description |
-|-------|-------|-------------|
-| `Low` | 0 | Background downloads |
-| `Normal` | 1 | Default priority |
-| `High` | 2 | User-requested priority |
-| `Critical` | 3 | Immediate start if possible |
+| Value      | Level | Description                 |
+|------------|-------|-----------------------------|
+| `Low`      | 0     | Background downloads        |
+| `Normal`   | 1     | Default priority            |
+| `High`     | 2     | User-requested priority     |
+| `Critical` | 3     | Immediate start if possible |
 
 #### DownloadStateFilter
 
@@ -475,19 +483,19 @@ Flags for filtering downloads by state.
 
 **Location:** `src/Kurio.Core/Models/DownloadStateFilter.cs`
 
-| Flag | Description |
-|------|-------------|
-| `None` | No filter (matches nothing) |
-| `Created` | Include created downloads |
-| `Queued` | Include queued downloads |
-| `Analyzing` | Include analyzing downloads |
-| `Downloading` | Include active downloads |
-| `Paused` | Include paused downloads |
-| `Completed` | Include completed downloads |
-| `Failed` | Include failed downloads |
-| `Cancelled` | Include cancelled downloads |
-| `Active` | Queued \| Analyzing \| Downloading |
-| `All` | All states |
+| Flag          | Description                        |
+|---------------|------------------------------------|
+| `None`        | No filter (matches nothing)        |
+| `Created`     | Include created downloads          |
+| `Queued`      | Include queued downloads           |
+| `Analyzing`   | Include analyzing downloads        |
+| `Downloading` | Include active downloads           |
+| `Paused`      | Include paused downloads           |
+| `Completed`   | Include completed downloads        |
+| `Failed`      | Include failed downloads           |
+| `Cancelled`   | Include cancelled downloads        |
+| `Active`      | Queued \| Analyzing \| Downloading |
+| `All`         | All states                         |
 
 #### FileNamingPolicy
 
@@ -495,12 +503,12 @@ Conflict resolution for file names.
 
 **Location:** `src/Kurio.Core/Models/FileNamingPolicy.cs`
 
-| Value | Description |
-|-------|-------------|
-| `Overwrite` | Replace existing file |
+| Value        | Description                            |
+|--------------|----------------------------------------|
+| `Overwrite`  | Replace existing file                  |
 | `AutoRename` | Add numeric suffix (e.g., file(1).txt) |
-| `Skip` | Skip if file exists |
-| `Prompt` | Prompt user (requires UI integration) |
+| `Skip`       | Skip if file exists                    |
+| `Prompt`     | Prompt user (requires UI integration)  |
 
 ---
 
@@ -626,13 +634,13 @@ IDownloadEngine
 
 ### 4.1 Concrete Implementations
 
-| Interface | Implementation | Location |
-|-----------|----------------|----------|
-| `IDownloadEngine` | `DownloadEngine` | `src/Kurio.Core/Engine/DownloadEngine.cs` |
-| `IDownloadTask` | `DownloadTask` | `src/Kurio.Core/Engine/DownloadTask.cs` |
+| Interface          | Implementation        | Location                                          |
+|--------------------|-----------------------|---------------------------------------------------|
+| `IDownloadEngine`  | `DownloadEngine`      | `src/Kurio.Core/Engine/DownloadEngine.cs`         |
+| `IDownloadTask`    | `DownloadTask`        | `src/Kurio.Core/Engine/DownloadTask.cs`           |
 | `IProtocolHandler` | `HttpProtocolHandler` | `src/Kurio.Core/Protocols/HttpProtocolHandler.cs` |
-| `ISegmentManager` | `SegmentManager` | `src/Kurio.Core/Engine/SegmentManager.cs` |
-| `IStorageManager` | `StorageManager` | `src/Kurio.Core/Storage/StorageManager.cs` |
+| `ISegmentManager`  | `SegmentManager`      | `src/Kurio.Core/Engine/SegmentManager.cs`         |
+| `IStorageManager`  | `StorageManager`      | `src/Kurio.Core/Storage/StorageManager.cs`        |
 
 ### 4.2 Dependency Injection
 
@@ -657,22 +665,22 @@ services.AddSingleton<IDownloadEngine, DownloadEngine>();
 
 ### 5.1 SOLID Compliance
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Single Responsibility** | Each interface has one clear purpose (e.g., `IStorageManager` only handles file operations) |
-| **Open/Closed** | New protocols can be added by implementing `IProtocolHandler` without modifying existing code |
-| **Liskov Substitution** | All implementations are interchangeable with their interfaces |
-| **Interface Segregation** | Small, focused interfaces (5 core interfaces vs. one monolithic interface) |
-| **Dependency Inversion** | High-level `IDownloadEngine` depends on abstractions, not concrete implementations |
+| Principle                 | Implementation                                                                                |
+|---------------------------|-----------------------------------------------------------------------------------------------|
+| **Single Responsibility** | Each interface has one clear purpose (e.g., `IStorageManager` only handles file operations)   |
+| **Open/Closed**           | New protocols can be added by implementing `IProtocolHandler` without modifying existing code |
+| **Liskov Substitution**   | All implementations are interchangeable with their interfaces                                 |
+| **Interface Segregation** | Small, focused interfaces (5 core interfaces vs. one monolithic interface)                    |
+| **Dependency Inversion**  | High-level `IDownloadEngine` depends on abstractions, not concrete implementations            |
 
 ### 5.2 Design Patterns Used
 
-| Pattern | Usage |
-|---------|-------|
-| **Strategy** | `IProtocolHandler` allows swapping protocol implementations |
-| **Observer** | `IObservable<DownloadProgress>` for progress streaming |
-| **Factory** | `IHttpClientFactory` for HTTP client creation |
-| **Template Method** | Download execution flow in `DownloadEngine` |
+| Pattern             | Usage                                                       |
+|---------------------|-------------------------------------------------------------|
+| **Strategy**        | `IProtocolHandler` allows swapping protocol implementations |
+| **Observer**        | `IObservable<DownloadProgress>` for progress streaming      |
+| **Factory**         | `IHttpClientFactory` for HTTP client creation               |
+| **Template Method** | Download execution flow in `DownloadEngine`                 |
 
 ---
 
@@ -739,5 +747,6 @@ src/Kurio.Core/
 ---
 
 **Document Status**: ✅ Approved  
-**Related Documents**: 
+**Related Documents**:
+
 - [Core Engine Architecture PRD](../prd/core-engine-architecture.md)

@@ -31,7 +31,7 @@ public sealed class CircuitBreakerFactory
     {
         return _circuitBreakers.GetOrAdd(host, _ =>
         {
-            ILogger<CircuitBreaker> logger = _loggerFactory.CreateLogger<CircuitBreaker>();
+            var logger = _loggerFactory.CreateLogger<CircuitBreaker>();
             return new CircuitBreaker(_defaultPolicy, logger);
         });
     }
@@ -41,7 +41,7 @@ public sealed class CircuitBreakerFactory
     /// </summary>
     public void ResetAll()
     {
-        foreach (ICircuitBreaker breaker in _circuitBreakers.Values)
+        foreach (var breaker in _circuitBreakers.Values)
         {
             breaker.Reset();
         }

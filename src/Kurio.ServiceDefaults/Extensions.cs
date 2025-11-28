@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ServiceDiscovery;
 
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.Hosting;
@@ -18,6 +18,10 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string ServiceName = "Kurio";
+
+    private static readonly string ServiceVersion =
+        typeof(Extensions).Assembly.GetName().Version?.ToString() ?? "unknown";
 
     extension<TBuilder>(TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
@@ -47,15 +51,18 @@ public static class Extensions
             return builder;
         }
 
-        private TBuilder ConfigureOpenTelemetry()
+        private void ConfigureOpenTelemetry()
         {
             builder.Logging.AddOpenTelemetry(logging =>
             {
                 logging.IncludeFormattedMessage = true;
                 logging.IncludeScopes = true;
+                logging.SetResourceBuilder(ResourceBuilder.CreateDefault()
+                    .AddService(serviceName: ServiceName, serviceVersion: ServiceVersion));
             });
 
             builder.Services.AddOpenTelemetry()
+                .ConfigureResource(rb => rb.AddService(serviceName: ServiceName, serviceVersion: ServiceVersion))
                 .WithMetrics(metrics =>
                 {
                     metrics.AddAspNetCoreInstrumentation()
@@ -65,23 +72,19 @@ public static class Extensions
                 .WithTracing(tracing =>
                 {
                     tracing.AddSource(builder.Environment.ApplicationName)
-                        .AddAspNetCoreInstrumentation(tracing =>
+                        .AddAspNetCoreInstrumentation(options =>
                             // Exclude health check requests from tracing
-                            tracing.Filter = context =>
+                            options.Filter = context =>
                                 !context.Request.Path.StartsWithSegments(HealthEndpointPath)
                                 && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
                         )
-                        // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
-                        //.AddGrpcClientInstrumentation()
                         .AddHttpClientInstrumentation();
                 });
 
             builder.AddOpenTelemetryExporters();
-
-            return builder;
         }
 
-        private TBuilder AddOpenTelemetryExporters()
+        private void AddOpenTelemetryExporters()
         {
             var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
 
@@ -89,24 +92,13 @@ public static class Extensions
             {
                 builder.Services.AddOpenTelemetry().UseOtlpExporter();
             }
-
-            // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
-            //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
-            //{
-            //    builder.Services.AddOpenTelemetry()
-            //       .UseAzureMonitor();
-            //}
-
-            return builder;
         }
 
-        private TBuilder AddDefaultHealthChecks()
+        private void AddDefaultHealthChecks()
         {
             builder.Services.AddHealthChecks()
                 // Add a default liveness check to ensure app is responsive
                 .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
-
-            return builder;
         }
     }
 
@@ -122,10 +114,8 @@ public static class Extensions
                 app.MapHealthChecks(HealthEndpointPath);
 
                 // Only health checks tagged with the "live" tag must pass for app to be considered alive
-                app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-                {
-                    Predicate = r => r.Tags.Contains("live")
-                });
+                app.MapHealthChecks(AlivenessEndpointPath,
+                    new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
             }
 
             return app;

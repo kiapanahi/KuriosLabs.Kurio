@@ -13,11 +13,13 @@ The server will start on `http://localhost:5205` (check console output for actua
 ### 2. Test REST API Endpoints
 
 #### Get All Downloads
+
 ```bash
 curl http://localhost:5205/api/downloads | jq
 ```
 
 #### Add a New Download
+
 ```bash
 curl -X POST http://localhost:5205/api/downloads \
   -H "Content-Type: application/json" \
@@ -29,31 +31,37 @@ curl -X POST http://localhost:5205/api/downloads \
 ```
 
 #### Get Specific Download
+
 ```bash
 curl http://localhost:5205/api/downloads/{id} | jq
 ```
 
 #### Start Download
+
 ```bash
 curl -X POST http://localhost:5205/api/downloads/{id}/start | jq
 ```
 
 #### Pause Download
+
 ```bash
 curl -X POST http://localhost:5205/api/downloads/{id}/pause | jq
 ```
 
 #### Resume Download
+
 ```bash
 curl -X POST http://localhost:5205/api/downloads/{id}/resume | jq
 ```
 
 #### Cancel Download
+
 ```bash
 curl -X DELETE http://localhost:5205/api/downloads/{id}?removeFiles=false | jq
 ```
 
 #### Change Priority
+
 ```bash
 curl -X PATCH http://localhost:5205/api/downloads/{id}/priority \
   -H "Content-Type: application/json" \
@@ -61,26 +69,31 @@ curl -X PATCH http://localhost:5205/api/downloads/{id}/priority \
 ```
 
 #### Pause All Downloads
+
 ```bash
 curl -X POST http://localhost:5205/api/downloads/pause-all | jq
 ```
 
 #### Clear Completed Downloads
+
 ```bash
 curl -X DELETE http://localhost:5205/api/downloads/completed | jq
 ```
 
 #### Get Statistics
+
 ```bash
 curl http://localhost:5205/api/downloads/statistics | jq
 ```
 
 ### 3. Test Health Check
+
 ```bash
 curl http://localhost:5205/health
 ```
 
 Expected response:
+
 ```
 Healthy
 ```
@@ -97,7 +110,8 @@ This provides interactive API documentation and testing interface.
 curl -N http://localhost:5205/api/downloads/stream
 ```
 
-This will stream real-time download progress updates. Keep the connection open and start a download in another terminal to see events.
+This will stream real-time download progress updates. Keep the connection open and start a download in another terminal
+to see events.
 
 ### 6. Test SignalR Hub
 
@@ -160,6 +174,7 @@ Save as `test-signalr.html` and open in browser.
 - **500 Internal Server Error**: When unexpected error occurs
 
 All error responses include:
+
 ```json
 {
   "message": "Error description",

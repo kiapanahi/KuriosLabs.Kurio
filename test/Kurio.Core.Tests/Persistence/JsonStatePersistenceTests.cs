@@ -1,28 +1,37 @@
-namespace Kurio.Core.Tests.Persistence;
-
-using System;
-using System.IO;
-using System.Threading.Tasks;
-
 using Kurio.Core.Models;
 using Kurio.Core.Persistence;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using Xunit;
+namespace Kurio.Core.Tests.Persistence;
 
 /// <summary>
-/// Tests for JsonStatePersistence.
+///     Tests for JsonStatePersistence.
 /// </summary>
 public sealed class JsonStatePersistenceTests : IDisposable
 {
-    private readonly string _testStateDirectory;
     private readonly JsonStatePersistence _persistence;
+    private readonly string _testStateDirectory;
 
     public JsonStatePersistenceTests()
     {
         _testStateDirectory = Path.Combine(Path.GetTempPath(), "kurio-test-state", Guid.NewGuid().ToString());
         _persistence = new JsonStatePersistence(_testStateDirectory, NullLogger<JsonStatePersistence>.Instance);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_testStateDirectory))
+            {
+                Directory.Delete(_testStateDirectory, true);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
     }
 
     [Fact]
@@ -176,26 +185,7 @@ public sealed class JsonStatePersistenceTests : IDisposable
             Priority = DownloadPriority.Normal,
             CreatedAt = DateTime.UtcNow,
             LastUpdateAt = DateTime.UtcNow,
-            Options = new DownloadOptions
-            {
-                DestinationDirectory = "/downloads",
-                MaxConnections = 4
-            }
+            Options = new DownloadOptions { DestinationDirectory = "/downloads", MaxConnections = 4 }
         };
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(_testStateDirectory))
-            {
-                Directory.Delete(_testStateDirectory, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
     }
 }

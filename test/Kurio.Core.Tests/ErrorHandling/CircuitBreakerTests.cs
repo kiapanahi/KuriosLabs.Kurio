@@ -3,8 +3,6 @@ using Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using Xunit;
-
 namespace Kurio.Core.Tests.ErrorHandling;
 
 public class CircuitBreakerTests
@@ -54,7 +52,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Act - fail 3 times to exceed threshold
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -77,7 +75,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Open the circuit by causing failures
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -105,7 +103,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Open the circuit
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -131,7 +129,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Open the circuit
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -162,7 +160,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Open the circuit
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -199,7 +197,7 @@ public class CircuitBreakerTests
         var breaker = CreateCircuitBreaker();
 
         // Open the circuit
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             try
             {
@@ -241,11 +239,7 @@ public class CircuitBreakerTests
     public void RecordFailure_WithinFailureWindow_CountsTowardsThreshold()
     {
         // Arrange
-        var policy = new CircuitBreakerPolicy
-        {
-            FailureThreshold = 2,
-            FailureWindow = TimeSpan.FromSeconds(1)
-        };
+        CircuitBreakerPolicy policy = new() { FailureThreshold = 2, FailureWindow = TimeSpan.FromSeconds(1) };
         var breaker = CreateCircuitBreaker(policy);
 
         // Act

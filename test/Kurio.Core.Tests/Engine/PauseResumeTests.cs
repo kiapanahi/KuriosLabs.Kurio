@@ -1,37 +1,26 @@
-namespace Kurio.Core.Tests.Engine;
-
-using System;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
-using Kurio.Core.Persistence;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Moq;
 
-using Xunit;
+namespace Kurio.Core.Tests.Engine;
 
 /// <summary>
-/// Tests for pause and resume functionality in DownloadEngine.
+///     Tests for pause and resume functionality in DownloadEngine.
 /// </summary>
 public sealed class PauseResumeTests : IDisposable
 {
-    private readonly string _testTempDirectory;
-    private readonly string _testStateDirectory;
     private readonly Mock<IProtocolHandler> _mockProtocolHandler;
-    private readonly Mock<IStorageManager> _mockStorageManager;
-    private readonly Mock<IStatePersistence> _mockStatePersistence;
     private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
+    private readonly Mock<IStatePersistence> _mockStatePersistence;
+    private readonly Mock<IStorageManager> _mockStorageManager;
     private readonly ISegmentManager _segmentManager;
+    private readonly string _testStateDirectory;
+    private readonly string _testTempDirectory;
 
     public PauseResumeTests()
     {
@@ -49,6 +38,26 @@ public sealed class PauseResumeTests : IDisposable
 
         Directory.CreateDirectory(_testTempDirectory);
         Directory.CreateDirectory(_testStateDirectory);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_testTempDirectory))
+            {
+                Directory.Delete(_testTempDirectory, true);
+            }
+
+            if (Directory.Exists(_testStateDirectory))
+            {
+                Directory.Delete(_testStateDirectory, true);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
     }
 
     [Fact]
@@ -90,8 +99,7 @@ public sealed class PauseResumeTests : IDisposable
         var nonExistentId = Guid.NewGuid();
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => engine.PauseDownloadAsync(nonExistentId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => engine.PauseDownloadAsync(nonExistentId));
     }
 
     [Fact]
@@ -103,8 +111,7 @@ public sealed class PauseResumeTests : IDisposable
         var task = await engine.AddDownloadAsync(new Uri("https://example.com/file.zip"), downloadOptions);
 
         // Act & Assert (task is in Queued state, not Downloading)
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => engine.PauseDownloadAsync(task.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => engine.PauseDownloadAsync(task.Id));
     }
 
     // Note: Resume validation tests require end-to-end integration testing
@@ -126,9 +133,7 @@ public sealed class PauseResumeTests : IDisposable
     {
         return new DownloadOptions
         {
-            DestinationDirectory = _testTempDirectory,
-            MaxConnections = 2,
-            MinSegmentSize = 512 * 1024
+            DestinationDirectory = _testTempDirectory, MaxConnections = 2, MinSegmentSize = 512 * 1024
         };
     }
 
@@ -157,14 +162,14 @@ public sealed class PauseResumeTests : IDisposable
                 It.IsAny<DownloadOptions>(),
                 It.IsAny<IProgress<long>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(
-                async (url, range, stream, options, progress, ct) =>
-                {
-                    // Simulate slow download
-                    var data = new byte[range.Length];
-                    await stream.WriteAsync(data, 0, data.Length, ct);
-                    await Task.Delay(2000, ct); // Long delay to allow pause
-                });
+            .Returns<Uri, ByteRange, Stream, DownloadOptions, IProgress<long>, CancellationToken>(async (url, range,
+                stream, options, progress, ct) =>
+            {
+                // Simulate slow download
+                var data = new byte[range.Length];
+                await stream.WriteAsync(data, 0, data.Length, ct);
+                await Task.Delay(2000, ct); // Long delay to allow pause
+            });
     }
 
     private void SetupMockStorageManager()
@@ -198,24 +203,5 @@ public sealed class PauseResumeTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((string temp, string dest, string name, FileNamingPolicy policy, CancellationToken ct) =>
                 Path.Combine(dest, name));
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(_testTempDirectory))
-            {
-                Directory.Delete(_testTempDirectory, recursive: true);
-            }
-            if (Directory.Exists(_testStateDirectory))
-            {
-                Directory.Delete(_testStateDirectory, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
     }
 }

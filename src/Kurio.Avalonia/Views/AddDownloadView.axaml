@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:KuriousLabs.Kurio.Avalonia.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KuriousLabs.Kurio.Avalonia.Views.AddDownloadView"
+             x:DataType="vm:AddDownloadViewModel">
+
+    <Design.DataContext>
+        <vm:AddDownloadViewModel />
+    </Design.DataContext>
+
+    <StackPanel Spacing="15" MaxWidth="600" HorizontalAlignment="Left">
+        <TextBlock Text="Add New Download" FontSize="24" FontWeight="Bold" Margin="0,0,0,10" />
+
+        <!-- URL Input -->
+        <StackPanel Spacing="5">
+            <TextBlock Text="Download URL:" FontWeight="SemiBold" />
+            <TextBox Text="{Binding Url}" Watermark="https://example.com/file.zip" />
+        </StackPanel>
+
+        <!-- Save Path -->
+        <StackPanel Spacing="5">
+            <TextBlock Text="Save Location:" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" Text="{Binding SavePath}" Watermark="Choose download location..." />
+                <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}"
+                        Margin="5,0,0,0" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Segments -->
+        <StackPanel Spacing="5">
+            <TextBlock Text="Number of Segments:" FontWeight="SemiBold" />
+            <NumericUpDown Value="{Binding Segments}" Minimum="1" Maximum="32" />
+            <TextBlock Text="More segments can increase download speed but use more connections."
+                       FontSize="11" Foreground="Gray" />
+        </StackPanel>
+
+        <!-- Start Immediately -->
+        <CheckBox Content="Start download immediately" IsChecked="{Binding StartImmediately}" />
+
+        <!-- Action Buttons -->
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+            <Button Content="Add Download" Command="{Binding AddCommand}" />
+            <Button Content="Cancel" />
+        </StackPanel>
+    </StackPanel>
+
+</UserControl>

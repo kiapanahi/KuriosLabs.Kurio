@@ -3,8 +3,6 @@ using Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using Xunit;
-
 namespace Kurio.Core.Tests.ErrorHandling;
 
 public class RetryHandlerTests
@@ -21,7 +19,7 @@ public class RetryHandlerTests
     {
         // Arrange
         var expectedResult = 42;
-        var policy = new RetryPolicy { MaxRetryAttempts = 3 };
+        RetryPolicy policy = new() { MaxRetryAttempts = 3 };
 
         // Act
         var result = await _retryHandler.ExecuteAsync(
@@ -37,16 +35,17 @@ public class RetryHandlerTests
     {
         // Arrange
         var attemptCount = 0;
-        var policy = new RetryPolicy { MaxRetryAttempts = 3, InitialDelay = TimeSpan.FromMilliseconds(10) };
+        RetryPolicy policy = new() { MaxRetryAttempts = 3, InitialDelay = TimeSpan.FromMilliseconds(10) };
 
         // Act
-        var result = await _retryHandler.ExecuteAsync<int>(async _ =>
+        var result = await _retryHandler.ExecuteAsync(async _ =>
         {
             attemptCount++;
             if (attemptCount == 1)
             {
                 throw new InvalidOperationException("First attempt fails");
             }
+
             return await Task.FromResult(42);
         }, policy);
 
@@ -60,7 +59,7 @@ public class RetryHandlerTests
     {
         // Arrange
         var attemptCount = 0;
-        var policy = new RetryPolicy { MaxRetryAttempts = 2, InitialDelay = TimeSpan.FromMilliseconds(10) };
+        RetryPolicy policy = new() { MaxRetryAttempts = 2, InitialDelay = TimeSpan.FromMilliseconds(10) };
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -79,7 +78,7 @@ public class RetryHandlerTests
     public void CalculateDelay_ExponentialBackoff_IncreasesExponentially()
     {
         // Arrange
-        var policy = new RetryPolicy
+        RetryPolicy policy = new()
         {
             Strategy = RetryStrategy.ExponentialBackoff,
             InitialDelay = TimeSpan.FromSeconds(1),
@@ -102,11 +101,9 @@ public class RetryHandlerTests
     public void CalculateDelay_Linear_IncreasesLinearly()
     {
         // Arrange
-        var policy = new RetryPolicy
+        RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Linear,
-            InitialDelay = TimeSpan.FromSeconds(1),
-            UseJitter = false
+            Strategy = RetryStrategy.Linear, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = false
         };
 
         // Act
@@ -124,11 +121,9 @@ public class RetryHandlerTests
     public void CalculateDelay_Fixed_ReturnsConstantDelay()
     {
         // Arrange
-        var policy = new RetryPolicy
+        RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed,
-            InitialDelay = TimeSpan.FromSeconds(2),
-            UseJitter = false
+            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(2), UseJitter = false
         };
 
         // Act
@@ -146,7 +141,7 @@ public class RetryHandlerTests
     public void CalculateDelay_ExceedsMaxDelay_CapsAtMaxDelay()
     {
         // Arrange
-        var policy = new RetryPolicy
+        RetryPolicy policy = new()
         {
             Strategy = RetryStrategy.ExponentialBackoff,
             InitialDelay = TimeSpan.FromSeconds(1),
@@ -166,16 +161,14 @@ public class RetryHandlerTests
     public void CalculateDelay_WithJitter_VariesDelay()
     {
         // Arrange
-        var policy = new RetryPolicy
+        RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed,
-            InitialDelay = TimeSpan.FromSeconds(1),
-            UseJitter = true
+            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = true
         };
 
         // Act - run multiple times to check for variation
-        var delays = new List<double>();
-        for (int i = 0; i < 10; i++)
+        List<double> delays = new();
+        for (var i = 0; i < 10; i++)
         {
             var delay = _retryHandler.CalculateDelay(1, policy);
             delays.Add(delay.TotalMilliseconds);
@@ -193,13 +186,13 @@ public class RetryHandlerTests
     public async Task ExecuteAsync_Cancellation_ThrowsOperationCancelledException()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
-        var policy = new RetryPolicy { MaxRetryAttempts = 3 };
+        CancellationTokenSource cts = new();
+        RetryPolicy policy = new() { MaxRetryAttempts = 3 };
 
         // Act & Assert
         await Assert.ThrowsAsync<TaskCanceledException>(async () =>
         {
-            await _retryHandler.ExecuteAsync<int>(async ct =>
+            await _retryHandler.ExecuteAsync(async ct =>
             {
                 await cts.CancelAsync();
                 ct.ThrowIfCancellationRequested();

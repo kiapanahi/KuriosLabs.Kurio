@@ -1,5 +1,3 @@
-namespace Kurio.Core.Tests.Engine;
-
 using Kurio.Core.Abstractions;
 using Kurio.Core.Engine;
 using Kurio.Core.Models;
@@ -8,13 +6,13 @@ using Microsoft.Extensions.Logging;
 
 using Moq;
 
-using Xunit;
+namespace Kurio.Core.Tests.Engine;
 
 public class SegmentManagerTests
 {
-    private readonly Mock<IStorageManager> _mockStorageManager;
-    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
     private readonly Mock<ILogger<SegmentManager>> _mockLogger;
+    private readonly Mock<ISegmentVerifier> _mockSegmentVerifier;
+    private readonly Mock<IStorageManager> _mockStorageManager;
     private readonly SegmentManager _segmentManager;
 
     public SegmentManagerTests()
@@ -22,7 +20,8 @@ public class SegmentManagerTests
         _mockStorageManager = new Mock<IStorageManager>();
         _mockSegmentVerifier = new Mock<ISegmentVerifier>();
         _mockLogger = new Mock<ILogger<SegmentManager>>();
-        _segmentManager = new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
+        _segmentManager =
+            new SegmentManager(_mockStorageManager.Object, _mockSegmentVerifier.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -30,14 +29,13 @@ public class SegmentManagerTests
     {
         // Arrange
         var fileSize = 512 * 1024; // 512 KB
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 8,
-            MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
 
         // Assert
         Assert.Equal(1, config.SegmentCount);
@@ -52,14 +50,13 @@ public class SegmentManagerTests
     {
         // Arrange
         var fileSize = 10 * 1024 * 1024L; // 10 MB
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 4,
-            MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 4, MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
 
         // Assert
         Assert.Equal(4, config.SegmentCount);
@@ -82,14 +79,10 @@ public class SegmentManagerTests
     {
         // Arrange
         var fileSize = 10 * 1024 * 1024L; // 10 MB
-        var options = new SegmentOptions
-        {
-            MaxConnections = 8,
-            MinSegmentSize = 1024 * 1024
-        };
+        SegmentOptions options = new() { MaxConnections = 8, MinSegmentSize = 1024 * 1024 };
 
         // Act
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: false, options);
+        var config = _segmentManager.CalculateSegments(fileSize, false, options);
 
         // Assert
         Assert.Equal(1, config.SegmentCount);
@@ -102,11 +95,11 @@ public class SegmentManagerTests
     public void CalculateSegments_WithInvalidFileSize_ShouldThrowArgumentException(long fileSize)
     {
         // Arrange
-        var options = new SegmentOptions();
+        SegmentOptions options = new();
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options));
+            _segmentManager.CalculateSegments(fileSize, true, options));
     }
 
     [Fact]
@@ -114,14 +107,13 @@ public class SegmentManagerTests
     {
         // Arrange
         var fileSize = 100 * 1024 * 1024L; // 100 MB
-        var options = new SegmentOptions
+        SegmentOptions options = new()
         {
-            MaxConnections = 8,
-            MinSegmentSize = 1024 * 1024 // 1 MB (would allow 100 segments)
+            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB (would allow 100 segments)
         };
 
         // Act
-        var config = _segmentManager.CalculateSegments(fileSize, supportsRanges: true, options);
+        var config = _segmentManager.CalculateSegments(fileSize, true, options);
 
         // Assert
         Assert.Equal(8, config.SegmentCount); // Limited by MaxConnections

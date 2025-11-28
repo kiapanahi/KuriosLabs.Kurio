@@ -3,26 +3,28 @@ using Kurio.Core.Models;
 namespace Kurio.Core.Configuration;
 
 /// <summary>
-/// Fluent builder for creating download options
+///     Fluent builder for creating download options
 /// </summary>
 public sealed class DownloadOptionsBuilder
 {
     private readonly DownloadOptions _options = new() { DestinationDirectory = string.Empty };
 
     /// <summary>
-    /// Sets the maximum number of concurrent connections
+    ///     Sets the maximum number of concurrent connections
     /// </summary>
     public DownloadOptionsBuilder WithMaxConnections(int maxConnections)
     {
         if (maxConnections < 1 || maxConnections > 32)
+        {
             throw new ArgumentOutOfRangeException(nameof(maxConnections), "Must be between 1 and 32");
+        }
 
         _options.MaxConnections = maxConnections;
         return this;
     }
 
     /// <summary>
-    /// Sets the destination directory and optional filename
+    ///     Sets the destination directory and optional filename
     /// </summary>
     public DownloadOptionsBuilder WithDestination(string directory, string? fileName = null)
     {
@@ -33,11 +35,12 @@ public sealed class DownloadOptionsBuilder
         {
             _options.FileName = fileName;
         }
+
         return this;
     }
 
     /// <summary>
-    /// Sets the download priority
+    ///     Sets the download priority
     /// </summary>
     public DownloadOptionsBuilder WithPriority(DownloadPriority priority)
     {
@@ -46,7 +49,7 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Adds custom HTTP headers
+    ///     Adds custom HTTP headers
     /// </summary>
     public DownloadOptionsBuilder WithHeaders(Dictionary<string, string> headers)
     {
@@ -56,7 +59,7 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Adds a single custom HTTP header
+    ///     Adds a single custom HTTP header
     /// </summary>
     public DownloadOptionsBuilder WithHeader(string name, string value)
     {
@@ -69,7 +72,7 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Sets basic authentication credentials
+    ///     Sets basic authentication credentials
     /// </summary>
     public DownloadOptionsBuilder WithAuthentication(string username, string password)
     {
@@ -78,46 +81,38 @@ public sealed class DownloadOptionsBuilder
 
         _options.Authentication = new AuthenticationOptions
         {
-            Type = AuthenticationType.Basic,
-            Username = username,
-            Password = password
+            Type = AuthenticationType.Basic, Username = username, Password = password
         };
         return this;
     }
 
     /// <summary>
-    /// Sets bearer token authentication
+    ///     Sets bearer token authentication
     /// </summary>
     public DownloadOptionsBuilder WithBearerToken(string token)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
-        _options.Authentication = new AuthenticationOptions
-        {
-            Type = AuthenticationType.Bearer,
-            Token = token
-        };
+        _options.Authentication = new AuthenticationOptions { Type = AuthenticationType.Bearer, Token = token };
         return this;
     }
 
     /// <summary>
-    /// Sets custom retry policy
+    ///     Sets custom retry policy
     /// </summary>
     public DownloadOptionsBuilder WithRetryPolicy(int maxRetries, TimeSpan initialDelay)
     {
         if (maxRetries < 0 || maxRetries > 10)
-            throw new ArgumentOutOfRangeException(nameof(maxRetries), "Must be between 0 and 10");
-
-        _options.RetryPolicy = new RetryPolicy
         {
-            MaxRetryAttempts = maxRetries,
-            InitialDelay = initialDelay
-        };
+            throw new ArgumentOutOfRangeException(nameof(maxRetries), "Must be between 0 and 10");
+        }
+
+        _options.RetryPolicy = new RetryPolicy { MaxRetryAttempts = maxRetries, InitialDelay = initialDelay };
         return this;
     }
 
     /// <summary>
-    /// Sets the download category
+    ///     Sets the download category
     /// </summary>
     public DownloadOptionsBuilder WithCategory(string category)
     {
@@ -127,7 +122,7 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Adds tags to the download
+    ///     Adds tags to the download
     /// </summary>
     public DownloadOptionsBuilder WithTags(params string[] tags)
     {
@@ -137,34 +132,32 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Sets expected checksum for verification
+    ///     Sets expected checksum for verification
     /// </summary>
     public DownloadOptionsBuilder WithChecksum(ChecksumAlgorithm algorithm, string expectedHash)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
 
-        _options.Checksum = new ChecksumOptions
-        {
-            Algorithm = algorithm,
-            ExpectedHash = expectedHash
-        };
+        _options.Checksum = new ChecksumOptions { Algorithm = algorithm, ExpectedHash = expectedHash };
         return this;
     }
 
     /// <summary>
-    /// Sets bandwidth limit for this download
+    ///     Sets bandwidth limit for this download
     /// </summary>
     public DownloadOptionsBuilder WithBandwidthLimit(long maxBytesPerSecond)
     {
         if (maxBytesPerSecond <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(maxBytesPerSecond), "Must be greater than 0");
+        }
 
         _options.MaxDownloadSpeed = maxBytesPerSecond;
         return this;
     }
 
     /// <summary>
-    /// Sets the file naming policy for conflicts
+    ///     Sets the file naming policy for conflicts
     /// </summary>
     public DownloadOptionsBuilder WithNamingPolicy(FileNamingPolicy policy)
     {
@@ -173,7 +166,7 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Builds and returns the download options
+    ///     Builds and returns the download options
     /// </summary>
     public DownloadOptions Build()
     {
@@ -181,39 +174,42 @@ public sealed class DownloadOptionsBuilder
     }
 
     /// <summary>
-    /// Creates a new builder instance
+    ///     Creates a new builder instance
     /// </summary>
-    public static DownloadOptionsBuilder Create() => new();
+    public static DownloadOptionsBuilder Create()
+    {
+        return new DownloadOptionsBuilder();
+    }
 }
 
 /// <summary>
-/// Authentication options for downloads
+///     Authentication options for downloads
 /// </summary>
 public sealed class AuthenticationOptions
 {
     /// <summary>
-    /// Authentication type
+    ///     Authentication type
     /// </summary>
     public AuthenticationType Type { get; set; }
 
     /// <summary>
-    /// Username (for Basic authentication)
+    ///     Username (for Basic authentication)
     /// </summary>
     public string? Username { get; set; }
 
     /// <summary>
-    /// Password (for Basic authentication)
+    ///     Password (for Basic authentication)
     /// </summary>
     public string? Password { get; set; }
 
     /// <summary>
-    /// Token (for Bearer authentication)
+    ///     Token (for Bearer authentication)
     /// </summary>
     public string? Token { get; set; }
 }
 
 /// <summary>
-/// Authentication type
+///     Authentication type
 /// </summary>
 public enum AuthenticationType
 {
@@ -224,17 +220,17 @@ public enum AuthenticationType
 }
 
 /// <summary>
-/// Checksum verification options
+///     Checksum verification options
 /// </summary>
 public sealed class ChecksumOptions
 {
     /// <summary>
-    /// Checksum algorithm to use
+    ///     Checksum algorithm to use
     /// </summary>
     public ChecksumAlgorithm Algorithm { get; set; }
 
     /// <summary>
-    /// Expected hash value (hexadecimal string)
+    ///     Expected hash value (hexadecimal string)
     /// </summary>
     public string ExpectedHash { get; set; } = string.Empty;
 }

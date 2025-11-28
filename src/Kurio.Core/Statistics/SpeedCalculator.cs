@@ -66,11 +66,11 @@ public sealed class SpeedCalculator
             // Calculate current speed from the most recent previous sample
             if (_lastSample.HasValue)
             {
-                double timeDiffMs = (timestamp - _lastSample.Value.Timestamp).TotalMilliseconds;
+                var timeDiffMs = (timestamp - _lastSample.Value.Timestamp).TotalMilliseconds;
 
                 if (timeDiffMs > 0)
                 {
-                    long bytesDiff = bytesDownloaded - _lastSample.Value.BytesDownloaded;
+                    var bytesDiff = bytesDownloaded - _lastSample.Value.BytesDownloaded;
                     CurrentSpeed = (long)(bytesDiff / (timeDiffMs / 1000.0));
 
                     if (CurrentSpeed > PeakSpeed)
@@ -92,13 +92,13 @@ public sealed class SpeedCalculator
             // Calculate rolling average from the window
             if (_samples.Count > 1)
             {
-                SpeedSample oldest = _samples.Peek();
-                SpeedSample newest = sample;
-                double totalTimeDiffMs = (newest.Timestamp - oldest.Timestamp).TotalMilliseconds;
+                var oldest = _samples.Peek();
+                var newest = sample;
+                var totalTimeDiffMs = (newest.Timestamp - oldest.Timestamp).TotalMilliseconds;
 
                 if (totalTimeDiffMs > 0)
                 {
-                    long totalBytesDiff = newest.BytesDownloaded - oldest.BytesDownloaded;
+                    var totalBytesDiff = newest.BytesDownloaded - oldest.BytesDownloaded;
                     AverageSpeed = (long)(totalBytesDiff / (totalTimeDiffMs / 1000.0));
                 }
             }
@@ -128,7 +128,7 @@ public sealed class SpeedCalculator
         {
             if (_pauseStartTime.HasValue)
             {
-                long pauseDuration = (long)(DateTime.UtcNow - _pauseStartTime.Value).TotalMilliseconds;
+                var pauseDuration = (long)(DateTime.UtcNow - _pauseStartTime.Value).TotalMilliseconds;
                 TotalPausedDurationMs += pauseDuration;
                 _pauseStartTime = null;
             }

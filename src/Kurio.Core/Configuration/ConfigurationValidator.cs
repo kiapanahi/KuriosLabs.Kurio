@@ -1,18 +1,18 @@
 namespace Kurio.Core.Configuration;
 
 /// <summary>
-/// Validates configuration settings
+///     Validates configuration settings
 /// </summary>
 public sealed class ConfigurationValidator
 {
     /// <summary>
-    /// Validates the entire configuration object
+    ///     Validates the entire configuration object
     /// </summary>
     public ConfigurationValidationResult Validate(KurioConfiguration config)
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var errors = new List<ConfigurationError>();
+        List<ConfigurationError> errors = new();
 
         ValidateDownloadSettings(config.Downloads, errors);
         ValidateNetworkSettings(config.Network, errors);
@@ -96,7 +96,8 @@ public sealed class ConfigurationValidator
             });
         }
 
-        var validPolicies = new[] { "overwrite", "appendNumber", "appendTimestamp", "failIfExists", "skipIfExists" };
+        var validPolicies =
+            new[] { "overwrite", "appendNumber", "appendTimestamp", "failIfExists", "skipIfExists" };
         if (!validPolicies.Contains(settings.FileNamingPolicy.ToLowerInvariant()))
         {
             errors.Add(new ConfigurationError

@@ -3,33 +3,33 @@ using Microsoft.Extensions.Logging;
 namespace Kurio.Core.Storage;
 
 /// <summary>
-/// Manages temporary file cleanup operations
+///     Manages temporary file cleanup operations
 /// </summary>
 public interface ITempFileCleanupService
 {
     /// <summary>
-    /// Scans for orphaned temporary files
+    ///     Scans for orphaned temporary files
     /// </summary>
     Task<OrphanedFilesInfo> ScanForOrphanedFilesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleans up orphaned files older than the specified threshold
+    ///     Cleans up orphaned files older than the specified threshold
     /// </summary>
     Task<CleanupResult> CleanupOrphanedFilesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleans up temporary files for a specific task
+    ///     Cleans up temporary files for a specific task
     /// </summary>
     Task CleanupTaskFilesAsync(Guid taskId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Default implementation of temp file cleanup service
+///     Default implementation of temp file cleanup service
 /// </summary>
 public sealed class TempFileCleanupService : ITempFileCleanupService
 {
-    private readonly string _tempDirectory;
     private readonly ILogger<TempFileCleanupService> _logger;
+    private readonly string _tempDirectory;
 
     public TempFileCleanupService(
         string tempDirectory,
@@ -46,31 +46,35 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
             return new OrphanedFilesInfo(0, 0, []);
         }
 
-        var orphanedFiles = new List<OrphanedFile>();
+        List<OrphanedFile> orphanedFiles = new();
         long totalBytes = 0;
 
         await Task.Run(() =>
         {
             var taskDirectories = Directory.GetDirectories(_tempDirectory);
-            
+
             foreach (var taskDir in taskDirectories)
             {
                 if (cancellationToken.IsCancellationRequested)
+                {
                     break;
+                }
 
                 var dirName = Path.GetFileName(taskDir);
-                var taskId = Guid.TryParse(dirName, out var id) ? id : (Guid?)null;
+                Guid? taskId = Guid.TryParse(dirName, out var id) ? id : null;
 
                 var files = Directory.GetFiles(taskDir, "*", SearchOption.AllDirectories);
-                
+
                 foreach (var file in files)
                 {
                     if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
+                    }
 
                     try
                     {
-                        var fileInfo = new FileInfo(file);
+                        FileInfo fileInfo = new(file);
                         orphanedFiles.Add(new OrphanedFile(
                             file,
                             fileInfo.Length,
@@ -86,7 +90,7 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
             }
         }, cancellationToken);
 
-        _logger.LogInformation("Found {Count} orphaned files totaling {Bytes} bytes", 
+        _logger.LogInformation("Found {Count} orphaned files totaling {Bytes} bytes",
             orphanedFiles.Count, totalBytes);
 
         return new OrphanedFilesInfo(orphanedFiles.Count, totalBytes, orphanedFiles);
@@ -97,20 +101,22 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
         CancellationToken cancellationToken = default)
     {
         var orphanedInfo = await ScanForOrphanedFilesAsync(cancellationToken);
-        
+
         var threshold = DateTime.Now - olderThan;
         var filesToDelete = orphanedInfo.Files
             .Where(f => f.LastModified < threshold)
             .ToList();
 
-        int deleted = 0;
-        int failed = 0;
+        var deleted = 0;
+        var failed = 0;
         long bytesFreed = 0;
 
         foreach (var file in filesToDelete)
         {
             if (cancellationToken.IsCancellationRequested)
+            {
                 break;
+            }
 
             try
             {
@@ -139,15 +145,17 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
     public async Task CleanupTaskFilesAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var taskDirectory = Path.Combine(_tempDirectory, taskId.ToString());
-        
+
         if (!Directory.Exists(taskDirectory))
+        {
             return;
+        }
 
         await Task.Run(() =>
         {
             try
             {
-                Directory.Delete(taskDirectory, recursive: true);
+                Directory.Delete(taskDirectory, true);
                 _logger.LogInformation("Cleaned up temporary files for task {TaskId}", taskId);
             }
             catch (Exception ex)
@@ -164,7 +172,7 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
             foreach (var subDir in Directory.GetDirectories(directory))
             {
                 CleanupEmptyDirectories(subDir);
-                
+
                 if (!Directory.EnumerateFileSystemEntries(subDir).Any())
                 {
                     try

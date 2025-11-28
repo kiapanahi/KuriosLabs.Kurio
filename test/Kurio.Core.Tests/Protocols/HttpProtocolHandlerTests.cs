@@ -1,11 +1,5 @@
-namespace Kurio.Core.Tests.Protocols;
-
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Net.Http.Headers;
 
 using FluentAssertions;
 
@@ -17,13 +11,13 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 
-using Xunit;
+namespace Kurio.Core.Tests.Protocols;
 
 public sealed class HttpProtocolHandlerTests
 {
+    private readonly HttpProtocolHandler _handler;
     private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
     private readonly Mock<ILogger<HttpProtocolHandler>> _loggerMock;
-    private readonly HttpProtocolHandler _handler;
 
     public HttpProtocolHandlerTests()
     {
@@ -55,10 +49,10 @@ public sealed class HttpProtocolHandlerTests
     public async Task SupportsRangeRequestsAsync_WithAcceptRangesHeader_ReturnsTrue(string acceptRanges)
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -67,12 +61,12 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                HttpResponseMessage response = new(HttpStatusCode.OK);
                 response.Headers.Add("Accept-Ranges", acceptRanges);
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -87,10 +81,10 @@ public sealed class HttpProtocolHandlerTests
     public async Task SupportsRangeRequestsAsync_WithAcceptRangesNone_ReturnsFalse()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -99,12 +93,12 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                HttpResponseMessage response = new(HttpStatusCode.OK);
                 response.Headers.Add("Accept-Ranges", "none");
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -119,10 +113,10 @@ public sealed class HttpProtocolHandlerTests
     public async Task SupportsRangeRequestsAsync_WithNoAcceptRangesHeader_ReturnsFalse()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -131,7 +125,7 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -146,11 +140,11 @@ public sealed class HttpProtocolHandlerTests
     public async Task GetFileSizeAsync_ReturnsContentLength()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
         const long expectedSize = 1024 * 1024; // 1 MB
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -159,7 +153,7 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                HttpResponseMessage response = new(HttpStatusCode.OK)
                 {
                     Content = new ByteArrayContent(Array.Empty<byte>())
                 };
@@ -167,7 +161,7 @@ public sealed class HttpProtocolHandlerTests
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -182,10 +176,10 @@ public sealed class HttpProtocolHandlerTests
     public async Task GetFileSizeAsync_WithNoContentLength_ReturnsMinusOne()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -194,7 +188,7 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                HttpResponseMessage response = new(HttpStatusCode.OK)
                 {
                     Content = new StringContent("test") // Use StringContent which may set ContentLength
                 };
@@ -203,7 +197,7 @@ public sealed class HttpProtocolHandlerTests
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -218,16 +212,16 @@ public sealed class HttpProtocolHandlerTests
     public async Task DownloadRangeAsync_DownloadsDataSuccessfully()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
-        var range = new ByteRange(0, 99);
+        Uri url = new("https://example.com/file.zip");
+        ByteRange range = new(0, 99);
         var options = CreateDefaultOptions();
         var testData = new byte[100];
-        for (int i = 0; i < testData.Length; i++)
+        for (var i = 0; i < testData.Length; i++)
         {
             testData[i] = (byte)(i % 256);
         }
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -238,20 +232,20 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                HttpResponseMessage response = new(HttpStatusCode.PartialContent)
                 {
                     Content = new ByteArrayContent(testData)
                 };
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
-        using var destination = new MemoryStream();
+        using MemoryStream destination = new();
         long reportedProgress = 0;
-        var progress = new Progress<long>(p => reportedProgress = p);
+        Progress<long> progress = new(p => reportedProgress = p);
 
         // Act
         await _handler.DownloadRangeAsync(url, range, destination, options, progress);
@@ -265,11 +259,11 @@ public sealed class HttpProtocolHandlerTests
     public async Task DownloadRangeAsync_WithNonPartialContentForRangeRequest_ThrowsInvalidOperationException()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
-        var range = new ByteRange(100, 199); // Non-zero start
+        Uri url = new("https://example.com/file.zip");
+        ByteRange range = new(100, 199); // Non-zero start
         var options = CreateDefaultOptions();
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -279,18 +273,15 @@ public sealed class HttpProtocolHandlerTests
             .ReturnsAsync(() =>
             {
                 // Server returns 200 OK instead of 206 Partial Content
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new ByteArrayContent(new byte[100])
-                };
+                HttpResponseMessage response = new(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[100]) };
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
-        using var destination = new MemoryStream();
+        using MemoryStream destination = new();
 
         // Act & Assert
         var act = async () => await _handler.DownloadRangeAsync(url, range, destination, options);
@@ -302,13 +293,13 @@ public sealed class HttpProtocolHandlerTests
     public async Task GetMetadataAsync_ReturnsCompleteMetadata()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
+        Uri url = new("https://example.com/file.zip");
         var options = CreateDefaultOptions();
         var expectedETag = "\"abc123\"";
         var expectedLastModified = DateTimeOffset.UtcNow;
         const long expectedSize = 2048;
 
-        var httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+        Mock<HttpMessageHandler> httpMessageHandlerMock = new();
         httpMessageHandlerMock
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -317,24 +308,21 @@ public sealed class HttpProtocolHandlerTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(() =>
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                HttpResponseMessage response = new(HttpStatusCode.OK)
                 {
                     Content = new ByteArrayContent(Array.Empty<byte>())
                 };
                 response.Content.Headers.ContentLength = expectedSize;
-                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
                 response.Content.Headers.LastModified = expectedLastModified;
-                response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(expectedETag);
+                response.Headers.ETag = new EntityTagHeaderValue(expectedETag);
                 response.Headers.Add("Accept-Ranges", "bytes");
                 response.Content.Headers.ContentDisposition =
-                    new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
-                    {
-                        FileName = "test-file.zip"
-                    };
+                    new ContentDispositionHeaderValue("attachment") { FileName = "test-file.zip" };
                 return response;
             });
 
-        var httpClient = new HttpClient(httpMessageHandlerMock.Object);
+        HttpClient httpClient = new(httpMessageHandlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("KurioDownloader"))
             .Returns(httpClient);
 
@@ -358,7 +346,7 @@ public sealed class HttpProtocolHandlerTests
         var options = CreateDefaultOptions();
 
         // Act & Assert
-        var act = async () => await _handler.SupportsRangeRequestsAsync(null!, options);
+        Func<Task<bool>> act = async () => await _handler.SupportsRangeRequestsAsync(null!, options);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
@@ -369,7 +357,7 @@ public sealed class HttpProtocolHandlerTests
         var options = CreateDefaultOptions();
 
         // Act & Assert
-        var act = async () => await _handler.GetFileSizeAsync(null!, options);
+        Func<Task<long>> act = async () => await _handler.GetFileSizeAsync(null!, options);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
@@ -377,9 +365,9 @@ public sealed class HttpProtocolHandlerTests
     public async Task DownloadRangeAsync_WithNullUrl_ThrowsArgumentNullException()
     {
         // Arrange
-        var range = new ByteRange(0, 99);
+        ByteRange range = new(0, 99);
         var options = CreateDefaultOptions();
-        using var destination = new MemoryStream();
+        using MemoryStream destination = new();
 
         // Act & Assert
         var act = async () => await _handler.DownloadRangeAsync(null!, range, destination, options);
@@ -390,10 +378,10 @@ public sealed class HttpProtocolHandlerTests
     public async Task DownloadRangeAsync_WithNonWritableStream_ThrowsArgumentException()
     {
         // Arrange
-        var url = new Uri("https://example.com/file.zip");
-        var range = new ByteRange(0, 99);
+        Uri url = new("https://example.com/file.zip");
+        ByteRange range = new(0, 99);
         var options = CreateDefaultOptions();
-        using var destination = new MemoryStream(new byte[100], writable: false);
+        using MemoryStream destination = new(new byte[100], false);
 
         // Act & Assert
         var act = async () => await _handler.DownloadRangeAsync(url, range, destination, options);
@@ -408,7 +396,7 @@ public sealed class HttpProtocolHandlerTests
         var options = CreateDefaultOptions();
 
         // Act & Assert
-        var act = async () => await _handler.GetMetadataAsync(null!, options);
+        Func<Task<ResourceMetadata>> act = async () => await _handler.GetMetadataAsync(null!, options);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 

@@ -10,7 +10,9 @@
 
 ## Executive Summary
 
-This document defines the architecture for Kurio's core download engine, implementing a hybrid approach that leverages .NET's `HttpClient` with custom download management logic. The architecture prioritizes cross-platform compatibility, extensibility, and future integration with high-performance backends like aria2.
+This document defines the architecture for Kurio's core download engine, implementing a hybrid approach that leverages
+.NET's `HttpClient` with custom download management logic. The architecture prioritizes cross-platform compatibility,
+extensibility, and future integration with high-performance backends like aria2.
 
 ---
 
@@ -66,7 +68,7 @@ This document defines the architecture for Kurio's core download engine, impleme
 ### 2.2 Component Responsibilities
 
 | Component                  | Responsibility                                                     |
-| -------------------------- | ------------------------------------------------------------------ |
+|----------------------------|--------------------------------------------------------------------|
 | **Download Queue Manager** | Manages download queue, priorities, and concurrent download limits |
 | **Protocol Handlers**      | Abstract protocol operations (HTTP/HTTPS/FTP)                      |
 | **Storage Manager**        | Handles file system operations, temp files, and final destinations |
@@ -390,7 +392,7 @@ Output: segmentCount, segmentRanges[]
 ### 4.3 Concurrency Configuration
 
 | Setting                     | Default | Description                     |
-| --------------------------- | ------- | ------------------------------- |
+|-----------------------------|---------|---------------------------------|
 | `MaxConcurrentDownloads`    | 3       | Max simultaneous downloads      |
 | `MaxConnectionsPerDownload` | 8       | Max segments per download       |
 | `MinSegmentSize`            | 1 MB    | Minimum size to create segment  |
@@ -570,7 +572,7 @@ The `IProtocolHandler` abstraction allows adding:
 ### 7.1 Core Technologies
 
 | Component         | Technology                               | Version  |
-| ----------------- | ---------------------------------------- | -------- |
+|-------------------|------------------------------------------|----------|
 | **Runtime**       | .NET                                     | 10.0+    |
 | **Language**      | C#                                       | 13.0+    |
 | **HTTP Client**   | HttpClient                               | Built-in |
@@ -583,7 +585,7 @@ The `IProtocolHandler` abstraction allows adding:
 ### 7.2 Supporting Libraries
 
 | Purpose                 | Library         | Rationale                       |
-| ----------------------- | --------------- | ------------------------------- |
+|-------------------------|-----------------|---------------------------------|
 | **Reactive Extensions** | System.Reactive | Progress updates stream         |
 | **Async Utils**         | Nito.AsyncEx    | AsyncLock, AsyncCollection      |
 | **Polly**               | Polly           | Retry policies, circuit breaker |
@@ -625,7 +627,7 @@ services.AddHttpClient("KurioDownloader")
 ### 8.1 Performance
 
 | Metric             | Target                  | Notes                          |
-| ------------------ | ----------------------- | ------------------------------ |
+|--------------------|-------------------------|--------------------------------|
 | **Download Speed** | 90% of network capacity | With 8 connections             |
 | **Resume Time**    | < 1 second              | Time to resume paused download |
 | **Memory Usage**   | < 100 MB per download   | Excluding file buffers         |
@@ -739,7 +741,7 @@ services.AddHttpClient("KurioDownloader")
 ## 11. Risks and Mitigations
 
 | Risk                        | Impact | Probability | Mitigation                                     |
-| --------------------------- | ------ | ----------- | ---------------------------------------------- |
+|-----------------------------|--------|-------------|------------------------------------------------|
 | **Server incompatibility**  | High   | Medium      | Extensive testing, fallback to single-threaded |
 | **File system limitations** | Medium | Low         | Platform-specific testing, error handling      |
 | **Network instability**     | High   | Medium      | Robust retry logic, circuit breaker            |

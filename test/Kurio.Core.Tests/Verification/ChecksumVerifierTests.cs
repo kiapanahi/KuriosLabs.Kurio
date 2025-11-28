@@ -3,12 +3,10 @@ using System.Text;
 using Kurio.Core.Models;
 using Kurio.Core.Verification;
 
-using Xunit;
-
 namespace Kurio.Core.Tests.Verification;
 
 /// <summary>
-/// Unit tests for <see cref="ChecksumVerifier"/>.
+///     Unit tests for <see cref="ChecksumVerifier" />.
 /// </summary>
 public sealed class ChecksumVerifierTests : IDisposable
 {
@@ -26,7 +24,7 @@ public sealed class ChecksumVerifierTests : IDisposable
     {
         if (Directory.Exists(_testDirectory))
         {
-            Directory.Delete(_testDirectory, recursive: true);
+            Directory.Delete(_testDirectory, true);
         }
     }
 
@@ -43,7 +41,7 @@ public sealed class ChecksumVerifierTests : IDisposable
         var actualHash = await _verifier.CalculateChecksumAsync(testFile, ChecksumAlgorithm.MD5);
 
         // Assert
-        Assert.Equal(expectedHash, actualHash, ignoreCase: true);
+        Assert.Equal(expectedHash, actualHash, true);
     }
 
     [Fact]
@@ -59,7 +57,7 @@ public sealed class ChecksumVerifierTests : IDisposable
         var actualHash = await _verifier.CalculateChecksumAsync(testFile, ChecksumAlgorithm.SHA1);
 
         // Assert
-        Assert.Equal(expectedHash, actualHash, ignoreCase: true);
+        Assert.Equal(expectedHash, actualHash, true);
     }
 
     [Fact]
@@ -75,7 +73,7 @@ public sealed class ChecksumVerifierTests : IDisposable
         var actualHash = await _verifier.CalculateChecksumAsync(testFile, ChecksumAlgorithm.SHA256);
 
         // Assert
-        Assert.Equal(expectedHash, actualHash, ignoreCase: true);
+        Assert.Equal(expectedHash, actualHash, true);
     }
 
     [Fact]
@@ -85,13 +83,14 @@ public sealed class ChecksumVerifierTests : IDisposable
         var testFile = Path.Combine(_testDirectory, "test.txt");
         var content = "Hello, World!";
         await File.WriteAllTextAsync(testFile, content);
-        var expectedHash = "374d794a95cdcfd8b35993185fef9ba368f160d8daf432d08ba9f1ed1e5abe6cc69291e0fa2fe0006a52570ef18c19def4e617c33ce52ef0a6e5fbe318cb0387"; // SHA512
+        var expectedHash =
+            "374d794a95cdcfd8b35993185fef9ba368f160d8daf432d08ba9f1ed1e5abe6cc69291e0fa2fe0006a52570ef18c19def4e617c33ce52ef0a6e5fbe318cb0387"; // SHA512
 
         // Act
         var actualHash = await _verifier.CalculateChecksumAsync(testFile, ChecksumAlgorithm.SHA512);
 
         // Assert
-        Assert.Equal(expectedHash, actualHash, ignoreCase: true);
+        Assert.Equal(expectedHash, actualHash, true);
     }
 
     [Fact]
@@ -99,14 +98,14 @@ public sealed class ChecksumVerifierTests : IDisposable
     {
         // Arrange
         var content = "Hello, World!";
-        var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+        MemoryStream stream = new(Encoding.UTF8.GetBytes(content));
         var expectedHash = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"; // SHA256
 
         // Act
         var actualHash = await _verifier.CalculateChecksumAsync(stream, ChecksumAlgorithm.SHA256);
 
         // Assert
-        Assert.Equal(expectedHash, actualHash, ignoreCase: true);
+        Assert.Equal(expectedHash, actualHash, true);
     }
 
     [Fact]
@@ -143,7 +142,7 @@ public sealed class ChecksumVerifierTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal(ChecksumAlgorithm.SHA256, result.Algorithm);
-        Assert.Equal(expectedHash, result.CalculatedChecksum, ignoreCase: true);
+        Assert.Equal(expectedHash, result.CalculatedChecksum, true);
         Assert.Equal(expectedHash, result.ExpectedChecksum);
         Assert.True(result.IsValid);
     }
@@ -176,7 +175,8 @@ public sealed class ChecksumVerifierTests : IDisposable
         var expectedHashUpperCase = "DFFD6021BB2BD5B0AF676290809EC3A53191DD81C7F70A4B28688A362182986F";
 
         // Act
-        var result = await _verifier.VerifyFileAsync(testFile, expectedHashUpperCase, ChecksumAlgorithm.SHA256);
+        var result =
+            await _verifier.VerifyFileAsync(testFile, expectedHashUpperCase, ChecksumAlgorithm.SHA256);
 
         // Assert
         Assert.True(result.IsValid);
@@ -259,7 +259,7 @@ d41d8cd98f00b204e9800998ecf8427e file1.txt
     public void ExtractChecksumFromHeaders_WithContentMD5_ReturnsCorrectChecksum()
     {
         // Arrange
-        var headers = new Dictionary<string, IEnumerable<string>>
+        Dictionary<string, IEnumerable<string>> headers = new()
         {
             { "Content-MD5", new[] { "d41d8cd98f00b204e9800998ecf8427e" } }
         };
@@ -277,7 +277,7 @@ d41d8cd98f00b204e9800998ecf8427e file1.txt
     public void ExtractChecksumFromHeaders_WithXChecksumSHA256_ReturnsCorrectChecksum()
     {
         // Arrange
-        var headers = new Dictionary<string, IEnumerable<string>>
+        Dictionary<string, IEnumerable<string>> headers = new()
         {
             { "X-Checksum-SHA256", new[] { "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f" } }
         };
@@ -294,7 +294,7 @@ d41d8cd98f00b204e9800998ecf8427e file1.txt
     public void ExtractChecksumFromHeaders_WithDigestHeader_ParsesCorrectly()
     {
         // Arrange
-        var headers = new Dictionary<string, IEnumerable<string>>
+        Dictionary<string, IEnumerable<string>> headers = new()
         {
             { "Digest", new[] { "SHA-256=31qweTdqed7qeqe78qi=" } }
         };
@@ -311,10 +311,9 @@ d41d8cd98f00b204e9800998ecf8427e file1.txt
     public void ExtractChecksumFromHeaders_WithNoChecksumHeaders_ReturnsNull()
     {
         // Arrange
-        var headers = new Dictionary<string, IEnumerable<string>>
+        Dictionary<string, IEnumerable<string>> headers = new()
         {
-            { "Content-Type", new[] { "application/octet-stream" } },
-            { "Content-Length", new[] { "1024" } }
+            { "Content-Type", new[] { "application/octet-stream" } }, { "Content-Length", new[] { "1024" } }
         };
 
         // Act

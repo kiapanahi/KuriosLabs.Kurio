@@ -1,20 +1,23 @@
 using Kurio.Core.Abstractions;
+
+using KuriousLabs.Kurio.Server.Hubs;
+
 using Microsoft.AspNetCore.SignalR;
 
 namespace KuriousLabs.Kurio.Server.Services;
 
 /// <summary>
-/// Background service that broadcasts progress updates to all connected SignalR clients.
+///     Background service that broadcasts progress updates to all connected SignalR clients.
 /// </summary>
 public class ProgressBroadcaster : BackgroundService
 {
     private readonly IDownloadEngine _engine;
-    private readonly IHubContext<Hubs.DownloadHub> _hubContext;
+    private readonly IHubContext<DownloadHub> _hubContext;
     private readonly ILogger<ProgressBroadcaster> _logger;
 
     public ProgressBroadcaster(
         IDownloadEngine engine,
-        IHubContext<Hubs.DownloadHub> hubContext,
+        IHubContext<DownloadHub> hubContext,
         ILogger<ProgressBroadcaster> logger)
     {
         _engine = engine;

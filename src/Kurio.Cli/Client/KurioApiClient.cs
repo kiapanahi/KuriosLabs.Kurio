@@ -4,24 +4,26 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+
 using Kurio.Core.Models;
+
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 
 namespace KuriousLabs.Kurio.Cli.Client;
 
 /// <summary>
-/// Client for communicating with the Kurio server via HTTP and SignalR.
+///     Client for communicating with the Kurio server via HTTP and SignalR.
 /// </summary>
 public class KurioApiClient : IKurioApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly HubConnection _hubConnection;
-    private readonly Channel<DownloadProgressDto> _progressChannel;
-    private readonly ILogger<KurioApiClient> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
-    private ConnectionState _state = ConnectionState.Disconnected;
+    private readonly ILogger<KurioApiClient> _logger;
+    private readonly Channel<DownloadProgressDto> _progressChannel;
     private bool _disposed;
+    private ConnectionState _state = ConnectionState.Disconnected;
 
     public KurioApiClient(
         HttpClient httpClient,
@@ -43,8 +45,7 @@ public class KurioApiClient : IKurioApiClient
 
         _progressChannel = Channel.CreateUnbounded<DownloadProgressDto>(new UnboundedChannelOptions
         {
-            SingleWriter = false,
-            SingleReader = false
+            SingleWriter = false, SingleReader = false
         });
 
         // Configure SignalR connection
@@ -52,10 +53,7 @@ public class KurioApiClient : IKurioApiClient
             .WithUrl($"{serverUrl}/hubs/downloads")
             .WithAutomaticReconnect(new[]
             {
-                TimeSpan.FromSeconds(0),
-                TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(10)
+                TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10)
             })
             .ConfigureLogging(logging =>
             {
@@ -141,7 +139,7 @@ public class KurioApiClient : IKurioApiClient
         await EnsureSuccessStatusCodeAsync(response);
 
         return await response.Content.ReadFromJsonAsync<DownloadResponse>(_jsonOptions, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to deserialize response");
+               ?? throw new InvalidOperationException("Failed to deserialize response");
     }
 
     public async Task<List<DownloadResponse>> GetDownloadsAsync(
@@ -155,7 +153,7 @@ public class KurioApiClient : IKurioApiClient
         await EnsureSuccessStatusCodeAsync(response);
 
         return await response.Content.ReadFromJsonAsync<List<DownloadResponse>>(_jsonOptions, cancellationToken)
-            ?? new List<DownloadResponse>();
+               ?? new List<DownloadResponse>();
     }
 
     public async Task<DownloadResponse?> GetDownloadAsync(
@@ -167,7 +165,9 @@ public class KurioApiClient : IKurioApiClient
             cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
+        {
             return null;
+        }
 
         await EnsureSuccessStatusCodeAsync(response);
 
@@ -260,7 +260,7 @@ public class KurioApiClient : IKurioApiClient
         await EnsureSuccessStatusCodeAsync(response);
 
         return await response.Content.ReadFromJsonAsync<QueueStatistics>(_jsonOptions, cancellationToken)
-            ?? throw new InvalidOperationException("Failed to deserialize statistics");
+               ?? throw new InvalidOperationException("Failed to deserialize statistics");
     }
 
     public async IAsyncEnumerable<DownloadProgressDto> StreamProgressAsync(
@@ -276,10 +276,29 @@ public class KurioApiClient : IKurioApiClient
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        _progressChannel.Writer.Complete();
+        await DisconnectAsync();
+        await _hubConnection.DisposeAsync();
+        _httpClient.Dispose();
+
+        GC.SuppressFinalize(this);
+    }
+
     private async Task EnsureSuccessStatusCodeAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode)
+        {
             return;
+        }
 
         var errorContent = await response.Content.ReadAsStringAsync();
         throw new HttpRequestException(
@@ -293,6 +312,7 @@ public class KurioApiClient : IKurioApiClient
         {
             _logger.LogError(exception, "SignalR connection closed with error");
         }
+
         return Task.CompletedTask;
     }
 
@@ -308,20 +328,5 @@ public class KurioApiClient : IKurioApiClient
         State = ConnectionState.Connected;
         _logger.LogInformation("SignalR reconnected with connection ID: {ConnectionId}", connectionId);
         return Task.CompletedTask;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-
-        _progressChannel.Writer.Complete();
-        await DisconnectAsync();
-        await _hubConnection.DisposeAsync();
-        _httpClient.Dispose();
-
-        GC.SuppressFinalize(this);
     }
 }

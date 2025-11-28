@@ -7,12 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Swashbuckle.AspNetCore"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj" />
-    <ProjectReference Include="..\KuriousLabs.Kurio.ServiceDefaults\KuriousLabs.Kurio.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj"/>
+    <ProjectReference Include="..\Kurio.ServiceDefaults\Kurio.ServiceDefaults.csproj"/>
   </ItemGroup>
 
 </Project>

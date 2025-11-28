@@ -13,6 +13,8 @@ namespace Kurio.Core.Engine;
 public sealed class SegmentManager : ISegmentManager
 {
     private readonly ILogger<SegmentManager>? _logger;
+    private readonly Resilience.ResiliencePolicyFactory? _resiliencePolicyFactory;
+    private readonly Resilience.ConnectionResilienceOptions? _connectionResilienceOptions;
     private readonly ISegmentVerifier _segmentVerifier;
     private readonly IStorageManager _storageManager;
 
@@ -22,14 +24,20 @@ public sealed class SegmentManager : ISegmentManager
     /// <param name="storageManager">The storage manager for file operations.</param>
     /// <param name="segmentVerifier">The segment verifier for checksum operations.</param>
     /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <param name="resiliencePolicyFactory">Optional resilience policy factory for network failure recovery.</param>
+    /// <param name="connectionResilienceOptions">Optional connection resilience options.</param>
     public SegmentManager(
         IStorageManager storageManager,
         ISegmentVerifier segmentVerifier,
-        ILogger<SegmentManager>? logger = null)
+        ILogger<SegmentManager>? logger = null,
+        Resilience.ResiliencePolicyFactory? resiliencePolicyFactory = null,
+        Resilience.ConnectionResilienceOptions? connectionResilienceOptions = null)
     {
         _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
         _segmentVerifier = segmentVerifier ?? throw new ArgumentNullException(nameof(segmentVerifier));
         _logger = logger;
+        _resiliencePolicyFactory = resiliencePolicyFactory;
+        _connectionResilienceOptions = connectionResilienceOptions;
     }
 
     /// <inheritdoc />
@@ -235,7 +243,7 @@ public sealed class SegmentManager : ISegmentManager
     }
 
     /// <summary>
-    ///     Downloads a segment with automatic retry logic.
+    ///     Downloads a segment with automatic retry logic and network resilience.
     /// </summary>
     private async Task DownloadSegmentWithRetryAsync(
         IProtocolHandler handler,
@@ -248,6 +256,30 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken,
         int maxRetries = 3)
     {
+        // Use resilience policy if available
+        if (_resiliencePolicyFactory != null && _connectionResilienceOptions != null)
+        {
+            var pipeline = _resiliencePolicyFactory.CreateNetworkRetryPolicy<int>(_connectionResilienceOptions);
+
+            await pipeline.ExecuteAsync(async ct =>
+            {
+                await DownloadSegmentAsync(
+                    handler,
+                    url,
+                    range,
+                    state,
+                    tempFilePath,
+                    options,
+                    progress,
+                    ct);
+
+                return 0; // Success indicator
+            }, cancellationToken);
+
+            return;
+        }
+
+        // Fallback to manual retry logic if resilience policy not available
         var retryCount = 0;
         Exception? lastException = null;
 

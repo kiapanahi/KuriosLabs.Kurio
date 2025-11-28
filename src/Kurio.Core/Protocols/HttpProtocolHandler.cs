@@ -166,12 +166,49 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             var buffer = new byte[bufferSize];
             long totalBytesRead = 0;
 
+            // Stall detection: timeout if no data received for 30 seconds
+            const int stallTimeoutSeconds = 30;
+            var lastDataReceivedAt = DateTime.UtcNow;
+
             int bytesRead;
-            while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
+            while (true)
             {
-                await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                totalBytesRead += bytesRead;
-                progress?.Report(totalBytesRead);
+                // Create a timeout for this specific read operation
+                // This ensures we don't hang indefinitely if the connection is lost
+                using var readTimeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(stallTimeoutSeconds));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, readTimeoutCts.Token);
+
+                try
+                {
+                    bytesRead = await responseStream.ReadAsync(buffer, linkedCts.Token);
+                    
+                    // If we got 0 bytes, we've reached the end of the stream
+                    if (bytesRead == 0)
+                    {
+                        break;
+                    }
+                    
+                    lastDataReceivedAt = DateTime.UtcNow;
+                    
+                    // Write the data using the main cancellation token (not the timeout token)
+                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    totalBytesRead += bytesRead;
+                    progress?.Report(totalBytesRead);
+                }
+                catch (OperationCanceledException) when (readTimeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    // Read operation timed out - no data received for stallTimeoutSeconds
+                    var timeSinceLastData = DateTime.UtcNow - lastDataReceivedAt;
+                    
+                    _logger?.LogWarning(
+                        "Download stalled: no data received for {Seconds}s on range {Start}-{End}",
+                        timeSinceLastData.TotalSeconds,
+                        range.Start,
+                        range.End);
+
+                    throw new TimeoutException(
+                        $"Download stalled: no data received for {stallTimeoutSeconds} seconds");
+                }
             }
 
             _logger?.LogDebug("Successfully downloaded {Bytes} bytes from range {Start}-{End}",

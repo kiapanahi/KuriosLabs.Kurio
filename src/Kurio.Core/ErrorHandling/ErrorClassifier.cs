@@ -116,12 +116,29 @@ public sealed class ErrorClassifier(ILogger<ErrorClassifier> logger) : IErrorCla
     {
         var message = ioEx.Message.ToLowerInvariant();
 
-        if (message.Contains("space") || message.Contains("disk full") || message.Contains("permission") ||
+        // Check for network-related IO exceptions first
+        if (message.Contains("eof") || 
+            message.Contains("transport stream") ||
+            message.Contains("connection") ||
+            message.Contains("reset") ||
+            message.Contains("broken pipe") ||
+            message.Contains("unable to read") ||
+            message.Contains("unable to write") ||
+            ioEx.InnerException is SocketException)
+        {
+            return DownloadErrorCategory.Network;
+        }
+
+        // Check for disk-related IO exceptions
+        if (message.Contains("space") || 
+            message.Contains("disk full") || 
+            message.Contains("permission") ||
             message.Contains("access denied"))
         {
             return DownloadErrorCategory.DiskIo;
         }
 
+        // Default to disk IO for other IO exceptions
         return DownloadErrorCategory.DiskIo;
     }
 

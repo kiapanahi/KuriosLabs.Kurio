@@ -13,6 +13,7 @@ using Kurio.Core.Verification;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Kurio.Core;
 
@@ -60,14 +61,53 @@ public static class ServiceCollectionExtensions
         // Register segment verifier for checksum operations
         services.AddSingleton<ISegmentVerifier, SegmentVerifier>();
 
-        // Register segment manager
-        services.AddTransient<ISegmentManager, SegmentManager>();
+        // Register segment manager with resilience support
+        services.AddTransient<ISegmentManager>(sp =>
+        {
+            var storageManager = sp.GetRequiredService<IStorageManager>();
+            var segmentVerifier = sp.GetRequiredService<ISegmentVerifier>();
+            var logger = sp.GetService<ILogger<SegmentManager>>();
+            var resiliencePolicyFactory = sp.GetRequiredService<ResiliencePolicyFactory>();
+            var connectionOptions = sp.GetRequiredService<IOptions<ConnectionResilienceOptions>>().Value;
+
+            return new SegmentManager(
+                storageManager,
+                segmentVerifier,
+                logger,
+                resiliencePolicyFactory,
+                connectionOptions);
+        });
 
         // Register checksum verifier
         services.AddSingleton<IChecksumVerifier, ChecksumVerifier>();
 
         // Register resilience services (Polly-based)
         services.AddSingleton<ResiliencePolicyFactory>();
+
+        // Register connection resilience options
+        services.AddOptions<ConnectionResilienceOptions>()
+            .Configure(options =>
+            {
+                // Set default values
+                options.MaxRetryAttempts = 5;
+                options.InitialRetryDelaySeconds = 2;
+                options.MaxRetryDelaySeconds = 60;
+                options.NetworkHealthCheckIntervalSeconds = 30;
+                options.StallDetectionTimeoutSeconds = 30;
+                options.EnableConnectionMonitoring = true;
+                options.EnableAdaptiveBackoff = true;
+                options.EnableCircuitBreaker = true;
+            });
+
+        // Register connection health monitor
+        services.AddSingleton<IConnectionHealthMonitor, ConnectionHealthMonitor>();
+
+        // Configure HttpClient for health checks
+        services.AddHttpClient("KurioHealthCheck", client =>
+        {
+            client.DefaultRequestHeaders.Add("Accept", "*/*");
+            client.DefaultRequestHeaders.Add("User-Agent", "Kurio-HealthCheck/1.0");
+        });
 
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();

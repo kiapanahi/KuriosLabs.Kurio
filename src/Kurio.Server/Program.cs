@@ -7,6 +7,7 @@ using Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Server.Hubs;
 using KuriousLabs.Kurio.Server.Services;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -20,9 +21,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
-builder.Services.AddEndpointsApiExplorer();
-// Add Swagger without OpenAPI source generators
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi()
+    .AddEndpointsApiExplorer();
 
 // Add problem details service for standardized error responses
 builder.Services.AddProblemDetails();
@@ -68,11 +68,10 @@ app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
+    app.MapOpenApi();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Kurio API v1");
-        options.RoutePrefix = string.Empty; // Swagger at root
+        options.SwaggerEndpoint("/openapi/v1.json", "v1");
     });
 }
 

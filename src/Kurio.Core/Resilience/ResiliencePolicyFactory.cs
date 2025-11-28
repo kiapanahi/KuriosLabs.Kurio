@@ -1,3 +1,5 @@
+using System.Net.Sockets;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -57,6 +59,51 @@ public sealed class ResiliencePolicyFactory
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutException>()
                     .Handle<IOException>()
+            })
+            .Build();
+    }
+
+    /// <summary>
+    ///     Creates a network-specific retry policy with enhanced error detection and adaptive backoff.
+    /// </summary>
+    /// <param name="connectionResilienceOptions">Connection resilience options.</param>
+    /// <returns>A resilience pipeline for network operations.</returns>
+    public ResiliencePipeline<TResult> CreateNetworkRetryPolicy<TResult>(
+        ConnectionResilienceOptions connectionResilienceOptions)
+    {
+        var maxDelay = TimeSpan.FromSeconds(connectionResilienceOptions.MaxRetryDelaySeconds);
+
+        return new ResiliencePipelineBuilder<TResult>()
+            .AddRetry(new RetryStrategyOptions<TResult>
+            {
+                MaxRetryAttempts = connectionResilienceOptions.MaxRetryAttempts,
+                Delay = TimeSpan.FromSeconds(connectionResilienceOptions.InitialRetryDelaySeconds),
+                MaxDelay = maxDelay,
+                BackoffType = connectionResilienceOptions.EnableAdaptiveBackoff
+                    ? DelayBackoffType.Exponential
+                    : DelayBackoffType.Linear,
+                UseJitter = connectionResilienceOptions.UseJitter,
+                OnRetry = args =>
+                {
+                    var exception = args.Outcome.Exception;
+                    var errorType = ClassifyNetworkError(exception);
+
+                    _logger.LogWarning(
+                        "Network retry {RetryCount}/{MaxRetries} after {Delay}s - Error type: {ErrorType}, Exception: {Exception}",
+                        args.AttemptNumber + 1,
+                        connectionResilienceOptions.MaxRetryAttempts,
+                        args.RetryDelay.TotalSeconds,
+                        errorType,
+                        exception?.GetType().Name ?? "unknown");
+
+                    return ValueTask.CompletedTask;
+                },
+                ShouldHandle = new PredicateBuilder<TResult>()
+                    .Handle<HttpRequestException>(ex => IsTransientNetworkError(ex))
+                    .Handle<TimeoutException>()
+                    .Handle<IOException>(ex => IsTransientNetworkError(ex))
+                    .Handle<SocketException>(ex => IsTransientNetworkError(ex))
+                    .Handle<TaskCanceledException>(ex => ex.InnerException is TimeoutException)
             })
             .Build();
     }
@@ -257,5 +304,91 @@ public sealed class ResiliencePolicyFactory
                     .Handle<IOException>()
             })
             .Build();
+    }
+
+    /// <summary>
+    ///     Classifies network errors into categories.
+    /// </summary>
+    /// <param name="exception">The exception to classify.</param>
+    /// <returns>The error type classification.</returns>
+    private static string ClassifyNetworkError(Exception? exception)
+    {
+        return exception switch
+        {
+            null => "Unknown",
+            TimeoutException => "Timeout",
+            HttpRequestException httpEx when httpEx.InnerException is SocketException socketEx =>
+                socketEx.SocketErrorCode switch
+                {
+                    SocketError.ConnectionRefused => "ConnectionRefused",
+                    SocketError.ConnectionReset => "ConnectionReset",
+                    SocketError.ConnectionAborted => "ConnectionAborted",
+                    SocketError.HostNotFound => "HostNotFound",
+                    SocketError.HostUnreachable => "HostUnreachable",
+                    SocketError.NetworkDown => "NetworkDown",
+                    SocketError.NetworkUnreachable => "NetworkUnreachable",
+                    SocketError.TimedOut => "SocketTimeout",
+                    _ => $"SocketError_{socketEx.SocketErrorCode}"
+                },
+            HttpRequestException => "HttpRequest",
+            IOException ioEx when ioEx.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) =>
+                "IOConnection",
+            IOException => "IO",
+            SocketException => "Socket",
+            _ => exception.GetType().Name
+        };
+    }
+
+    /// <summary>
+    ///     Determines if an exception represents a transient network error that should be retried.
+    /// </summary>
+    /// <param name="exception">The exception to check.</param>
+    /// <returns>True if the error is transient and retryable, false otherwise.</returns>
+    private static bool IsTransientNetworkError(Exception exception)
+    {
+        return exception switch
+        {
+            // Connection issues that can be retried
+            HttpRequestException httpEx when httpEx.InnerException is SocketException socketEx =>
+                socketEx.SocketErrorCode is
+                    SocketError.ConnectionRefused or
+                    SocketError.ConnectionReset or
+                    SocketError.ConnectionAborted or
+                    SocketError.HostUnreachable or
+                    SocketError.NetworkDown or
+                    SocketError.NetworkUnreachable or
+                    SocketError.TimedOut or
+                    SocketError.TryAgain,
+
+            // General HTTP request exceptions (could be network-related)
+            HttpRequestException httpEx when httpEx.StatusCode is null or >= System.Net.HttpStatusCode.InternalServerError =>
+                true,
+
+            // IO exceptions related to network
+            IOException ioEx when
+                ioEx.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("reset", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("broken pipe", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("EOF", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("transport stream", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("unable to read", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("unable to write", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.InnerException is SocketException =>
+                true,
+
+            // Direct socket exceptions
+            SocketException sockEx =>
+                sockEx.SocketErrorCode is
+                    SocketError.ConnectionRefused or
+                    SocketError.ConnectionReset or
+                    SocketError.ConnectionAborted or
+                    SocketError.HostUnreachable or
+                    SocketError.NetworkDown or
+                    SocketError.NetworkUnreachable or
+                    SocketError.TimedOut or
+                    SocketError.TryAgain,
+
+            _ => false
+        };
     }
 }

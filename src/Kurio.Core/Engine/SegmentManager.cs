@@ -57,17 +57,14 @@ public sealed class SegmentManager : ISegmentManager
                 FileSize = fileSize,
                 SegmentCount = 1,
                 SupportsRanges = false,
-                Ranges = new[] { new ByteRange(0, fileSize - 1) },
-                States = new[]
-                {
+                Ranges = [new ByteRange(0, fileSize - 1)],
+                States =
+                [
                     new SegmentState
                     {
-                        SegmentIndex = 0,
-                        StartByte = 0,
-                        EndByte = fileSize - 1,
-                        Status = SegmentStatus.Pending
+                        SegmentIndex = 0, StartByte = 0, EndByte = fileSize - 1, Status = SegmentStatus.Pending
                     }
-                }
+                ]
             };
         }
 

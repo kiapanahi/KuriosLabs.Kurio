@@ -9,6 +9,8 @@ using KuriousLabs.Kurio.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 // Add controllers
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -18,6 +20,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
+builder.Services.AddEndpointsApiExplorer();
 // Add Swagger without OpenAPI source generators
 builder.Services.AddSwaggerGen();
 
@@ -90,7 +93,8 @@ app.MapGet("/api/downloads/stream", async (
     {
         return Results.Stream(async stream =>
         {
-            await using StreamWriter writer = new(stream) { AutoFlush = true };
+            await using StreamWriter writer = new(stream);
+            writer.AutoFlush = true;
 
             await writer.WriteLineAsync("retry: 10000\n");
 

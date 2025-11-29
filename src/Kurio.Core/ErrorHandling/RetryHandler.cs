@@ -35,26 +35,23 @@ public sealed class RetryHandler : IRetryHandler
 
             try
             {
-                _logger.LogDebug("Executing operation, attempt {Attempt}/{MaxAttempts}",
-                    attemptNumber, policy.MaxRetryAttempts + 1);
+                _logger.LogExecutingOperation(attemptNumber, policy.MaxRetryAttempts + 1);
 
-                return await operation(cancellationToken);
+                return await operation(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (attemptNumber <= policy.MaxRetryAttempts)
             {
                 lastException = ex;
-                _logger.LogWarning(ex, "Operation failed on attempt {Attempt}/{MaxAttempts}",
-                    attemptNumber, policy.MaxRetryAttempts + 1);
+                _logger.LogOperationFailed(ex, attemptNumber, policy.MaxRetryAttempts + 1);
 
                 var delay = CalculateDelay(attemptNumber, policy);
-                _logger.LogDebug("Retrying after {Delay}ms", delay.TotalMilliseconds);
+                _logger.LogRetryingAfterDelay(delay.TotalMilliseconds);
 
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        _logger.LogError(lastException, "Operation failed after {MaxAttempts} attempts",
-            policy.MaxRetryAttempts + 1);
+        _logger.LogOperationFailedFinal(lastException!, policy.MaxRetryAttempts + 1);
         throw lastException!;
     }
 
@@ -66,9 +63,9 @@ public sealed class RetryHandler : IRetryHandler
     {
         await ExecuteAsync(async ct =>
         {
-            await operation(ct);
+            await operation(ct).ConfigureAwait(false);
             return true;
-        }, policy, cancellationToken);
+        }, policy, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

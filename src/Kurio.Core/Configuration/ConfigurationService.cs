@@ -8,7 +8,7 @@ namespace Kurio.Core.Configuration;
 /// <summary>
 ///     Default implementation of IConfigurationService
 /// </summary>
-public sealed class ConfigurationService : IConfigurationService, IDisposable
+public sealed class ConfigurationService : IConfigurationService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -18,7 +18,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
     };
 
     private readonly string _configFilePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly Lock _lock = new();
     private readonly ILogger<ConfigurationService> _logger;
     private readonly ConfigurationValidator _validator;
     private KurioConfiguration _currentConfiguration;
@@ -47,8 +47,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(updateAction);
 
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
             var updatedConfig = CloneConfiguration(_currentConfiguration);
             updateAction(updatedConfig);
@@ -61,15 +60,11 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
                 throw new InvalidOperationException($"Configuration validation failed: {errors}");
             }
 
-            await SaveConfigurationAsync(updatedConfig, cancellationToken);
+            SaveConfigurationAsync(updatedConfig, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = updatedConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration updated successfully");
-        }
-        finally
-        {
-            _lock.Release();
+            _logger.LogConfigurationUpdated();
         }
     }
 
@@ -81,19 +76,14 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
 
     public async Task ResetToDefaultsAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
             KurioConfiguration defaultConfig = new();
-            await SaveConfigurationAsync(defaultConfig, cancellationToken);
+            SaveConfigurationAsync(defaultConfig, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = defaultConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration reset to defaults");
-        }
-        finally
-        {
-            _lock.Release();
+            _logger.LogConfigurationReset();
         }
     }
 
@@ -110,8 +100,8 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             Directory.CreateDirectory(directory);
         }
 
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
-        _logger.LogInformation("Configuration exported to {FilePath}", filePath);
+        await File.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+        _logger.LogConfigurationExported(filePath);
     }
 
     public async Task ImportConfigurationAsync(string filePath, CancellationToken cancellationToken = default)
@@ -123,7 +113,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             throw new FileNotFoundException("Configuration file not found", filePath);
         }
 
-        var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+        var json = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
         var config = JsonSerializer.Deserialize<KurioConfiguration>(json, JsonOptions)
                      ?? throw new InvalidOperationException("Failed to deserialize configuration");
 
@@ -134,24 +124,14 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             throw new InvalidOperationException($"Imported configuration is invalid: {errors}");
         }
 
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
-            await SaveConfigurationAsync(config, cancellationToken);
+            SaveConfigurationAsync(config, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = config;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration imported from {FilePath}", filePath);
+            _logger.LogConfigurationImported(filePath);
         }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
-    public void Dispose()
-    {
-        _lock?.Dispose();
     }
 
     private KurioConfiguration LoadOrCreateConfiguration()
@@ -168,18 +148,18 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
                     var validationResult = _validator.Validate(config);
                     if (validationResult.IsValid)
                     {
-                        _logger.LogInformation("Configuration loaded from {FilePath}", _configFilePath);
+                        _logger.LogConfigurationLoaded(_configFilePath);
                         return config;
                     }
 
-                    _logger.LogWarning("Loaded configuration is invalid, using defaults. Errors: {Errors}",
+                    _logger.LogConfigurationInvalid(
                         string.Join(", ", validationResult.Errors.Select(e => e.Message)));
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load configuration from {FilePath}, using defaults", _configFilePath);
+            _logger.LogConfigurationLoadFailed(ex, _configFilePath);
         }
 
         KurioConfiguration defaultConfig = new();
@@ -190,7 +170,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save default configuration");
+            _logger.LogDefaultConfigurationSaveFailed(ex);
         }
 
         return defaultConfig;
@@ -205,7 +185,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
         }
 
         var json = JsonSerializer.Serialize(config, JsonOptions);
-        await File.WriteAllTextAsync(_configFilePath, json, cancellationToken);
+        await File.WriteAllTextAsync(_configFilePath, json, cancellationToken).ConfigureAwait(false);
     }
 
     private static KurioConfiguration CloneConfiguration(KurioConfiguration config)

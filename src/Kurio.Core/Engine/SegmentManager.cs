@@ -54,11 +54,7 @@ public sealed class SegmentManager : ISegmentManager
         // If range requests are not supported, use a single segment
         if (!supportsRanges || fileSize < options.MinSegmentSize)
         {
-            _logger?.LogInformation(
-                "Using single segment download. SupportsRanges: {SupportsRanges}, FileSize: {FileSize}, MinSegmentSize: {MinSegmentSize}",
-                supportsRanges,
-                fileSize,
-                options.MinSegmentSize);
+            _logger?.LogUsingSingleSegment(supportsRanges, fileSize, options.MinSegmentSize);
 
             return new SegmentConfiguration
             {
@@ -100,11 +96,7 @@ public sealed class SegmentManager : ISegmentManager
             };
         }
 
-        _logger?.LogInformation(
-            "Calculated {SegmentCount} segments for file size {FileSize} bytes. Average segment size: {SegmentSize} bytes",
-            idealSegmentCount,
-            fileSize,
-            segmentSize);
+        _logger?.LogSegmentsCalculated(idealSegmentCount, fileSize, segmentSize);
 
         return new SegmentConfiguration
         {
@@ -126,7 +118,7 @@ public sealed class SegmentManager : ISegmentManager
         IProgress<SegmentProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        _logger?.LogInformation("Starting parallel download with {SegmentCount} segments", config.SegmentCount);
+        _logger?.LogStartingParallelDownload(config.SegmentCount);
 
         // Use a semaphore to limit concurrent segment downloads
         using SemaphoreSlim semaphore = new(config.SegmentCount, config.SegmentCount);
@@ -143,7 +135,7 @@ public sealed class SegmentManager : ISegmentManager
             var range = config.Ranges[i];
             var state = config.States[i];
 
-            await semaphore.WaitAsync(cancellationToken);
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             var task = Task.Run(async () =>
             {
@@ -157,11 +149,11 @@ public sealed class SegmentManager : ISegmentManager
                         tempFilePath,
                         options,
                         progress,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, "Segment {SegmentIndex} failed after all retries", segmentIndex);
+                    _logger?.LogSegmentFailedAfterRetries(ex, segmentIndex);
                     failedSegments.Add(segmentIndex);
                     throw;
                 }
@@ -177,19 +169,19 @@ public sealed class SegmentManager : ISegmentManager
         // Wait for all segments to complete
         try
         {
-            await Task.WhenAll(tasks);
-            _logger?.LogInformation("All {SegmentCount} segments downloaded successfully", config.SegmentCount);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+            _logger?.LogAllSegmentsDownloaded(config.SegmentCount);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Download failed. {FailedCount} segments failed", failedSegments.Count);
+            _logger?.LogDownloadFailed(ex, failedSegments.Count);
             throw new AggregateException(
                 $"Failed to download {failedSegments.Count} segment(s): {string.Join(", ", failedSegments)}",
                 ex);
         }
 
         // Verify segment boundaries
-        await VerifySegmentBoundariesAsync(config, tempFilePath, cancellationToken);
+        await VerifySegmentBoundariesAsync(config, tempFilePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -314,15 +306,14 @@ public sealed class SegmentManager : ISegmentManager
                 if (retryCount <= maxRetries)
                 {
                     var delay = TimeSpan.FromSeconds(Math.Pow(2, retryCount)); // Exponential backoff
-                    _logger?.LogWarning(
+                    _logger?.LogSegmentRetrying(
                         ex,
-                        "Segment {SegmentIndex} failed (attempt {Attempt}/{MaxAttempts}). Retrying in {Delay}s...",
                         state.SegmentIndex,
                         retryCount,
                         maxRetries + 1,
                         delay.TotalSeconds);
 
-                    await Task.Delay(delay, cancellationToken);
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -347,12 +338,7 @@ public sealed class SegmentManager : ISegmentManager
         state.Status = SegmentStatus.Downloading;
         state.StartedAt ??= DateTime.UtcNow;
 
-        _logger?.LogDebug(
-            "Downloading segment {SegmentIndex}: {Start}-{End} ({Length} bytes)",
-            state.SegmentIndex,
-            range.Start,
-            range.End,
-            range.Length);
+        _logger?.LogDownloadingSegment(state.SegmentIndex, range.Start, range.End, range.Length);
 
         // Get the directory containing the temp file
         var tempDir = Path.GetDirectoryName(tempFilePath);
@@ -466,23 +452,17 @@ public sealed class SegmentManager : ISegmentManager
                 totalRead += bytesRead;
             }
 
-            var checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken);
+            var checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken).ConfigureAwait(false);
             state.Checksum = SegmentChecksum.Create("SHA256", checksum);
 
-            _logger?.LogDebug(
-                "Segment {SegmentIndex} checksum computed: {Checksum}",
-                state.SegmentIndex,
-                checksum[..16]); // Log first 16 chars
+            _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksum[..16]); // Log first 16 chars
         }
 
         // Mark segment as completed
         state.Status = SegmentStatus.Completed;
         state.CompletedAt = DateTime.UtcNow;
 
-        _logger?.LogDebug(
-            "Segment {SegmentIndex} completed. Duration: {Duration}ms",
-            state.SegmentIndex,
-            (state.CompletedAt.Value - state.StartedAt.Value).TotalMilliseconds);
+        _logger?.LogSegmentCompleted(state.SegmentIndex, (state.CompletedAt.Value - state.StartedAt.Value).TotalMilliseconds);
 
         progress?.Report(new SegmentProgress
         {

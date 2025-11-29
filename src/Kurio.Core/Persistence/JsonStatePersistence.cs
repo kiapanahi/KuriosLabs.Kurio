@@ -62,11 +62,11 @@ public sealed class JsonStatePersistence : IStatePersistence
             // Atomic move
             File.Move(tempFilePath, filePath, true);
 
-            _logger.LogDebug("Saved state for task {TaskId} to {FilePath}", state.TaskId, filePath);
+            _logger.LogStateSaved(state.TaskId, filePath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save state for task {TaskId}", state.TaskId);
+            _logger.LogStateSaveFailed(ex, state.TaskId);
             throw;
         }
     }
@@ -78,7 +78,7 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         if (!File.Exists(filePath))
         {
-            _logger.LogDebug("State file not found for task {TaskId}", taskId);
+            _logger.LogStateFileNotFound(taskId);
             return null;
         }
 
@@ -88,23 +88,23 @@ public sealed class JsonStatePersistence : IStatePersistence
             var state =
                 await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
 
-            _logger.LogDebug("Loaded state for task {TaskId} from {FilePath}", taskId, filePath);
+            _logger.LogStateLoaded(taskId, filePath);
             return state;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load state for task {TaskId} from {FilePath}", taskId, filePath);
+            _logger.LogStateLoadFailed(ex, taskId, filePath);
 
             // Move corrupted file to backup
             try
             {
                 var backupPath = $"{filePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(filePath, backupPath);
-                _logger.LogWarning("Moved corrupted state file to {BackupPath}", backupPath);
+                _logger.LogCorruptedStateFileBackedUp(backupPath);
             }
             catch (Exception moveEx)
             {
-                _logger.LogError(moveEx, "Failed to backup corrupted state file");
+                _logger.LogBackupFailed(moveEx);
             }
 
             return null;
@@ -118,18 +118,18 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         if (!File.Exists(filePath))
         {
-            _logger.LogDebug("State file not found for task {TaskId}, nothing to delete", taskId);
+            _logger.LogStateFileNotFoundForDelete(taskId);
             return;
         }
 
         try
         {
             await Task.Run(() => File.Delete(filePath), cancellationToken);
-            _logger.LogDebug("Deleted state for task {TaskId}", taskId);
+            _logger.LogStateDeleted(taskId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete state for task {TaskId}", taskId);
+            _logger.LogStateDeleteFailed(ex, taskId);
             throw;
         }
     }
@@ -143,7 +143,7 @@ public sealed class JsonStatePersistence : IStatePersistence
         try
         {
             var stateFiles = Directory.GetFiles(StateDirectory, "*.json");
-            _logger.LogInformation("Found {Count} state files in {Directory}", stateFiles.Length, StateDirectory);
+            _logger.LogStateFilesFound(stateFiles.Length, StateDirectory);
 
             foreach (var filePath in stateFiles)
             {
@@ -157,20 +157,20 @@ public sealed class JsonStatePersistence : IStatePersistence
                     if (state != null)
                     {
                         states.Add(state);
-                        _logger.LogDebug("Loaded state from {FilePath}", filePath);
+                        _logger.LogStateLoadedFromFile(filePath);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to load state from {FilePath}, skipping", filePath);
+                    _logger.LogStateLoadFailedSkipping(ex, filePath);
                 }
             }
 
-            _logger.LogInformation("Successfully loaded {Count} download states", states.Count);
+            _logger.LogStatesLoaded(states.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load states from directory {Directory}", StateDirectory);
+            _logger.LogStatesLoadFailed(ex, StateDirectory);
         }
 
         return states;
@@ -188,12 +188,12 @@ public sealed class JsonStatePersistence : IStatePersistence
             if (!Directory.Exists(StateDirectory))
             {
                 Directory.CreateDirectory(StateDirectory);
-                _logger.LogInformation("Created state directory at {Directory}", StateDirectory);
+                _logger.LogStateDirectoryCreated(StateDirectory);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create state directory at {Directory}", StateDirectory);
+            _logger.LogStateDirectoryCreationFailed(ex, StateDirectory);
             throw;
         }
     }

@@ -78,6 +78,9 @@ The project is organized into the following directories and files:
 - Add all the common project properties to the `Directory.Build.props` file.
 - Use semver.org for versioning.
 - Add version to all project files using the `Version` property in the `Directory.Build.props` file.
+- For non-ui services (API, Core, Cli), always use `.ConfigureAwait(false)` for all async calls.
+- Always use `LoggerMessageAttribute` for logging.
+- NOTE: Instead of using `SemaphoreSlim(1, 1)`, use `System.Threading.Lock` for lock objects.
 
 ### Git
 

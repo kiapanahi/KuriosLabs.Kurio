@@ -131,9 +131,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         // Add to queue for scheduling
         _queueManager.Enqueue(task);
+        _logger.LogTaskQueued(task.Id, task.Priority.ToString());
 
         // Save initial state
-        await SaveTaskStateAsync(task, cancellationToken);
+        await SaveTaskStateAsync(task, cancellationToken).ConfigureAwait(false);
 
         return task;
     }
@@ -186,11 +187,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         // Cancel the download operation
         if (_cancellationTokens.TryGetValue(taskId, out var cts))
         {
-            await cts.CancelAsync();
+            await cts.CancelAsync().ConfigureAwait(false);
         }
 
         // Save state for resume
-        await SaveTaskStateAsync(task, cancellationToken);
+        await SaveTaskStateAsync(task, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -210,7 +211,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         }
 
         // Validate that the download can be resumed
-        await ValidateResumeCapabilityAsync(task, cancellationToken);
+        await ValidateResumeCapabilityAsync(task, cancellationToken).ConfigureAwait(false);
 
         // Mark this task as resuming so scheduler knows to call ExecuteResumeAsync
         _resumingTasks.TryAdd(task.Id, true);
@@ -220,7 +221,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         // Re-queue the task
         _queueManager.Enqueue(task);
 
-        await SaveTaskStateAsync(task, cancellationToken);
+        await SaveTaskStateAsync(task, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -234,10 +235,12 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             throw new InvalidOperationException($"Task with ID {taskId} not found.");
         }
 
+        _logger.LogTaskCancelled(taskId, removePartialFiles);
+
         // Cancel the download operation
         if (_cancellationTokens.TryGetValue(taskId, out var cts))
         {
-            await cts.CancelAsync();
+            await cts.CancelAsync().ConfigureAwait(false);
         }
 
         task.State = DownloadState.Cancelled;
@@ -247,11 +250,11 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         if (removePartialFiles)
         {
-            await _storageManager.CleanupTemporaryFilesAsync(taskId, cancellationToken);
+            await _storageManager.CleanupTemporaryFilesAsync(taskId, cancellationToken).ConfigureAwait(false);
         }
 
         // Delete persisted state
-        await _statePersistence.DeleteStateAsync(taskId, cancellationToken);
+        await _statePersistence.DeleteStateAsync(taskId, cancellationToken).ConfigureAwait(false);
 
         // Cleanup tracking
         _cancellationTokens.TryRemove(taskId, out _);
@@ -304,13 +307,16 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
     {
         var activeTasks = _queueManager.GetActiveTasks();
+        var activeCount = activeTasks.Count();
+        _logger.LogPausingAll(activeCount);
+
         var pausedCount = 0;
 
         foreach (var task in activeTasks)
         {
             try
             {
-                await PauseDownloadAsync(task.Id, cancellationToken);
+                await PauseDownloadAsync(task.Id, cancellationToken).ConfigureAwait(false);
                 pausedCount++;
             }
             catch
@@ -319,20 +325,24 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             }
         }
 
+        _logger.LogPausedAll(pausedCount, activeCount);
         return pausedCount;
     }
 
     /// <inheritdoc />
     public void ClearCompleted()
     {
-        _queueManager.ClearCompleted();
-
-        // Also remove from tasks dictionary
+        // Get completed tasks before clearing
         var completedTasks = _tasks.Values
             .Where(t => t.State == DownloadState.Completed)
             .Select(t => t.Id)
             .ToList();
 
+        _logger.LogClearingCompleted(completedTasks.Count);
+
+        _queueManager.ClearCompleted();
+
+        // Also remove from tasks dictionary
         foreach (var taskId in completedTasks)
         {
             _tasks.TryRemove(taskId, out _);
@@ -368,6 +378,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
                 // Start the download
                 _queueManager.MarkAsStarted(nextTask.Id);
+                _logger.LogTaskStarted(nextTask.Id);
 
                 // Check if this is a resume or new download
                 if (_resumingTasks.TryRemove(nextTask.Id, out _))
@@ -382,8 +393,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         }
         catch (Exception ex)
         {
-            // Log scheduling errors but don't crash
-            Console.WriteLine($"Error in download scheduler: {ex.Message}");
+            _logger.LogSchedulerError(ex);
         }
     }
 
@@ -399,14 +409,18 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         try
         {
+            _logger.LogDownloadStarting(task.Id, task.Url.ToString());
+
             task.State = DownloadState.Analyzing;
             task.StartedAt = DateTime.UtcNow;
+
+            _logger.LogDownloadAnalyzing(task.Id);
 
             // Get metadata
             task.Metadata = await _protocolHandler.GetMetadataAsync(
                 task.Url,
                 task.Options,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
 
             task.FileSize = task.Metadata.ContentLength;
 
@@ -416,13 +430,16 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.FileName = task.Metadata.SuggestedFileName;
             }
 
+            _logger.LogDownloadMetadata(task.Id, task.FileSize, task.FileName);
+
             // Check available disk space
             var availableSpace = await _storageManager.GetAvailableDiskSpaceAsync(
                 task.Options.DestinationDirectory,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
 
             if (availableSpace < task.FileSize)
             {
+                _logger.LogInsufficientDiskSpace(task.Id, task.FileSize, availableSpace);
                 throw new InvalidOperationException(
                     $"Insufficient disk space. Required: {task.FileSize}, Available: {availableSpace}");
             }
@@ -432,9 +449,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Id,
                 task.FileName,
                 task.FileSize,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
 
             _tempFilePaths[task.Id] = tempFilePath;
+            _logger.LogTempFileCreated(task.Id, tempFilePath);
 
             // Calculate segments
             SegmentOptions segmentOptions = new()
@@ -451,9 +469,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
             // Start downloading
             task.State = DownloadState.Downloading;
+            _logger.LogDownloadBeginning(task.Id, segmentConfig.SegmentCount);
 
             // Save initial state
-            await SaveTaskStateAsync(task, linkedToken);
+            await SaveTaskStateAsync(task, linkedToken).ConfigureAwait(false);
 
             var lastStateSave = DateTime.UtcNow;
             Progress<SegmentProgress> progress = new(segmentProgress =>
@@ -478,7 +497,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                     {
                         try
                         {
-                            await SaveTaskStateAsync(task, CancellationToken.None);
+                            await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
                         }
                         catch
                         {
@@ -495,19 +514,18 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 tempFilePath,
                 task.Options,
                 progress,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
 
             // Merge segment files into final file (for per-segment file mode)
             if (segmentConfig.SegmentCount > 1)
             {
-                _logger?.LogInformation("Merging {SegmentCount} segment files for task {TaskId}",
-                    segmentConfig.SegmentCount, task.Id);
+                _logger.LogMergingSegments(segmentConfig.SegmentCount, task.Id);
 
                 await _storageManager.MergeSegmentFilesAsync(
                     task.Id,
                     tempFilePath,
                     segmentConfig.SegmentCount,
-                    linkedToken);
+                    linkedToken).ConfigureAwait(false);
             }
 
             // Commit the download
@@ -516,7 +534,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Options.DestinationDirectory,
                 task.FileName,
                 task.Options.FileNamingPolicy,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
+
+            _logger.LogDownloadCompleted(task.Id, finalPath);
 
             // Mark as completed
             task.State = DownloadState.Completed;
@@ -526,10 +546,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             _queueManager.MarkAsCompleted(task.Id);
 
             // Delete persisted state
-            await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
+            await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None).ConfigureAwait(false);
 
             // Cleanup temporary directory and state file
-            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None);
+            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None).ConfigureAwait(false);
 
             // Cleanup tracking
             _segmentConfigs.TryRemove(task.Id, out _);
@@ -537,15 +557,19 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         }
         catch (OperationCanceledException) when (task.State == DownloadState.Paused)
         {
+            _logger.LogDownloadPaused(task.Id);
             // Download was paused - state already saved
         }
         catch (AggregateException ex) when (task.State == DownloadState.Paused &&
                                             ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
+            _logger.LogDownloadPaused(task.Id);
             // Download was paused - multiple segments canceled, state already saved
         }
         catch (Exception ex)
         {
+            _logger.LogDownloadFailed(ex, task.Id);
+
             task.State = DownloadState.Failed;
             task.LastError = new DownloadError
             {
@@ -560,7 +584,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             _queueManager.MarkAsFailed(task.Id);
 
             // Save failed state
-            await SaveTaskStateAsync(task, CancellationToken.None);
+            await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
@@ -602,12 +626,15 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         try
         {
+            _logger.LogDownloadResuming(task.Id);
+
             task.State = DownloadState.Downloading;
 
             // Get persisted segment configuration and temp file path
             if (!_segmentConfigs.TryGetValue(task.Id, out var segmentConfig) ||
                 !_tempFilePaths.TryGetValue(task.Id, out var tempFilePath))
             {
+                _logger.LogResumeConfigurationMissing(task.Id);
                 throw new InvalidOperationException(
                     "Cannot resume download: segment configuration or temp file path not found");
             }
@@ -634,7 +661,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                     {
                         try
                         {
-                            await SaveTaskStateAsync(task, CancellationToken.None);
+                            await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
                         }
                         catch
                         {
@@ -653,19 +680,18 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 tempFilePath,
                 task.Options,
                 progress,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
 
             // Merge segment files into final file (for per-segment file mode)
             if (segmentConfig.SegmentCount > 1)
             {
-                _logger?.LogInformation("Merging {SegmentCount} segment files for resumed task {TaskId}",
-                    segmentConfig.SegmentCount, task.Id);
+                _logger.LogMergingResumedSegments(segmentConfig.SegmentCount, task.Id);
 
                 await _storageManager.MergeSegmentFilesAsync(
                     task.Id,
                     tempFilePath,
                     segmentConfig.SegmentCount,
-                    linkedToken);
+                    linkedToken).ConfigureAwait(false);
             }
 
             // Commit the download
@@ -674,7 +700,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 task.Options.DestinationDirectory,
                 task.FileName,
                 task.Options.FileNamingPolicy,
-                linkedToken);
+                linkedToken).ConfigureAwait(false);
+
+            _logger.LogResumedDownloadCompleted(task.Id, finalPath);
 
             // Mark as completed
             task.State = DownloadState.Completed;
@@ -684,10 +712,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             _queueManager.MarkAsCompleted(task.Id);
 
             // Delete persisted state
-            await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None);
+            await _statePersistence.DeleteStateAsync(task.Id, CancellationToken.None).ConfigureAwait(false);
 
             // Cleanup temporary directory and state file
-            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None);
+            await _storageManager.CleanupTemporaryFilesAsync(task.Id, CancellationToken.None).ConfigureAwait(false);
 
             // Cleanup tracking
             _segmentConfigs.TryRemove(task.Id, out _);
@@ -695,15 +723,19 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         }
         catch (OperationCanceledException) when (task.State == DownloadState.Paused)
         {
+            _logger.LogDownloadPaused(task.Id);
             // Download was paused again - state already saved
         }
         catch (AggregateException ex) when (task.State == DownloadState.Paused &&
                                             ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
+            _logger.LogDownloadPaused(task.Id);
             // Download was paused again - multiple segments canceled, state already saved
         }
         catch (Exception ex)
         {
+            _logger.LogResumeFailed(ex, task.Id);
+
             task.State = DownloadState.Failed;
             task.LastError = new DownloadError
             {
@@ -718,7 +750,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             _queueManager.MarkAsFailed(task.Id);
 
             // Save failed state
-            await SaveTaskStateAsync(task, CancellationToken.None);
+            await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
@@ -734,11 +766,13 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (task.Metadata == null)
         {
+            _logger.LogResumeMetadataMissing(task.Id);
             throw new InvalidOperationException("Cannot resume: metadata is missing");
         }
 
         if (!task.Metadata.SupportsRanges)
         {
+            _logger.LogResumeRangeNotSupported(task.Id);
             throw new InvalidOperationException("Cannot resume: server does not support range requests");
         }
 
@@ -746,13 +780,14 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         var currentMetadata = await _protocolHandler.GetMetadataAsync(
             task.Url,
             task.Options,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         // Validate ETag if available
         if (!string.IsNullOrEmpty(task.Metadata.ETag) &&
             !string.IsNullOrEmpty(currentMetadata.ETag) &&
             task.Metadata.ETag != currentMetadata.ETag)
         {
+            _logger.LogResumeETagMismatch(task.Id, task.Metadata.ETag, currentMetadata.ETag);
             throw new InvalidOperationException(
                 "Cannot resume: file has changed on server (ETag mismatch)");
         }
@@ -762,6 +797,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             currentMetadata.LastModified.HasValue &&
             task.Metadata.LastModified != currentMetadata.LastModified)
         {
+            _logger.LogResumeLastModifiedMismatch(task.Id);
             throw new InvalidOperationException(
                 "Cannot resume: file has changed on server (Last-Modified mismatch)");
         }
@@ -769,6 +805,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         // Validate file size
         if (task.FileSize != currentMetadata.ContentLength)
         {
+            _logger.LogResumeFileSizeMismatch(task.Id, task.FileSize, currentMetadata.ContentLength);
             throw new InvalidOperationException(
                 $"Cannot resume: file size has changed. Expected: {task.FileSize}, Current: {currentMetadata.ContentLength}");
         }
@@ -779,33 +816,43 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     /// </summary>
     private async Task SaveTaskStateAsync(DownloadTask task, CancellationToken cancellationToken)
     {
-        SegmentConfiguration? segmentConfig = null;
-        _segmentConfigs.TryGetValue(task.Id, out segmentConfig);
-
-        string? tempFilePath = null;
-        _tempFilePaths.TryGetValue(task.Id, out tempFilePath);
-
-        DownloadTaskState state = new()
+        try
         {
-            TaskId = task.Id,
-            Url = task.Url.ToString(),
-            FileName = task.FileName,
-            FileSize = task.FileSize,
-            DestinationDirectory = task.Options.DestinationDirectory,
-            TempFilePath = tempFilePath,
-            State = task.State,
-            Priority = task.Priority,
-            Metadata = task.Metadata,
-            Segments = segmentConfig?.States.ToList() ?? [],
-            CreatedAt = task.CreatedAt,
-            StartedAt = task.StartedAt,
-            CompletedAt = task.CompletedAt,
-            RetryCount = task.RetryCount,
-            LastError = task.LastError,
-            Options = task.Options
-        };
+            _logger.LogSavingTaskState(task.Id);
 
-        await _statePersistence.SaveStateAsync(state, cancellationToken);
+            SegmentConfiguration? segmentConfig = null;
+            _segmentConfigs.TryGetValue(task.Id, out segmentConfig);
+
+            string? tempFilePath = null;
+            _tempFilePaths.TryGetValue(task.Id, out tempFilePath);
+
+            DownloadTaskState state = new()
+            {
+                TaskId = task.Id,
+                Url = task.Url.ToString(),
+                FileName = task.FileName,
+                FileSize = task.FileSize,
+                DestinationDirectory = task.Options.DestinationDirectory,
+                TempFilePath = tempFilePath,
+                State = task.State,
+                Priority = task.Priority,
+                Metadata = task.Metadata,
+                Segments = segmentConfig?.States.ToList() ?? [],
+                CreatedAt = task.CreatedAt,
+                StartedAt = task.StartedAt,
+                CompletedAt = task.CompletedAt,
+                RetryCount = task.RetryCount,
+                LastError = task.LastError,
+                Options = task.Options
+            };
+
+            await _statePersistence.SaveStateAsync(state, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogSaveStateFailed(ex, task.Id);
+            throw;
+        }
     }
 
     /// <summary>
@@ -815,7 +862,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         try
         {
-            var persistedStates = await _statePersistence.LoadAllStatesAsync();
+            _logger.LogRecoveringStates();
+
+            var persistedStates = await _statePersistence.LoadAllStatesAsync().ConfigureAwait(false);
+            var recoveredCount = 0;
 
             foreach (var state in persistedStates)
             {
@@ -864,18 +914,22 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                     {
                         _tempFilePaths.TryAdd(task.Id, state.TempFilePath);
                     }
+
+                    var progress = state.Segments.Sum(s => s.BytesDownloaded);
+                    _logger.LogTaskRestored(task.Id, state.State.ToString(), progress, state.FileSize);
+                    recoveredCount++;
                 }
                 catch (Exception ex)
                 {
-                    // Log error but continue with other states
-                    Console.WriteLine($"Failed to recover state for task {state.TaskId}: {ex.Message}");
+                    _logger.LogRecoverTaskStateFailed(ex, state.TaskId);
                 }
             }
+
+            _logger.LogStatesRecovered(recoveredCount);
         }
         catch (Exception ex)
         {
-            // Log error during state recovery
-            Console.WriteLine($"Failed to recover persisted states: {ex.Message}");
+            _logger.LogRecoverStatesFailed(ex);
         }
     }
 }

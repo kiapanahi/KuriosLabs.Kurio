@@ -45,8 +45,7 @@ public sealed class ErrorClassifier(ILogger<ErrorClassifier> logger) : IErrorCla
             }
         }
 
-        logger.LogDebug("Classified exception {ExceptionType} as {Category}",
-            exception.GetType().Name, error.Category);
+        logger.LogExceptionClassified(exception.GetType().Name, error.Category.ToString());
 
         return error;
     }

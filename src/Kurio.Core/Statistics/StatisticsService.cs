@@ -58,10 +58,10 @@ public sealed class StatisticsService : IStatisticsService
     /// <inheritdoc />
     public async Task<DownloadStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             // Update session statistics
             _statistics!.SessionBytesDownloaded = _sessionBytesDownloaded;
@@ -84,10 +84,10 @@ public sealed class StatisticsService : IStatisticsService
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             // Update session counters
             _sessionBytesDownloaded += entry.BytesDownloaded;
@@ -119,12 +119,12 @@ public sealed class StatisticsService : IStatisticsService
             }
 
             // Recalculate average speed
-            await RecalculateAverageSpeedAsync(cancellationToken);
+            await RecalculateAverageSpeedAsync(cancellationToken).ConfigureAwait(false);
 
             _statistics.LastUpdatedAt = DateTime.UtcNow;
-            await SaveStatisticsAsync(cancellationToken);
+            await SaveStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug("Recorded completed download statistics for {FileName}", entry.FileName);
+            _logger.LogCompletedDownloadRecorded(entry.FileName);
         }
         finally
         {
@@ -138,10 +138,10 @@ public sealed class StatisticsService : IStatisticsService
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             // Update session counters
             _sessionFailedDownloads++;
@@ -150,9 +150,9 @@ public sealed class StatisticsService : IStatisticsService
             _statistics!.AllTimeFailedDownloads++;
             _statistics.LastUpdatedAt = DateTime.UtcNow;
 
-            await SaveStatisticsAsync(cancellationToken);
+            await SaveStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug("Recorded failed download statistics for {FileName}", entry.FileName);
+            _logger.LogFailedDownloadRecorded(entry.FileName);
         }
         finally
         {
@@ -163,14 +163,14 @@ public sealed class StatisticsService : IStatisticsService
     /// <inheritdoc />
     public async Task ResetSessionStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _sessionBytesDownloaded = 0;
             _sessionCompletedDownloads = 0;
             _sessionFailedDownloads = 0;
 
-            _logger.LogInformation("Reset session statistics");
+            _logger.LogSessionStatisticsReset();
         }
         finally
         {
@@ -181,7 +181,7 @@ public sealed class StatisticsService : IStatisticsService
     /// <inheritdoc />
     public async Task<IDictionary<string, object>> ExportStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        var stats = await GetStatisticsAsync(cancellationToken);
+        var stats = await GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
         return new Dictionary<string, object>
         {
@@ -218,14 +218,14 @@ public sealed class StatisticsService : IStatisticsService
         {
             await using var fileStream = File.OpenRead(_statisticsFilePath);
             _statistics = await JsonSerializer.DeserializeAsync<DownloadStatistics>(
-                fileStream, _jsonOptions, cancellationToken);
+                fileStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
             _statistics ??=
                 new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
-            _logger.LogDebug("Loaded statistics from {Path}", _statisticsFilePath);
+            _logger.LogStatisticsLoaded(_statisticsFilePath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load statistics from {Path}, starting fresh", _statisticsFilePath);
+            _logger.LogStatisticsLoadFailed(ex, _statisticsFilePath);
             _statistics = new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
         }
     }
@@ -241,15 +241,15 @@ public sealed class StatisticsService : IStatisticsService
         {
             var tempFilePath = $"{_statisticsFilePath}.tmp";
             await using var fileStream = File.Create(tempFilePath);
-            await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
+            await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             fileStream.Close();
 
             File.Move(tempFilePath, _statisticsFilePath, true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save statistics to {Path}", _statisticsFilePath);
+            _logger.LogStatisticsSaveFailed(ex, _statisticsFilePath);
             throw;
         }
     }
@@ -278,7 +278,7 @@ public sealed class StatisticsService : IStatisticsService
     private async Task RecalculateAverageSpeedAsync(CancellationToken cancellationToken)
     {
         var completedDownloads =
-            await _historyRepository.GetCompletedAsync(cancellationToken);
+            await _historyRepository.GetCompletedAsync(cancellationToken).ConfigureAwait(false);
         if (completedDownloads.Count == 0)
         {
             return;
@@ -295,12 +295,12 @@ public sealed class StatisticsService : IStatisticsService
             if (!Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
-                _logger.LogInformation("Created statistics directory at {Directory}", directory);
+                _logger.LogStatisticsDirectoryCreated(directory);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create statistics directory at {Directory}", directory);
+            _logger.LogStatisticsDirectoryCreationFailed(ex, directory);
             throw;
         }
     }

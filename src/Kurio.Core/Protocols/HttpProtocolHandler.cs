@@ -53,9 +53,9 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
         try
         {
-            _logger?.LogDebug("Checking range request support for {Url}", url);
+            _logger?.LogCheckingRangeSupport(url.ToString());
 
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             // Check for Accept-Ranges header
@@ -64,21 +64,22 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 var acceptRanges = string.Join(",", values);
                 var supportsRanges = !acceptRanges.Equals("none", StringComparison.OrdinalIgnoreCase);
 
-                _logger?.LogDebug("Server {Supports} range requests (Accept-Ranges: {AcceptRanges})",
-                    supportsRanges ? "supports" : "does not support", acceptRanges);
+                _logger?.LogRangeSupportResult(
+                    supportsRanges ? "supports" : "does not support",
+                    acceptRanges);
 
                 return supportsRanges;
             }
 
             // If no Accept-Ranges header, assume no support
-            _logger?.LogDebug("No Accept-Ranges header found, assuming no range support");
+            _logger?.LogNoAcceptRangesHeader();
             return false;
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogWarning(ex, "HEAD request failed, attempting range request test");
+            _logger?.LogHeadRequestFailed(ex);
             // If HEAD fails, try a small range request
-            return await TestRangeRequestAsync(url, options, cancellationToken);
+            return await TestRangeRequestAsync(url, options, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -97,17 +98,17 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
         try
         {
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var fileSize = response.Content.Headers.ContentLength ?? -1;
-            _logger?.LogDebug("File size for {Url}: {Size} bytes", url, fileSize);
+            _logger?.LogFileSize(url.ToString(), fileSize);
 
             return fileSize;
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "Failed to get file size for {Url}", url);
+            _logger?.LogFileSizeFailed(ex, url.ToString());
             throw;
         }
     }
@@ -137,29 +138,27 @@ public sealed class HttpProtocolHandler : IProtocolHandler
         // Set range header
         request.Headers.Range = new RangeHeaderValue(range.Start, range.End);
 
-        _logger?.LogDebug("Downloading range {Start}-{End} from {Url}", range.Start, range.End, url);
+        _logger?.LogDownloadingRange(range.Start, range.End, url.ToString());
 
         try
         {
             using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             response.EnsureSuccessStatusCode();
 
             // Verify we got a partial content response if range was requested
             if (response.StatusCode != HttpStatusCode.PartialContent && range.Start > 0)
             {
-                _logger?.LogWarning(
-                    "Server returned {StatusCode} instead of 206 Partial Content for range request",
-                    response.StatusCode);
+                _logger?.LogUnexpectedStatusCode((int)response.StatusCode);
 
                 throw new InvalidOperationException(
                     $"Server did not honor range request. Expected 206 Partial Content, got {response.StatusCode}.");
             }
 
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
             // Use optimal buffer size (8KB is generally optimal for most scenarios)
             const int bufferSize = 8192;
@@ -180,7 +179,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
                 try
                 {
-                    bytesRead = await responseStream.ReadAsync(buffer, linkedCts.Token);
+                    bytesRead = await responseStream.ReadAsync(buffer, linkedCts.Token).ConfigureAwait(false);
                     
                     // If we got 0 bytes, we've reached the end of the stream
                     if (bytesRead == 0)
@@ -191,7 +190,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                     lastDataReceivedAt = DateTime.UtcNow;
                     
                     // Write the data using the main cancellation token (not the timeout token)
-                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
                     totalBytesRead += bytesRead;
                     progress?.Report(totalBytesRead);
                 }
@@ -200,36 +199,29 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                     // Read operation timed out - no data received for stallTimeoutSeconds
                     var timeSinceLastData = DateTime.UtcNow - lastDataReceivedAt;
                     
-                    _logger?.LogWarning(
-                        "Download stalled: no data received for {Seconds}s on range {Start}-{End}",
-                        timeSinceLastData.TotalSeconds,
-                        range.Start,
-                        range.End);
+                    _logger?.LogDownloadStalled(timeSinceLastData.TotalSeconds, range.Start, range.End);
 
                     throw new TimeoutException(
                         $"Download stalled: no data received for {stallTimeoutSeconds} seconds");
                 }
             }
 
-            _logger?.LogDebug("Successfully downloaded {Bytes} bytes from range {Start}-{End}",
-                totalBytesRead, range.Start, range.End);
+            _logger?.LogDownloadSuccess(totalBytesRead, range.Start, range.End);
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "Failed to download range {Start}-{End} from {Url}",
-                range.Start, range.End, url);
+            _logger?.LogDownloadFailed(ex, range.Start, range.End, url.ToString());
             throw;
         }
         catch (TaskCanceledException ex) when (ex.CancellationToken == cancellationToken)
         {
-            _logger?.LogInformation("Download range {Start}-{End} was cancelled", range.Start, range.End);
+            _logger?.LogDownloadCancelled(range.Start, range.End);
             throw;
         }
         catch (TaskCanceledException ex)
         {
             // Timeout occurred
-            _logger?.LogError(ex, "Timeout downloading range {Start}-{End} from {Url}",
-                range.Start, range.End, url);
+            _logger?.LogDownloadTimeout(ex, range.Start, range.End, url.ToString());
             throw new TimeoutException(
                 $"Request timed out after {options.TimeoutSeconds} seconds", ex);
         }
@@ -250,9 +242,9 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
         try
         {
-            _logger?.LogDebug("Fetching metadata for {Url}", url);
+            _logger?.LogFetchingMetadata(url.ToString());
 
-            using var response = await httpClient.SendAsync(request, cancellationToken);
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var supportsRanges = false;
@@ -293,14 +285,13 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 }
             }
 
-            _logger?.LogDebug("Metadata fetched: Size={Size}, Type={Type}, Ranges={Ranges}",
-                metadata.ContentLength, metadata.ContentType, metadata.SupportsRanges);
+            _logger?.LogMetadataFetched(metadata.ContentLength, metadata.ContentType, metadata.SupportsRanges);
 
             return metadata;
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "Failed to fetch metadata for {Url}", url);
+            _logger?.LogMetadataFetchFailed(ex, url.ToString());
             throw;
         }
     }
@@ -340,7 +331,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
     {
         try
         {
-            _logger?.LogDebug("Testing range request support with byte range 0-0 for {Url}", url);
+            _logger?.LogTestingRangeRequest(url.ToString());
 
             using var httpClient = CreateHttpClient(options);
             using HttpRequestMessage request = new(HttpMethod.Get, url);
@@ -352,18 +343,18 @@ public sealed class HttpProtocolHandler : IProtocolHandler
             using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             // If we get 206 Partial Content, range requests are supported
             var supportsRanges = response.StatusCode == HttpStatusCode.PartialContent;
 
-            _logger?.LogDebug("Range request test result: {Result}", supportsRanges);
+            _logger?.LogRangeTestResult(supportsRanges);
 
             return supportsRanges;
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Range request test failed for {Url}", url);
+            _logger?.LogRangeTestFailed(ex, url.ToString());
             return false;
         }
     }

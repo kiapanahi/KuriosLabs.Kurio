@@ -52,14 +52,14 @@ public sealed class CircuitBreaker : ICircuitBreaker
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(_policy.Timeout);
 
-            var result = await operation(cts.Token);
+            var result = await operation(cts.Token).ConfigureAwait(false);
             RecordSuccess();
             return result;
         }
         catch (Exception ex)
         {
             RecordFailure();
-            _logger.LogWarning(ex, "Operation failed through circuit breaker");
+            _logger.LogCircuitBreakerOperationFailed(ex, 1, 1);
             throw;
         }
     }
@@ -71,9 +71,9 @@ public sealed class CircuitBreaker : ICircuitBreaker
     {
         await ExecuteAsync(async ct =>
         {
-            await operation(ct);
+            await operation(ct).ConfigureAwait(false);
             return true;
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -84,15 +84,14 @@ public sealed class CircuitBreaker : ICircuitBreaker
             if (_state == CircuitBreakerState.HalfOpen)
             {
                 _successCount++;
-                _logger.LogDebug("Circuit breaker success count: {SuccessCount}/{Threshold}",
-                    _successCount, _policy.SuccessThreshold);
+                _logger.LogSuccessCount(_successCount, _policy.SuccessThreshold);
 
                 if (_successCount >= _policy.SuccessThreshold)
                 {
                     TransitionTo(CircuitBreakerState.Closed);
                     _successCount = 0;
                     _failureTimestamps.Clear();
-                    _logger.LogInformation("Circuit breaker closed after successful recovery");
+                    _logger.LogCircuitBreakerClosed();
                 }
             }
             else if (_state == CircuitBreakerState.Closed)
@@ -112,19 +111,18 @@ public sealed class CircuitBreaker : ICircuitBreaker
             CleanupOldFailures();
 
             var recentFailures = _failureTimestamps.Count;
-            _logger.LogDebug("Circuit breaker failure count: {FailureCount}/{Threshold}",
-                recentFailures, _policy.FailureThreshold);
+            _logger.LogFailureCount(recentFailures, _policy.FailureThreshold);
 
             if (_state == CircuitBreakerState.HalfOpen)
             {
                 TransitionTo(CircuitBreakerState.Open);
                 _successCount = 0;
-                _logger.LogWarning("Circuit breaker opened from half-open state after failure");
+                _logger.LogCircuitBreakerOpenedFromHalfOpen();
             }
             else if (_state == CircuitBreakerState.Closed && recentFailures >= _policy.FailureThreshold)
             {
                 TransitionTo(CircuitBreakerState.Open);
-                _logger.LogWarning("Circuit breaker opened after {FailureCount} failures", recentFailures);
+                _logger.LogCircuitBreakerOpened(recentFailures);
             }
         }
     }
@@ -137,7 +135,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
             TransitionTo(CircuitBreakerState.Closed);
             _failureTimestamps.Clear();
             _successCount = 0;
-            _logger.LogInformation("Circuit breaker reset to closed state");
+            _logger.LogCircuitBreakerReset();
         }
     }
 
@@ -149,8 +147,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
             if (elapsed >= _policy.OpenDuration)
             {
                 TransitionTo(CircuitBreakerState.HalfOpen);
-                _logger.LogInformation("Circuit breaker transitioned to half-open after {Duration}s",
-                    elapsed.TotalSeconds);
+                _logger.LogCircuitBreakerHalfOpen(elapsed.TotalSeconds);
             }
         }
     }
@@ -181,8 +178,7 @@ public sealed class CircuitBreaker : ICircuitBreaker
             _openedAt = DateTime.UtcNow;
         }
 
-        _logger.LogDebug("Circuit breaker state transition: {OldState} -> {NewState}",
-            oldState, newState);
+        _logger.LogStateTransition(oldState.ToString(), newState.ToString());
     }
 
     private void CleanupOldFailures()

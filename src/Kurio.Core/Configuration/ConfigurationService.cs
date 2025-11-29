@@ -64,7 +64,7 @@ public sealed class ConfigurationService : IConfigurationService
             _currentConfiguration = updatedConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration updated successfully");
+            _logger.LogConfigurationUpdated();
         }
     }
 
@@ -83,7 +83,7 @@ public sealed class ConfigurationService : IConfigurationService
             _currentConfiguration = defaultConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration reset to defaults");
+            _logger.LogConfigurationReset();
         }
     }
 
@@ -100,8 +100,8 @@ public sealed class ConfigurationService : IConfigurationService
             Directory.CreateDirectory(directory);
         }
 
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
-        _logger.LogInformation("Configuration exported to {FilePath}", filePath);
+        await File.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+        _logger.LogConfigurationExported(filePath);
     }
 
     public async Task ImportConfigurationAsync(string filePath, CancellationToken cancellationToken = default)
@@ -113,7 +113,7 @@ public sealed class ConfigurationService : IConfigurationService
             throw new FileNotFoundException("Configuration file not found", filePath);
         }
 
-        var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+        var json = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
         var config = JsonSerializer.Deserialize<KurioConfiguration>(json, JsonOptions)
                      ?? throw new InvalidOperationException("Failed to deserialize configuration");
 
@@ -130,7 +130,7 @@ public sealed class ConfigurationService : IConfigurationService
             _currentConfiguration = config;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
-            _logger.LogInformation("Configuration imported from {FilePath}", filePath);
+            _logger.LogConfigurationImported(filePath);
         }
     }
 
@@ -148,18 +148,18 @@ public sealed class ConfigurationService : IConfigurationService
                     var validationResult = _validator.Validate(config);
                     if (validationResult.IsValid)
                     {
-                        _logger.LogInformation("Configuration loaded from {FilePath}", _configFilePath);
+                        _logger.LogConfigurationLoaded(_configFilePath);
                         return config;
                     }
 
-                    _logger.LogWarning("Loaded configuration is invalid, using defaults. Errors: {Errors}",
+                    _logger.LogConfigurationInvalid(
                         string.Join(", ", validationResult.Errors.Select(e => e.Message)));
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load configuration from {FilePath}, using defaults", _configFilePath);
+            _logger.LogConfigurationLoadFailed(ex, _configFilePath);
         }
 
         KurioConfiguration defaultConfig = new();
@@ -170,7 +170,7 @@ public sealed class ConfigurationService : IConfigurationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save default configuration");
+            _logger.LogDefaultConfigurationSaveFailed(ex);
         }
 
         return defaultConfig;
@@ -185,7 +185,7 @@ public sealed class ConfigurationService : IConfigurationService
         }
 
         var json = JsonSerializer.Serialize(config, JsonOptions);
-        await File.WriteAllTextAsync(_configFilePath, json, cancellationToken);
+        await File.WriteAllTextAsync(_configFilePath, json, cancellationToken).ConfigureAwait(false);
     }
 
     private static KurioConfiguration CloneConfiguration(KurioConfiguration config)

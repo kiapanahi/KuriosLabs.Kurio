@@ -65,7 +65,7 @@ public class DownloadsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding download for URL: {Url}", request.Url);
+            _logger.LogAddDownloadError(ex, request.Url);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
@@ -130,7 +130,7 @@ public class DownloadsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot start download {Id}", id);
+            _logger.LogCannotStartDownload(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
@@ -138,7 +138,7 @@ public class DownloadsController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Download {Id} not found", id);
+            _logger.LogDownloadNotFound(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
@@ -164,7 +164,7 @@ public class DownloadsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot pause download {Id}", id);
+            _logger.LogCannotPauseDownload(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
@@ -172,7 +172,7 @@ public class DownloadsController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Download {Id} not found", id);
+            _logger.LogDownloadNotFound(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
@@ -198,7 +198,7 @@ public class DownloadsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Cannot resume download {Id}", id);
+            _logger.LogCannotResumeDownload(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
@@ -206,7 +206,7 @@ public class DownloadsController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Download {Id} not found", id);
+            _logger.LogDownloadNotFound(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status404NotFound,
@@ -235,7 +235,7 @@ public class DownloadsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error cancelling download {Id}", id);
+            _logger.LogCancelDownloadError(ex, id);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status404NotFound,

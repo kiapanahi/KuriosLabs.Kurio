@@ -67,7 +67,7 @@ public class App : Application
                 catch (Exception ex)
                 {
                     var logger = Services.GetRequiredService<ILogger<App>>();
-                    logger.LogWarning(ex, "Failed to connect to server on startup");
+                    logger.LogServerConnectionFailed(ex);
                 }
             });
         }

@@ -12,6 +12,8 @@
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.9" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.9" />
     <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
+    <PackageVersion Include="FluentValidation" Version="12.1.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.13.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />

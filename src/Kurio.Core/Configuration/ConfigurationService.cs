@@ -8,7 +8,7 @@ namespace Kurio.Core.Configuration;
 /// <summary>
 ///     Default implementation of IConfigurationService
 /// </summary>
-public sealed class ConfigurationService : IConfigurationService, IDisposable
+public sealed class ConfigurationService : IConfigurationService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -18,7 +18,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
     };
 
     private readonly string _configFilePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly Lock _lock = new();
     private readonly ILogger<ConfigurationService> _logger;
     private readonly ConfigurationValidator _validator;
     private KurioConfiguration _currentConfiguration;
@@ -47,8 +47,7 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(updateAction);
 
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
             var updatedConfig = CloneConfiguration(_currentConfiguration);
             updateAction(updatedConfig);
@@ -61,15 +60,11 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
                 throw new InvalidOperationException($"Configuration validation failed: {errors}");
             }
 
-            await SaveConfigurationAsync(updatedConfig, cancellationToken);
+            SaveConfigurationAsync(updatedConfig, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = updatedConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration updated successfully");
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -81,19 +76,14 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
 
     public async Task ResetToDefaultsAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
             KurioConfiguration defaultConfig = new();
-            await SaveConfigurationAsync(defaultConfig, cancellationToken);
+            SaveConfigurationAsync(defaultConfig, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = defaultConfig;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration reset to defaults");
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -134,24 +124,14 @@ public sealed class ConfigurationService : IConfigurationService, IDisposable
             throw new InvalidOperationException($"Imported configuration is invalid: {errors}");
         }
 
-        await _lock.WaitAsync(cancellationToken);
-        try
+        lock (_lock)
         {
-            await SaveConfigurationAsync(config, cancellationToken);
+            SaveConfigurationAsync(config, cancellationToken).Wait(cancellationToken);
             _currentConfiguration = config;
 
             ConfigurationChanged?.Invoke(this, CloneConfiguration(_currentConfiguration));
             _logger.LogInformation("Configuration imported from {FilePath}", filePath);
         }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
-    public void Dispose()
-    {
-        _lock?.Dispose();
     }
 
     private KurioConfiguration LoadOrCreateConfiguration()

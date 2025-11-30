@@ -111,11 +111,6 @@ public static class ServiceCollectionExtensions
 
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();
-        services.AddSingleton<CircuitBreakerFactory>(sp =>
-        {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
-        });
 
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();

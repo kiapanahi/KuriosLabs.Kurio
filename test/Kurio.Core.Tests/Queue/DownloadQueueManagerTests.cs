@@ -1,8 +1,10 @@
-using Kurio.Core.Engine;
 using Kurio.Core.Models;
-using Kurio.Core.Queue;
 
-namespace Kurio.Core.Tests.Queue;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Queue;
+
+namespace KuriousLabs.Kurio.Queue;
 
 public class DownloadQueueManagerTests
 {

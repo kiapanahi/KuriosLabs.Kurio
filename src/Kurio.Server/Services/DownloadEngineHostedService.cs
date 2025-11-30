@@ -1,4 +1,4 @@
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Abstractions;
 
 namespace KuriousLabs.Kurio.Server.Services;
 

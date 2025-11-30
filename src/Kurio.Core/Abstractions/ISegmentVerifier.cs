@@ -1,4 +1,4 @@
-namespace Kurio.Core.Abstractions;
+namespace KuriousLabs.Kurio.Core.Abstractions;
 
 /// <summary>
 ///     Provides segment-level checksum computation and verification.

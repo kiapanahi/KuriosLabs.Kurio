@@ -1,13 +1,13 @@
 using FluentAssertions;
 
-using Kurio.Core.Models;
-using Kurio.Core.Statistics;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Statistics;
 
 using Microsoft.Extensions.Logging;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Statistics;
+namespace KuriousLabs.Kurio.Statistics;
 
 public class JsonDownloadHistoryRepositoryTests
 {

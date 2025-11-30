@@ -1,6 +1,8 @@
 using FluentValidation;
 
-namespace Kurio.Core.Configuration.Validators;
+using KuriousLabs.Kurio.Core.Configuration;
+
+namespace KuriousLabs.Kurio.Core.Configuration.Validators;
 
 /// <summary>
 ///     Validator for LoggingSettings configuration

@@ -1,6 +1,6 @@
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Abstractions;
+namespace KuriousLabs.Kurio.Core.Abstractions;
 
 /// <summary>
 ///     Provides checksum calculation and verification functionality for downloads.

@@ -2,18 +2,18 @@ using System.Net.Sockets;
 
 using FluentAssertions;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Engine;
-using Kurio.Core.ErrorHandling;
-using Kurio.Core.Models;
-using Kurio.Core.Resilience;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.ErrorHandling;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Resilience;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Resilience;
+namespace KuriousLabs.Kurio.Resilience;
 
 /// <summary>
 ///     Tests for connection loss detection and recovery functionality.

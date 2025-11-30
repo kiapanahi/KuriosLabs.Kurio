@@ -1,4 +1,4 @@
-namespace Kurio.Core.Abstractions;
+namespace KuriousLabs.Kurio.Core.Abstractions;
 
 /// <summary>
 ///     Factory for creating protocol handlers based on URI schemes.

@@ -1,6 +1,6 @@
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Abstractions;
+namespace KuriousLabs.Kurio.Core.Abstractions;
 
 /// <summary>
 ///     Manages file system operations for downloads.

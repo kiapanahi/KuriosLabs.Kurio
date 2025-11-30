@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Storage;
+namespace KuriousLabs.Kurio.Core.Storage;
 
 /// <summary>
 ///     Manages file system operations for downloads.

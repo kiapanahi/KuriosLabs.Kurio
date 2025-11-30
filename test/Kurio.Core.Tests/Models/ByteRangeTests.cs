@@ -1,6 +1,6 @@
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Tests.Models;
+namespace KuriousLabs.Kurio.Models;
 
 public class ByteRangeTests
 {

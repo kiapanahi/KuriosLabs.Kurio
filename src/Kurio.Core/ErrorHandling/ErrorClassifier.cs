@@ -1,11 +1,13 @@
 using System.Net.Sockets;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.ErrorHandling;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.ErrorHandling;
+namespace KuriousLabs.Kurio.Core.ErrorHandling;
 
 /// <summary>
 ///     Classifies exceptions into error categories and determines recovery actions.

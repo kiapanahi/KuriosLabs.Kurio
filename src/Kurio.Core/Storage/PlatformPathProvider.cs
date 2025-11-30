@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Kurio.Core.Storage;
+namespace KuriousLabs.Kurio.Core.Storage;
 
 /// <summary>
 ///     Provides platform-specific path information

@@ -3,15 +3,15 @@ using System.Net.Http.Headers;
 
 using FluentAssertions;
 
-using Kurio.Core.Models;
-using Kurio.Core.Protocols;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Protocols;
 
 using Microsoft.Extensions.Logging;
 
 using Moq;
 using Moq.Protected;
 
-namespace Kurio.Core.Tests.Protocols;
+namespace KuriousLabs.Kurio.Protocols;
 
 public sealed class HttpProtocolHandlerTests
 {

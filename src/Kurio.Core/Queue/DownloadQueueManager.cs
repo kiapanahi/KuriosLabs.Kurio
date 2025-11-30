@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Queue;
+namespace KuriousLabs.Kurio.Core.Queue;
 
 /// <summary>
 ///     Manages the download queue with priority-based scheduling and concurrent execution limits.

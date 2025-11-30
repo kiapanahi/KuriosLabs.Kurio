@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Statistics;
+namespace KuriousLabs.Kurio.Core.Statistics;
 
 /// <summary>
 ///     Implements download history storage using JSON files.

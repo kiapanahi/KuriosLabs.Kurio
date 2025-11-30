@@ -1,6 +1,5 @@
-using Kurio.Core.Models;
-
 using KuriousLabs.Kurio.Cli.Client;
+using KuriousLabs.Kurio.Core.Models;
 
 using Spectre.Console;
 

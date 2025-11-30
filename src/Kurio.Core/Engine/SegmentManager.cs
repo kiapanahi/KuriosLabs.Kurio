@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.Engine;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Engine;
+namespace KuriousLabs.Kurio.Core.Engine;
 
 /// <summary>
 ///     Manages download segmentation and parallel downloading.

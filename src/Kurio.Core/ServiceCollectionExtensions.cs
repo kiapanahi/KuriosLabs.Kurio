@@ -1,21 +1,22 @@
-using Kurio.Core.Abstractions;
-using Kurio.Core.Configuration;
-using Kurio.Core.Engine;
-using Kurio.Core.ErrorHandling;
-using Kurio.Core.Models;
-using Kurio.Core.Persistence;
-using Kurio.Core.Protocols;
 using Kurio.Core.Queue;
-using Kurio.Core.Resilience;
-using Kurio.Core.Statistics;
-using Kurio.Core.Storage;
-using Kurio.Core.Verification;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Configuration;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.ErrorHandling;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Persistence;
+using KuriousLabs.Kurio.Core.Protocols;
+using KuriousLabs.Kurio.Core.Resilience;
+using KuriousLabs.Kurio.Core.Statistics;
+using KuriousLabs.Kurio.Core.Storage;
+using KuriousLabs.Kurio.Core.Verification;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Kurio.Core;
+namespace KuriousLabs.Kurio.Core;
 
 /// <summary>
 ///     Extension methods for configuring Kurio download engine services.

@@ -1,4 +1,4 @@
-namespace Kurio.Core.Statistics;
+namespace KuriousLabs.Kurio.Core.Statistics;
 
 /// <summary>
 ///     Calculates estimated time remaining for downloads.

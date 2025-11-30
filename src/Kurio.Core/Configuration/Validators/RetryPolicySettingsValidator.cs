@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurio.Core.Configuration.Validators;
+namespace KuriousLabs.Kurio.Core.Configuration.Validators;
 
 /// <summary>
 ///     Validator for RetryPolicySettings configuration

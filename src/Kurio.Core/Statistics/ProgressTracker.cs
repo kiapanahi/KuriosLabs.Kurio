@@ -2,10 +2,10 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Statistics;
+namespace KuriousLabs.Kurio.Core.Statistics;
 
 /// <summary>
 ///     Provides enhanced progress tracking for downloads with speed and ETA calculations.

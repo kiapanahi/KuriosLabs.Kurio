@@ -1,9 +1,11 @@
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.ErrorHandling;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.ErrorHandling;
+namespace KuriousLabs.Kurio.Core.ErrorHandling;
 
 /// <summary>
 ///     Implements retry logic with configurable strategies.

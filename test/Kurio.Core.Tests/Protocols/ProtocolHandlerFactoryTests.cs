@@ -1,11 +1,11 @@
 using FluentAssertions;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Protocols;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Protocols;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Protocols;
+namespace KuriousLabs.Kurio.Protocols;
 
 public sealed class ProtocolHandlerFactoryTests
 {

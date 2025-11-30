@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Engine;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Engine;
+namespace KuriousLabs.Kurio.Engine;
 
 /// <summary>
 ///     Advanced tests for segment manager including parallel downloads and error handling.

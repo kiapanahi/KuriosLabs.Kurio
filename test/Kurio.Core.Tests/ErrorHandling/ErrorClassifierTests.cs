@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.Sockets;
 
-using Kurio.Core.ErrorHandling;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.ErrorHandling;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurio.Core.Tests.ErrorHandling;
+namespace KuriousLabs.Kurio.ErrorHandling;
 
 public class ErrorClassifierTests
 {

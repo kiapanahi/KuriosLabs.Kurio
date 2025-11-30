@@ -1,5 +1,5 @@
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 namespace KuriousLabs.Kurio.Server.Models;
 

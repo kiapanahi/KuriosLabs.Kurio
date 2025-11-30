@@ -2,10 +2,10 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Verification;
+namespace KuriousLabs.Kurio.Core.Verification;
 
 /// <summary>
 ///     Provides checksum calculation and verification functionality for downloads.

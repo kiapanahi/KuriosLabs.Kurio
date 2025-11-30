@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Storage;
+namespace KuriousLabs.Kurio.Core.Storage;
 
 /// <summary>
 ///     Manages temporary file cleanup operations

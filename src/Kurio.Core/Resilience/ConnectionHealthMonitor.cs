@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Abstractions;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Kurio.Core.Resilience;
+namespace KuriousLabs.Kurio.Core.Resilience;
 
 /// <summary>
 ///     Monitors internet connection health by periodically checking connectivity to known endpoints.

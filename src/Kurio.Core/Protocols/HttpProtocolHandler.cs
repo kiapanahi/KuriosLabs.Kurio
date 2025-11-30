@@ -2,12 +2,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.Protocols;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Protocols;
+namespace KuriousLabs.Kurio.Core.Protocols;
 
 /// <summary>
 ///     HTTP/HTTPS protocol handler implementation.

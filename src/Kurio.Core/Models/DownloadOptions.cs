@@ -1,6 +1,6 @@
-using Kurio.Core.Configuration;
+using KuriousLabs.Kurio.Core.Configuration;
 
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Configuration options for a download task.

@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Abstractions;
 
-namespace Kurio.Core.Verification;
+namespace KuriousLabs.Kurio.Core.Verification;
 
 /// <summary>
 ///     Provides segment-level checksum computation and verification.

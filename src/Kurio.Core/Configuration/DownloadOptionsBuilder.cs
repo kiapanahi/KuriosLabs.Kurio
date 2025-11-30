@@ -81,7 +81,9 @@ public sealed class DownloadOptionsBuilder
 
         _options.Authentication = new AuthenticationOptions
         {
-            Type = AuthenticationType.Basic, Username = username, Password = password
+            Type = AuthenticationType.Basic,
+            Username = username,
+            Password = password
         };
         return this;
     }

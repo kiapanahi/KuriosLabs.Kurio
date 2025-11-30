@@ -116,7 +116,7 @@ public sealed class ErrorClassifier(ILogger<ErrorClassifier> logger) : IErrorCla
         var message = ioEx.Message.ToLowerInvariant();
 
         // Check for network-related IO exceptions first
-        if (message.Contains("eof") || 
+        if (message.Contains("eof") ||
             message.Contains("transport stream") ||
             message.Contains("connection") ||
             message.Contains("reset") ||
@@ -129,8 +129,8 @@ public sealed class ErrorClassifier(ILogger<ErrorClassifier> logger) : IErrorCla
         }
 
         // Check for disk-related IO exceptions
-        if (message.Contains("space") || 
-            message.Contains("disk full") || 
+        if (message.Contains("space") ||
+            message.Contains("disk full") ||
             message.Contains("permission") ||
             message.Contains("access denied"))
         {

@@ -457,7 +457,8 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Calculate segments
             SegmentOptions segmentOptions = new()
             {
-                MaxConnections = task.Options.MaxConnections, MinSegmentSize = task.Options.MinSegmentSize
+                MaxConnections = task.Options.MaxConnections,
+                MinSegmentSize = task.Options.MinSegmentSize
             };
 
             var segmentConfig = _segmentManager.CalculateSegments(

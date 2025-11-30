@@ -31,7 +31,8 @@ public class SegmentManagerTests
         var fileSize = 512 * 1024; // 512 KB
         SegmentOptions options = new()
         {
-            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 8,
+            MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act
@@ -52,7 +53,8 @@ public class SegmentManagerTests
         var fileSize = 10 * 1024 * 1024L; // 10 MB
         SegmentOptions options = new()
         {
-            MaxConnections = 4, MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 4,
+            MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act
@@ -109,7 +111,8 @@ public class SegmentManagerTests
         var fileSize = 100 * 1024 * 1024L; // 100 MB
         SegmentOptions options = new()
         {
-            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB (would allow 100 segments)
+            MaxConnections = 8,
+            MinSegmentSize = 1024 * 1024 // 1 MB (would allow 100 segments)
         };
 
         // Act

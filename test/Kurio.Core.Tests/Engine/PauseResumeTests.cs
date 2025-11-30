@@ -133,7 +133,9 @@ public sealed class PauseResumeTests : IDisposable
     {
         return new DownloadOptions
         {
-            DestinationDirectory = _testTempDirectory, MaxConnections = 2, MinSegmentSize = 512 * 1024
+            DestinationDirectory = _testTempDirectory,
+            MaxConnections = 2,
+            MinSegmentSize = 512 * 1024
         };
     }
 

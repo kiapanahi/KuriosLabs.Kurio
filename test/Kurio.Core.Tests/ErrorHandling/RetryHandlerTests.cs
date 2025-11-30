@@ -103,7 +103,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Linear, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = false
+            Strategy = RetryStrategy.Linear,
+            InitialDelay = TimeSpan.FromSeconds(1),
+            UseJitter = false
         };
 
         // Act
@@ -123,7 +125,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(2), UseJitter = false
+            Strategy = RetryStrategy.Fixed,
+            InitialDelay = TimeSpan.FromSeconds(2),
+            UseJitter = false
         };
 
         // Act
@@ -163,7 +167,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = true
+            Strategy = RetryStrategy.Fixed,
+            InitialDelay = TimeSpan.FromSeconds(1),
+            UseJitter = true
         };
 
         // Act - run multiple times to check for variation

@@ -27,7 +27,8 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
 
         _progressChannel = Channel.CreateUnbounded<EnhancedDownloadProgress>(new UnboundedChannelOptions
         {
-            SingleWriter = false, SingleReader = false
+            SingleWriter = false,
+            SingleReader = false
         });
     }
 

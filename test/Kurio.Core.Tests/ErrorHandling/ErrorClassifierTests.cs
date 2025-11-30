@@ -181,7 +181,9 @@ public class ErrorClassifierTests
         // Arrange
         DownloadError error = new()
         {
-            Message = "Server error", Category = DownloadErrorCategory.Http, HttpStatusCode = 503
+            Message = "Server error",
+            Category = DownloadErrorCategory.Http,
+            HttpStatusCode = 503
         };
 
         // Act
@@ -210,7 +212,9 @@ public class ErrorClassifierTests
         // Arrange
         DownloadError error = new()
         {
-            Message = "Range not satisfiable", Category = DownloadErrorCategory.Http, HttpStatusCode = 416
+            Message = "Range not satisfiable",
+            Category = DownloadErrorCategory.Http,
+            HttpStatusCode = 416
         };
 
         // Act

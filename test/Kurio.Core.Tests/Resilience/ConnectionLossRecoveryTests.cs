@@ -47,7 +47,9 @@ public sealed class ConnectionLossRecoveryTests : IDisposable
         var loggerFactory = new Mock<ILogger<ResiliencePolicyFactory>>();
         var options = Options.Create(new ResiliencePolicyOptions
         {
-            MaxRetryAttempts = 3, InitialDelaySeconds = 1, EnableJitter = false
+            MaxRetryAttempts = 3,
+            InitialDelaySeconds = 1,
+            EnableJitter = false
         });
 
         _resiliencePolicyFactory = new ResiliencePolicyFactory(loggerFactory.Object, options);

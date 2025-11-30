@@ -92,7 +92,10 @@ public sealed class SegmentManager : ISegmentManager
             ranges[i] = new ByteRange(start, end);
             states[i] = new SegmentState
             {
-                SegmentIndex = i, StartByte = start, EndByte = end, Status = SegmentStatus.Pending
+                SegmentIndex = i,
+                StartByte = start,
+                EndByte = end,
+                Status = SegmentStatus.Pending
             };
         }
 

@@ -1,4 +1,5 @@
 using FluentValidation.TestHelper;
+
 using Kurio.Core.Configuration;
 using Kurio.Core.Configuration.Validators;
 

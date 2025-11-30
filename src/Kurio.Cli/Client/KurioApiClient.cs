@@ -45,7 +45,8 @@ public class KurioApiClient : IKurioApiClient
 
         _progressChannel = Channel.CreateUnbounded<DownloadProgressDto>(new UnboundedChannelOptions
         {
-            SingleWriter = false, SingleReader = false
+            SingleWriter = false,
+            SingleReader = false
         });
 
         // Configure SignalR connection

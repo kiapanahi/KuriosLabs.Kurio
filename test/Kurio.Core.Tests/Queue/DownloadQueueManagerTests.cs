@@ -17,7 +17,8 @@ public class DownloadQueueManagerTests
             new Uri("https://example.com/file.zip"),
             new DownloadOptions { DestinationDirectory = "/tmp" })
         {
-            Priority = priority, State = DownloadState.Queued
+            Priority = priority,
+            State = DownloadState.Queued
         };
     }
 

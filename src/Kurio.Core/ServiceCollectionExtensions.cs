@@ -111,7 +111,7 @@ public static class ServiceCollectionExtensions
 
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();
-        
+
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
 

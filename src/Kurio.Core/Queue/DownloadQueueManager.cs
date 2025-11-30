@@ -49,7 +49,9 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
 
             QueueItem queueItem = new()
             {
-                Task = task, EnqueuedAt = DateTime.UtcNow, Sequence = Interlocked.Increment(ref _sequenceCounter)
+                Task = task,
+                EnqueuedAt = DateTime.UtcNow,
+                Sequence = Interlocked.Increment(ref _sequenceCounter)
             };
 
             _queuedItems.Add(queueItem);

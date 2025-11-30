@@ -1,4 +1,5 @@
 using FluentValidation;
+
 using Kurio.Core.Configuration.Validators;
 
 namespace Kurio.Core.Configuration;

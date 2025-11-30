@@ -1,4 +1,5 @@
 using FluentAssertions;
+
 using Kurio.Core.Configuration;
 
 namespace Kurio.Core.Tests.Configuration;

@@ -1,4 +1,4 @@
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Contains metadata about a remote resource.

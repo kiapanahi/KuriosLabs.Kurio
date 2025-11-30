@@ -8,7 +8,7 @@ using Polly.CircuitBreaker;
 using Polly.Retry;
 using Polly.Timeout;
 
-namespace Kurio.Core.Resilience;
+namespace KuriousLabs.Kurio.Core.Resilience;
 
 /// <summary>
 ///     Factory for creating Polly resilience policies for download operations.

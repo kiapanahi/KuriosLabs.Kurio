@@ -1,7 +1,7 @@
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Engine;
+namespace KuriousLabs.Kurio.Core.Engine;
 
 /// <summary>
 ///     Concrete implementation of a download task.

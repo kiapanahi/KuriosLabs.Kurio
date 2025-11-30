@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Kurio.Core.Configuration;
+
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Configuration;
+namespace KuriousLabs.Kurio.Core.Configuration;
 
 /// <summary>
 ///     Default implementation of IConfigurationService

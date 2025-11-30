@@ -3,6 +3,8 @@ using System.Net.Sockets;
 
 using Kurio.Core.Resilience;
 
+using KuriousLabs.Kurio.Core.Resilience;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -10,7 +12,7 @@ using Moq;
 
 using Xunit;
 
-namespace Kurio.Core.Tests.Resilience;
+namespace KuriousLabs.Kurio.Resilience;
 
 public sealed class ResiliencePolicyFactoryTests
 {

@@ -1,4 +1,4 @@
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Policy for handling file name conflicts.

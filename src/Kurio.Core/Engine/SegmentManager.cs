@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.Engine;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Engine;
+namespace KuriousLabs.Kurio.Core.Engine;
 
 /// <summary>
 ///     Manages download segmentation and parallel downloading.
@@ -92,7 +94,10 @@ public sealed class SegmentManager : ISegmentManager
             ranges[i] = new ByteRange(start, end);
             states[i] = new SegmentState
             {
-                SegmentIndex = i, StartByte = start, EndByte = end, Status = SegmentStatus.Pending
+                SegmentIndex = i,
+                StartByte = start,
+                EndByte = end,
+                Status = SegmentStatus.Pending
             };
         }
 

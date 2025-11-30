@@ -1,4 +1,4 @@
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Represents checksum information for a downloaded segment.
@@ -42,7 +42,10 @@ public sealed class SegmentChecksum
     {
         return new SegmentChecksum
         {
-            Algorithm = algorithm, Hash = hash, ComputedAt = DateTime.UtcNow, IsVerified = false
+            Algorithm = algorithm,
+            Hash = hash,
+            ComputedAt = DateTime.UtcNow,
+            IsVerified = false
         };
     }
 

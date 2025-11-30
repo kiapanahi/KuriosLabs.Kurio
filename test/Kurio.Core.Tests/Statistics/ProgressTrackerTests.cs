@@ -1,9 +1,9 @@
 using FluentAssertions;
 
-using Kurio.Core.Models;
-using Kurio.Core.Statistics;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Statistics;
 
-namespace Kurio.Core.Tests.Statistics;
+namespace KuriousLabs.Kurio.Statistics;
 
 public class ProgressTrackerTests
 {

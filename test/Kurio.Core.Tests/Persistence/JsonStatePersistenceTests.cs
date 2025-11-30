@@ -1,9 +1,11 @@
 using Kurio.Core.Models;
-using Kurio.Core.Persistence;
+
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Persistence;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurio.Core.Tests.Persistence;
+namespace KuriousLabs.Kurio.Persistence;
 
 /// <summary>
 ///     Tests for JsonStatePersistence.

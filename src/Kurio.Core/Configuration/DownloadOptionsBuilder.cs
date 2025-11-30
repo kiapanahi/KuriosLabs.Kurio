@@ -1,6 +1,6 @@
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
-namespace Kurio.Core.Configuration;
+namespace KuriousLabs.Kurio.Core.Configuration;
 
 /// <summary>
 ///     Fluent builder for creating download options
@@ -81,7 +81,9 @@ public sealed class DownloadOptionsBuilder
 
         _options.Authentication = new AuthenticationOptions
         {
-            Type = AuthenticationType.Basic, Username = username, Password = password
+            Type = AuthenticationType.Basic,
+            Username = username,
+            Password = password
         };
         return this;
     }

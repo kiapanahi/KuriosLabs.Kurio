@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
@@ -45,7 +45,8 @@ public class KurioApiClient : IKurioApiClient
 
         _progressChannel = Channel.CreateUnbounded<DownloadProgressDto>(new UnboundedChannelOptions
         {
-            SingleWriter = false, SingleReader = false
+            SingleWriter = false,
+            SingleReader = false
         });
 
         // Configure SignalR connection

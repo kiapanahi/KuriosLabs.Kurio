@@ -1,4 +1,4 @@
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Defines when and how checksum verification should occur.

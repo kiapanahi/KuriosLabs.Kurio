@@ -1,7 +1,8 @@
 using FluentValidation;
+
 using Kurio.Core.Configuration.Validators;
 
-namespace Kurio.Core.Configuration;
+namespace KuriousLabs.Kurio.Core.Configuration;
 
 /// <summary>
 ///     Validates configuration settings using FluentValidation

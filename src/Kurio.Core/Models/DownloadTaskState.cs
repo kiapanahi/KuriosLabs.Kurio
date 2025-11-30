@@ -1,4 +1,4 @@
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Represents the complete persisted state of a download task.

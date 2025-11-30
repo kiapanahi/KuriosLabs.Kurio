@@ -1,9 +1,9 @@
 using System.Text;
 
-using Kurio.Core.Models;
-using Kurio.Core.Verification;
+using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Verification;
 
-namespace Kurio.Core.Tests.Verification;
+namespace KuriousLabs.Kurio.Verification;
 
 /// <summary>
 ///     Unit tests for <see cref="ChecksumVerifier" />.

@@ -1,9 +1,9 @@
-using Kurio.Core.ErrorHandling;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.ErrorHandling;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurio.Core.Tests.ErrorHandling;
+namespace KuriousLabs.Kurio.ErrorHandling;
 
 public class RetryHandlerTests
 {
@@ -103,7 +103,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Linear, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = false
+            Strategy = RetryStrategy.Linear,
+            InitialDelay = TimeSpan.FromSeconds(1),
+            UseJitter = false
         };
 
         // Act
@@ -123,7 +125,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(2), UseJitter = false
+            Strategy = RetryStrategy.Fixed,
+            InitialDelay = TimeSpan.FromSeconds(2),
+            UseJitter = false
         };
 
         // Act
@@ -163,7 +167,9 @@ public class RetryHandlerTests
         // Arrange
         RetryPolicy policy = new()
         {
-            Strategy = RetryStrategy.Fixed, InitialDelay = TimeSpan.FromSeconds(1), UseJitter = true
+            Strategy = RetryStrategy.Fixed,
+            InitialDelay = TimeSpan.FromSeconds(1),
+            UseJitter = true
         };
 
         // Act - run multiple times to check for variation

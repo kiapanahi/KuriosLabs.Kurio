@@ -1,8 +1,10 @@
 using FluentValidation.TestHelper;
-using Kurio.Core.Configuration;
-using Kurio.Core.Configuration.Validators;
 
-namespace Kurio.Core.Tests.Configuration;
+using Kurio.Core.Configuration;
+
+using KuriousLabs.Kurio.Core.Configuration.Validators;
+
+namespace KuriousLabs.Kurio.Configuration;
 
 public sealed class LoggingSettingsValidatorTests
 {

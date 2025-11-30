@@ -1,5 +1,4 @@
-using Kurio.Core.Abstractions;
-
+using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Server.Hubs;
 
 using Microsoft.AspNetCore.SignalR;

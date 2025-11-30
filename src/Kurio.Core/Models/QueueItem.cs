@@ -1,6 +1,6 @@
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Abstractions;
 
-namespace Kurio.Core.Models;
+namespace KuriousLabs.Kurio.Core.Models;
 
 /// <summary>
 ///     Represents an item in the download queue with metadata for ordering.

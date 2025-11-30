@@ -2,12 +2,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.Protocols;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Protocols;
+namespace KuriousLabs.Kurio.Core.Protocols;
 
 /// <summary>
 ///     HTTP/HTTPS protocol handler implementation.
@@ -180,15 +182,15 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 try
                 {
                     bytesRead = await responseStream.ReadAsync(buffer, linkedCts.Token).ConfigureAwait(false);
-                    
+
                     // If we got 0 bytes, we've reached the end of the stream
                     if (bytesRead == 0)
                     {
                         break;
                     }
-                    
+
                     lastDataReceivedAt = DateTime.UtcNow;
-                    
+
                     // Write the data using the main cancellation token (not the timeout token)
                     await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
                     totalBytesRead += bytesRead;
@@ -198,7 +200,7 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                 {
                     // Read operation timed out - no data received for stallTimeoutSeconds
                     var timeSinceLastData = DateTime.UtcNow - lastDataReceivedAt;
-                    
+
                     _logger?.LogDownloadStalled(timeSinceLastData.TotalSeconds, range.Start, range.End);
 
                     throw new TimeoutException(

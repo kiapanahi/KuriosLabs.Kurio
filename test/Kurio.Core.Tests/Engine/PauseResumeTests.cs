@@ -1,13 +1,13 @@
-using Kurio.Core.Abstractions;
-using Kurio.Core.Engine;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Engine;
+namespace KuriousLabs.Kurio.Engine;
 
 /// <summary>
 ///     Tests for pause and resume functionality in DownloadEngine.
@@ -133,7 +133,9 @@ public sealed class PauseResumeTests : IDisposable
     {
         return new DownloadOptions
         {
-            DestinationDirectory = _testTempDirectory, MaxConnections = 2, MinSegmentSize = 512 * 1024
+            DestinationDirectory = _testTempDirectory,
+            MaxConnections = 2,
+            MinSegmentSize = 512 * 1024
         };
     }
 

@@ -1,4 +1,4 @@
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Models;
 
 namespace KuriousLabs.Kurio.Cli.Client;
 

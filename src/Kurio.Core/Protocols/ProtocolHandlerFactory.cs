@@ -1,6 +1,6 @@
-using Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Abstractions;
 
-namespace Kurio.Core.Protocols;
+namespace KuriousLabs.Kurio.Core.Protocols;
 
 /// <summary>
 ///     Factory implementation for creating protocol handlers.

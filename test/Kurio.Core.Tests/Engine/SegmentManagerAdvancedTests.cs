@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Engine;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Engine;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
 using Moq;
 
-namespace Kurio.Core.Tests.Engine;
+namespace KuriousLabs.Kurio.Engine;
 
 /// <summary>
 ///     Advanced tests for segment manager including parallel downloads and error handling.
@@ -52,7 +52,8 @@ public class SegmentManagerAdvancedTests : IDisposable
         var fileSize = 10 * 1024 * 1024L; // 10 MB
         SegmentOptions options = new()
         {
-            MaxConnections = 4, MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 4,
+            MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         var config = _segmentManager.CalculateSegments(fileSize, true, options);
@@ -122,7 +123,8 @@ public class SegmentManagerAdvancedTests : IDisposable
         var fileSize = 2 * 1024 * 1024L; // 2 MB
         SegmentOptions options = new()
         {
-            MaxConnections = 2, MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 2,
+            MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         var config = _segmentManager.CalculateSegments(fileSize, true, options);
@@ -318,7 +320,8 @@ public class SegmentManagerAdvancedTests : IDisposable
         // Arrange
         SegmentOptions options = new()
         {
-            MaxConnections = 8, MinSegmentSize = 1024 * 1024 // 1 MB
+            MaxConnections = 8,
+            MinSegmentSize = 1024 * 1024 // 1 MB
         };
 
         // Act

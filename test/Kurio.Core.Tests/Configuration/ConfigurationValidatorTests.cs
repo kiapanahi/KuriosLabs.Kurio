@@ -1,7 +1,8 @@
 using FluentAssertions;
-using Kurio.Core.Configuration;
 
-namespace Kurio.Core.Tests.Configuration;
+using KuriousLabs.Kurio.Core.Configuration;
+
+namespace KuriousLabs.Kurio.Configuration;
 
 public sealed class ConfigurationValidatorTests
 {

@@ -1,4 +1,4 @@
-namespace Kurio.Core.Resilience;
+namespace KuriousLabs.Kurio.Core.Resilience;
 
 /// <summary>
 ///     Configuration options for connection resilience and network failure recovery.

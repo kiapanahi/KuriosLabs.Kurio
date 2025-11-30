@@ -1,4 +1,4 @@
-namespace Kurio.Core.Storage;
+namespace KuriousLabs.Kurio.Core.Storage;
 
 /// <summary>
 ///     Handle for a temporary download file

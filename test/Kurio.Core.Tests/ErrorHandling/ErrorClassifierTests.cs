@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.Sockets;
 
-using Kurio.Core.ErrorHandling;
-using Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.ErrorHandling;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurio.Core.Tests.ErrorHandling;
+namespace KuriousLabs.Kurio.ErrorHandling;
 
 public class ErrorClassifierTests
 {
@@ -181,7 +181,9 @@ public class ErrorClassifierTests
         // Arrange
         DownloadError error = new()
         {
-            Message = "Server error", Category = DownloadErrorCategory.Http, HttpStatusCode = 503
+            Message = "Server error",
+            Category = DownloadErrorCategory.Http,
+            HttpStatusCode = 503
         };
 
         // Act
@@ -210,7 +212,9 @@ public class ErrorClassifierTests
         // Arrange
         DownloadError error = new()
         {
-            Message = "Range not satisfiable", Category = DownloadErrorCategory.Http, HttpStatusCode = 416
+            Message = "Range not satisfiable",
+            Category = DownloadErrorCategory.Http,
+            HttpStatusCode = 416
         };
 
         // Act

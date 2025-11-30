@@ -1,8 +1,8 @@
 using FluentAssertions;
 
-using Kurio.Core.Statistics;
+using KuriousLabs.Kurio.Core.Statistics;
 
-namespace Kurio.Core.Tests.Statistics;
+namespace KuriousLabs.Kurio.Statistics;
 
 public class EtaCalculatorTests
 {

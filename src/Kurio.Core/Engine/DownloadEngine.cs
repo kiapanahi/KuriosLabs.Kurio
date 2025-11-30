@@ -2,13 +2,15 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-using Kurio.Core.Abstractions;
-using Kurio.Core.Models;
+using Kurio.Core.Engine;
 using Kurio.Core.Queue;
+
+using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Engine;
+namespace KuriousLabs.Kurio.Core.Engine;
 
 /// <summary>
 ///     Main orchestrator for download operations.
@@ -457,7 +459,8 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Calculate segments
             SegmentOptions segmentOptions = new()
             {
-                MaxConnections = task.Options.MaxConnections, MinSegmentSize = task.Options.MinSegmentSize
+                MaxConnections = task.Options.MaxConnections,
+                MinSegmentSize = task.Options.MinSegmentSize
             };
 
             var segmentConfig = _segmentManager.CalculateSegments(

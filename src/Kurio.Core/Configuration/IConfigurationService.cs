@@ -1,4 +1,4 @@
-namespace Kurio.Core.Configuration;
+namespace KuriousLabs.Kurio.Core.Configuration;
 
 /// <summary>
 ///     Service for managing application configuration

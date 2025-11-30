@@ -1,4 +1,4 @@
-namespace Kurio.Core.Statistics;
+namespace KuriousLabs.Kurio.Core.Statistics;
 
 /// <summary>
 ///     Calculates download speed using a rolling average to smooth out fluctuations.

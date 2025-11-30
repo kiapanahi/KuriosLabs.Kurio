@@ -112,19 +112,21 @@ public sealed class JsonStatePersistence : IStatePersistence
     }
 
     /// <inheritdoc />
-    public async Task DeleteStateAsync(Guid taskId, CancellationToken cancellationToken = default)
+    public Task DeleteStateAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var filePath = GetStateFilePath(taskId);
 
         if (!File.Exists(filePath))
         {
             _logger.LogStateFileNotFoundForDelete(taskId);
-            return;
+            return Task.CompletedTask;
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
-            await Task.Run(() => File.Delete(filePath), cancellationToken);
+            File.Delete(filePath);
             _logger.LogStateDeleted(taskId);
         }
         catch (Exception ex)
@@ -132,6 +134,8 @@ public sealed class JsonStatePersistence : IStatePersistence
             _logger.LogStateDeleteFailed(ex, taskId);
             throw;
         }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

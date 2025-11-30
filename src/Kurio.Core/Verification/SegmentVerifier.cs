@@ -10,14 +10,15 @@ namespace Kurio.Core.Verification;
 public sealed class SegmentVerifier : ISegmentVerifier
 {
     /// <inheritdoc />
-    public async Task<string> ComputeChecksumAsync(
+    public Task<string> ComputeChecksumAsync(
         byte[] data,
         string algorithm = "SHA256",
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var hashAlgorithm = CreateHashAlgorithm(algorithm);
-        var hash = await Task.Run(() => hashAlgorithm.ComputeHash(data), cancellationToken);
-        return Convert.ToHexString(hash);
+        var hash = hashAlgorithm.ComputeHash(data);
+        return Task.FromResult(Convert.ToHexString(hash));
     }
 
     /// <inheritdoc />

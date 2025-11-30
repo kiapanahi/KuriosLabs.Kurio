@@ -1,16 +1,12 @@
 using System.Net;
 using System.Net.Sockets;
 
-using Kurio.Core.Resilience;
-
 using KuriousLabs.Kurio.Core.Resilience;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Moq;
-
-using Xunit;
 
 namespace KuriousLabs.Kurio.Resilience;
 

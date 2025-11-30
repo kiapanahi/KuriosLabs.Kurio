@@ -1,13 +1,9 @@
-using Kurio.Core.Abstractions;
-
 using KuriousLabs.Kurio.Core.Resilience;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Moq;
-
-using Xunit;
 
 namespace KuriousLabs.Kurio.Resilience;
 

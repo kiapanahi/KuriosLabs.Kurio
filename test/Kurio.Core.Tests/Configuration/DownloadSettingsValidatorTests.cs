@@ -1,7 +1,6 @@
 using FluentValidation.TestHelper;
 
-using Kurio.Core.Configuration;
-
+using KuriousLabs.Kurio.Core.Configuration;
 using KuriousLabs.Kurio.Core.Configuration.Validators;
 
 namespace KuriousLabs.Kurio.Configuration;
@@ -14,7 +13,7 @@ public sealed class DownloadSettingsValidatorTests
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(21)]
-    public void MaxConcurrentDownloads_WhenOutOfRange_ShouldHaveError(int value)
+    public void MaxConcurrentDownloadsWhenOutOfRangeShouldHaveError(int value)
     {
         var settings = new DownloadSettings { MaxConcurrentDownloads = value };
         var result = _validator.TestValidate(settings);

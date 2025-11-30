@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using KuriousLabs.Kurio;
 using KuriousLabs.Kurio.Core;
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Server.Hubs;

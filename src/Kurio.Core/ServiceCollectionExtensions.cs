@@ -1,5 +1,3 @@
-using Kurio.Core.Queue;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Configuration;
 using KuriousLabs.Kurio.Core.Engine;
@@ -7,6 +5,7 @@ using KuriousLabs.Kurio.Core.ErrorHandling;
 using KuriousLabs.Kurio.Core.Models;
 using KuriousLabs.Kurio.Core.Persistence;
 using KuriousLabs.Kurio.Core.Protocols;
+using KuriousLabs.Kurio.Core.Queue;
 using KuriousLabs.Kurio.Core.Resilience;
 using KuriousLabs.Kurio.Core.Statistics;
 using KuriousLabs.Kurio.Core.Storage;

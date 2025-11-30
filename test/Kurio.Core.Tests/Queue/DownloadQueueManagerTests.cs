@@ -1,5 +1,3 @@
-using Kurio.Core.Models;
-
 using KuriousLabs.Kurio.Core.Engine;
 using KuriousLabs.Kurio.Core.Models;
 using KuriousLabs.Kurio.Core.Queue;

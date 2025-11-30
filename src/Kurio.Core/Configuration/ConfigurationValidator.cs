@@ -1,6 +1,6 @@
 using FluentValidation;
 
-using Kurio.Core.Configuration.Validators;
+using KuriousLabs.Kurio.Core.Configuration.Validators;
 
 namespace KuriousLabs.Kurio.Core.Configuration;
 

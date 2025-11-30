@@ -3,10 +3,10 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
 using Kurio.Core.Engine;
-using Kurio.Core.Queue;
 
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Core.Queue;
 
 using Microsoft.Extensions.Logging;
 

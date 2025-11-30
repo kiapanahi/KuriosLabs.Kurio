@@ -130,7 +130,7 @@ public sealed class StorageManager : IStorageManager
     }
 
     /// <inheritdoc />
-    public async Task<string> CommitDownloadAsync(
+    public Task<string> CommitDownloadAsync(
         string tempFilePath,
         string destinationDirectory,
         string fileName,
@@ -158,15 +158,14 @@ public sealed class StorageManager : IStorageManager
             _ => throw new ArgumentException($"Unknown naming policy: {namingPolicy}", nameof(namingPolicy))
         };
 
-        // Move file atomically (rename operation)
-        await Task.Run(() =>
-        {
-            // On some file systems, File.Move might not be truly atomic
-            // For production, consider using platform-specific APIs
-            File.Move(tempFilePath, destinationPath, namingPolicy == FileNamingPolicy.Overwrite);
-        }, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        return destinationPath;
+        // Move file atomically (rename operation)
+        // On some file systems, File.Move might not be truly atomic
+        // For production, consider using platform-specific APIs
+        File.Move(tempFilePath, destinationPath, namingPolicy == FileNamingPolicy.Overwrite);
+
+        return Task.FromResult(destinationPath);
     }
 
     /// <inheritdoc />

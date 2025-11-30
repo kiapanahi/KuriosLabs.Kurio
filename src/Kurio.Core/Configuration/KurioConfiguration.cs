@@ -41,6 +41,15 @@ public sealed class KurioConfiguration
 /// </summary>
 public sealed class DownloadSettings
 {
+    public static readonly string[] ValidFileNamingPolicies =
+    [
+        "overwrite",
+        "appendNumber",
+        "appendTimestamp",
+        "failIfExists",
+        "skipIfExists"
+    ];
+
     /// <summary>
     ///     Default directory for downloads (supports ~ expansion)
     /// </summary>

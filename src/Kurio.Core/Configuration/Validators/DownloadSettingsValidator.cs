@@ -7,6 +7,7 @@ namespace Kurio.Core.Configuration.Validators;
 /// </summary>
 public sealed class DownloadSettingsValidator : AbstractValidator<DownloadSettings>
 {
+    private static readonly string[] ValidFileNamingPoliciesCaps = [.. DownloadSettings.ValidFileNamingPolicies.Select(p => p.ToUpperInvariant())];
     public DownloadSettingsValidator()
     {
         RuleFor(x => x.MaxConcurrentDownloads)
@@ -45,7 +46,6 @@ public sealed class DownloadSettingsValidator : AbstractValidator<DownloadSettin
             return false;
         }
 
-        var validPolicies = new[] { "overwrite", "appendNumber", "appendTimestamp", "failIfExists", "skipIfExists" };
-        return validPolicies.Contains(policy.ToLowerInvariant());
+        return ValidFileNamingPoliciesCaps.Contains(policy.ToUpperInvariant());
     }
 }

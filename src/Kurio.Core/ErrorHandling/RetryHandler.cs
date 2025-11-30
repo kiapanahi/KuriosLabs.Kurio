@@ -8,15 +8,9 @@ namespace Kurio.Core.ErrorHandling;
 /// <summary>
 ///     Implements retry logic with configurable strategies.
 /// </summary>
-public sealed class RetryHandler : IRetryHandler
+public sealed class RetryHandler(ILogger<RetryHandler> logger) : IRetryHandler
 {
-    private readonly ILogger<RetryHandler> _logger;
-    private readonly Random _random = new();
-
-    public RetryHandler(ILogger<RetryHandler> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<RetryHandler> _logger = logger;
 
     /// <inheritdoc />
     public async Task<T> ExecuteAsync<T>(
@@ -91,7 +85,7 @@ public sealed class RetryHandler : IRetryHandler
         // Apply jitter if enabled
         if (policy.UseJitter)
         {
-            var jitter = _random.NextDouble() * 0.3; // +/- 30% jitter
+            var jitter = Random.Shared.NextDouble() * 0.3; // +/- 30% jitter
             delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * (1 + jitter - 0.15));
         }
 

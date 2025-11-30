@@ -111,12 +111,7 @@ public static class ServiceCollectionExtensions
 
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();
-        services.AddSingleton<CircuitBreakerFactory>(sp =>
-        {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            return new CircuitBreakerFactory(CircuitBreakerPolicy.Default, loggerFactory);
-        });
-
+        
         // Register protocol handlers
         services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
 
@@ -128,7 +123,7 @@ public static class ServiceCollectionExtensions
         });
 
         // Configure HttpClient for downloads
-        services.AddHttpClient("KurioDownloader", client => { client.DefaultRequestHeaders.Add("Accept", "*/*"); })
+        services.AddHttpClient("KurioDownloader", client => client.DefaultRequestHeaders.Add("Accept", "*/*"))
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 PooledConnectionLifetime = TimeSpan.FromMinutes(10),

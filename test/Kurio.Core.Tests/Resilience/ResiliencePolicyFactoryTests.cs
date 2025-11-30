@@ -65,7 +65,7 @@ public sealed class ResiliencePolicyFactoryTests
             {
                 attemptCount++;
                 await Task.CompletedTask;
-                throw new HttpRequestException("Network error", 
+                throw new HttpRequestException("Network error",
                     new SocketException((int)SocketError.ConnectionRefused));
             });
         });
@@ -128,7 +128,7 @@ public sealed class ResiliencePolicyFactoryTests
             await Task.CompletedTask;
             if (attemptCount < 3)
             {
-                throw new HttpRequestException("Temporary error", 
+                throw new HttpRequestException("Temporary error",
                     new SocketException((int)SocketError.ConnectionReset));
             }
             return 42; // Success on third attempt
@@ -149,14 +149,11 @@ public sealed class ResiliencePolicyFactoryTests
         var policy = factory.CreateTimeoutPolicy<int>();
 
         // Act & Assert
-        await Assert.ThrowsAsync<TimeoutException>(async () =>
-        {
-            await policy.ExecuteAsync(async ct =>
+        await Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () => await policy.ExecuteAsync(async ct =>
             {
                 await Task.Delay(TimeSpan.FromMinutes(2), ct);
                 return 0;
-            });
-        });
+            }));
     }
 
     [Fact]
@@ -211,7 +208,7 @@ public sealed class ResiliencePolicyFactoryTests
         // Transient errors should retry (3 attempts total)
         // Non-transient errors should not retry (1 attempt only)
         var expectedAttempts = expectedTransient ? 3 : 1;
-        
+
         Assert.Equal(expectedAttempts, attemptCount);
     }
 }

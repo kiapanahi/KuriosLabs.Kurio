@@ -12,7 +12,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
 {
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _activeTasks = new();
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _completedTasks = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly List<QueueItem> _queuedItems = [];
     private long _sequenceCounter;
 

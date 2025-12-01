@@ -141,7 +141,7 @@ public sealed class ResiliencePolicyFactoryTests
     public async Task CreateTimeoutPolicy_EnforcesTimeout()
     {
         // Arrange
-        _options.TimeoutMinutes = 1; // 1 minute timeout, but we'll use shorter for test
+        _options.TimeoutSeconds = 5; // 5 seconds timeout for test
         var factory = new ResiliencePolicyFactory(_loggerMock.Object, Options.Create(_options));
 
         var policy = factory.CreateTimeoutPolicy<int>();
@@ -149,7 +149,7 @@ public sealed class ResiliencePolicyFactoryTests
         // Act & Assert
         await Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () => await policy.ExecuteAsync(async ct =>
             {
-                await Task.Delay(TimeSpan.FromMinutes(2), ct);
+                await Task.Delay(TimeSpan.FromSeconds(10), ct);
                 return 0;
             }));
     }

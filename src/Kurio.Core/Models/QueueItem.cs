@@ -27,3 +27,21 @@ internal sealed class QueueItem
     /// </summary>
     public DownloadPriority Priority => Task.Priority;
 }
+
+internal sealed class QueueItemComparer : IComparer<QueueItem>
+{
+    public int Compare(QueueItem? x, QueueItem? y)
+    {
+        if (x is null && y is null) return 0;
+        if (x is null) return 1;
+        if (y is null) return -1;
+        // First compare by priority (higher priority first)
+        int priorityComparison = y.Priority.CompareTo(x.Priority);
+        if (priorityComparison != 0)
+        {
+            return priorityComparison;
+        }
+        // If priorities are equal, compare by sequence number (lower sequence first)
+        return x.Sequence.CompareTo(y.Sequence);
+    }
+}

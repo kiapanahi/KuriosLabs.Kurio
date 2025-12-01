@@ -1,0 +1,12 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.0.1">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kurio.Server\Kurio.Server.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>3c4d3a9d-538e-410c-9240-3a635cb43ca0</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

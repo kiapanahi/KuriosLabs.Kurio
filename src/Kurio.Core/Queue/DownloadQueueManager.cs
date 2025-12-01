@@ -12,7 +12,7 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
 {
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _activeTasks = new();
     private readonly ConcurrentDictionary<Guid, IDownloadTask> _completedTasks = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly List<QueueItem> _queuedItems = [];
     private long _sequenceCounter;
 
@@ -303,17 +303,6 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
     /// </summary>
     private void SortQueue()
     {
-        _queuedItems.Sort((a, b) =>
-        {
-            // First sort by priority (higher priority first)
-            var priorityComparison = b.Priority.CompareTo(a.Priority);
-            if (priorityComparison != 0)
-            {
-                return priorityComparison;
-            }
-
-            // Then by sequence (FIFO within same priority)
-            return a.Sequence.CompareTo(b.Sequence);
-        });
+        _queuedItems.Sort(new QueueItemComparer());
     }
 }

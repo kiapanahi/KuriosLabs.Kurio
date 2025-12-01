@@ -156,7 +156,7 @@ public sealed class ResiliencePolicyFactory
         return new ResiliencePipelineBuilder<TResult>()
             .AddTimeout(new TimeoutStrategyOptions
             {
-                Timeout = TimeSpan.FromMinutes(_options.TimeoutMinutes),
+                Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
                     _logger.LogWarning(
@@ -179,7 +179,7 @@ public sealed class ResiliencePolicyFactory
             // Timeout first - outermost boundary
             .AddTimeout(new TimeoutStrategyOptions
             {
-                Timeout = TimeSpan.FromMinutes(_options.TimeoutMinutes),
+                Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
                     _logger.LogWarning(
@@ -254,7 +254,7 @@ public sealed class ResiliencePolicyFactory
         return new ResiliencePipelineBuilder()
             .AddTimeout(new TimeoutStrategyOptions
             {
-                Timeout = TimeSpan.FromMinutes(_options.TimeoutMinutes),
+                Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
                     _logger.LogWarning("Operation timed out after {Timeout}s", args.Timeout.TotalSeconds);

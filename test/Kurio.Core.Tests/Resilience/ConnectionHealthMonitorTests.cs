@@ -51,7 +51,8 @@ public sealed class ConnectionHealthMonitorTests : IDisposable
     public async Task CheckHealthAsync_WithSuccessfulResponse_ReturnsTrue()
     {
         // Arrange
-        var httpClient = new HttpClient();
+        var httpClient = new HttpClient(new NoOpHttpMessageHandler());
+
         _httpClientFactoryMock
             .Setup(f => f.CreateClient("KurioHealthCheck"))
             .Returns(httpClient);
@@ -180,6 +181,7 @@ public sealed class ConnectionHealthMonitorTests : IDisposable
         _options.ConsecutiveFailuresThreshold = 3;
 
         var httpClient = new HttpClient();
+        httpClient.Timeout = TimeSpan.FromSeconds(_options.HealthCheckTimeoutSeconds);
         _httpClientFactoryMock
             .Setup(f => f.CreateClient("KurioHealthCheck"))
             .Returns(httpClient);
@@ -201,6 +203,17 @@ public sealed class ConnectionHealthMonitorTests : IDisposable
         await _monitor.CheckHealthAsync(); // Third failure
         Assert.Equal(3, _monitor.ConsecutiveFailures);
         Assert.False(_monitor.IsHealthy); // Now unhealthy
+    }
+
+    /// <summary>
+    ///     NoOp HTTP message handler that always returns a successful response.
+    /// </summary>
+    private sealed class NoOpHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        }
     }
 }
 

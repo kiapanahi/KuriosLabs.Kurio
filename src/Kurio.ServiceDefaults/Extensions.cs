@@ -66,23 +66,18 @@ public static class Extensions
 
             builder.Services.AddOpenTelemetry()
                 .ConfigureResource(rb => rb.AddService(serviceName: ServiceName, serviceVersion: ServiceVersion))
-                .WithMetrics(metrics =>
-                {
-                    metrics.AddAspNetCoreInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation();
-                })
-                .WithTracing(tracing =>
-                {
-                    tracing.AddSource(builder.Environment.ApplicationName)
-                        .AddAspNetCoreInstrumentation(options =>
-                            // Exclude health check requests from tracing
+                .WithMetrics(metrics => metrics
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation()
+                    .AddProcessInstrumentation())
+                .WithTracing(tracing => tracing
+                    .AddSource(builder.Environment.ApplicationName)
+                    .AddAspNetCoreInstrumentation(options =>
                             options.Filter = context =>
                                 !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                                && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
-                        )
-                        .AddHttpClientInstrumentation();
-                });
+                                && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath))
+                    .AddHttpClientInstrumentation());
 
             builder.AddOpenTelemetryExporters();
         }

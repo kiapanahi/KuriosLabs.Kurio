@@ -31,9 +31,9 @@ public sealed class ResiliencePolicyOptions
     public int CircuitBreakerDurationSeconds { get; set; } = 30;
 
     /// <summary>
-    ///     Gets or sets the timeout in minutes for download operations.
+    ///     Gets or sets the timeout in seconds for download operations.
     /// </summary>
-    public int TimeoutMinutes { get; set; } = 5;
+    public int TimeoutSeconds { get; set; } = 360;
 
     /// <summary>
     ///     Gets or sets whether to enable jitter for retry delays.

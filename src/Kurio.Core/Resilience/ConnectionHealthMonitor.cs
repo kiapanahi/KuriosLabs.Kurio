@@ -114,8 +114,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
         {
             try
             {
-                using var httpClient = _httpClientFactory.CreateClient("KurioHealthCheck");
-                httpClient.Timeout = TimeSpan.FromSeconds(_options.HealthCheckTimeoutSeconds);
+                var httpClient = _httpClientFactory.CreateClient("KurioHealthCheck");
 
                 _logger.LogDebug("Checking connection health via {Endpoint}", endpoint);
 

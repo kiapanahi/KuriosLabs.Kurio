@@ -344,11 +344,32 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
         _queueManager.ClearCompleted();
 
-        // Also remove from tasks dictionary
+        // Also remove from tasks dictionary and clean up tracking
         foreach (var taskId in completedTasks)
         {
+            CleanupTaskTracking(taskId, includeCancellationToken: true);
             _tasks.TryRemove(taskId, out _);
         }
+    }
+
+    /// <summary>
+    ///     Cleans up all tracking data for a task from internal dictionaries.
+    ///     This should be called when a download reaches a final state (completed, failed, cancelled).
+    ///     Note: Cancellation tokens are handled separately in the finally blocks of ExecuteDownloadAsync/ExecuteResumeAsync.
+    /// </summary>
+    /// <param name="taskId">The ID of the task to clean up.</param>
+    /// <param name="includeCancellationToken">Whether to also clean up the cancellation token. Default is false since finally blocks handle this.</param>
+    private void CleanupTaskTracking(Guid taskId, bool includeCancellationToken = false)
+    {
+        if (includeCancellationToken)
+        {
+            _cancellationTokens.TryRemove(taskId, out var cts);
+            cts?.Dispose();
+        }
+
+        _segmentConfigs.TryRemove(taskId, out _);
+        _tempFilePaths.TryRemove(taskId, out _);
+        _resumingTasks.TryRemove(taskId, out _);
     }
 
     /// <inheritdoc />
@@ -588,6 +609,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
             // Save failed state
             await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
+
+            // Cleanup tracking for failed downloads (cancellation token handled in finally)
+            CleanupTaskTracking(task.Id);
         }
         finally
         {
@@ -754,6 +778,9 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
             // Save failed state
             await SaveTaskStateAsync(task, CancellationToken.None).ConfigureAwait(false);
+
+            // Cleanup tracking for failed downloads (cancellation token handled in finally)
+            CleanupTaskTracking(task.Id);
         }
         finally
         {

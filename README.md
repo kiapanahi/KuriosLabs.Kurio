@@ -70,17 +70,24 @@ dotnet build
 dotnet run --project src/Kurio
 ```
 
+## Documentation
+
+- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Detailed component descriptions and getting started guide
+- **[DOCS.md](DOCS.md)** - Technical documentation, architecture, and development guidelines
+
 ## Project Structure
 
 ```text
 .
-├── src/          # Source code
-├── test/         # Unit and integration tests
-├── docs/         # Documentation and user guides
-├── assets/       # Images, icons, and media files
-├── config/       # Configuration files
-├── build/        # Build and packaging scripts
-└── .github/      # GitHub workflows and templates
+├── src/
+│   ├── Kurio.Core/          # Core download engine library
+│   ├── Kurio.Server/        # ASP.NET Core REST API + SignalR
+│   ├── Kurio.Cli/           # Terminal User Interface (TUI)
+│   ├── Kurio.Avalonia/      # Cross-platform desktop GUI
+│   ├── Kurio.AppHost/       # .NET Aspire application host
+│   └── Kurio.ServiceDefaults/ # Shared service defaults
+├── test/                    # Unit and integration tests
+└── .github/                 # GitHub workflows and templates
 ```
 
 ## Contributing

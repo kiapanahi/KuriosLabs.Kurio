@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
     <PackageReference Include="Polly"/>
     <PackageReference Include="Polly.Extensions"/>
+    <PackageReference Include="System.Threading.RateLimiting"/>
   </ItemGroup>
 
 </Project>

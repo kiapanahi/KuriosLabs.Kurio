@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 
 using Kurio.Core.Engine;
 
@@ -457,10 +458,20 @@ public sealed class SegmentManager : ISegmentManager
                 totalRead += bytesRead;
             }
 
-            var checksum = await _segmentVerifier.ComputeChecksumAsync(segmentData, "SHA256", cancellationToken).ConfigureAwait(false);
+            var checksum = await _segmentVerifier
+                .ComputeChecksumAsync(segmentData, "SHA256", cancellationToken)
+                .ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(checksum))
+            {
+                var hash = SHA256.HashData(segmentData);
+                checksum = Convert.ToHexString(hash);
+            }
+
             state.Checksum = SegmentChecksum.Create("SHA256", checksum);
 
-            _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksum[..16]); // Log first 16 chars
+            var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
+            _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
         }
 
         // Mark segment as completed

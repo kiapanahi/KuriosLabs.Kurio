@@ -91,8 +91,12 @@ public class ConfigurationController : ControllerBase
                 c.Network.BandwidthLimit.MaxUploadSpeed = request.MaxUploadSpeedBytesPerSecond;
             }, cancellationToken).ConfigureAwait(false);
 
+            // Update the running speed limiter immediately (applied to active downloads without restart)
+            var newMaxSpeed = request.Enabled ? request.MaxDownloadSpeedBytesPerSecond : 0;
+            _speedLimiter.UpdateMaxSpeed(newMaxSpeed);
+
             _logger.LogInformation(
-                "Speed limit updated: Enabled={Enabled}, DownloadSpeed={DownloadSpeed} B/s, UploadSpeed={UploadSpeed} B/s",
+                "Speed limit updated: Enabled={Enabled}, DownloadSpeed={DownloadSpeed} B/s, UploadSpeed={UploadSpeed} B/s (applied immediately to active downloads)",
                 request.Enabled,
                 request.MaxDownloadSpeedBytesPerSecond,
                 request.MaxUploadSpeedBytesPerSecond);

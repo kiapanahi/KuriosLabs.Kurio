@@ -1,9 +1,9 @@
 namespace KuriousLabs.Kurio.Core.Abstractions;
 
 /// <summary>
-///     Interface for bandwidth throttling.
+///     Interface for bandwidth throttling using the standard .NET rate limiting API.
 /// </summary>
-public interface ISpeedLimiter
+public interface ISpeedLimiter : IAsyncDisposable
 {
     /// <summary>
     ///     Gets a value indicating whether speed limiting is enabled.
@@ -22,4 +22,10 @@ public interface ISpeedLimiter
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the throttling delay.</returns>
     Task ThrottleAsync(int bytesRequested, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Updates the maximum speed limit dynamically. Can be called at runtime.
+    /// </summary>
+    /// <param name="newMaxBytesPerSecond">New maximum bytes per second (0 = unlimited).</param>
+    void UpdateMaxSpeed(long newMaxBytesPerSecond);
 }

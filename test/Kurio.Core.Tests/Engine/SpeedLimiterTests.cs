@@ -83,22 +83,25 @@ public class SpeedLimiterTests
     {
         // Arrange
         var limiter = new SpeedLimiter(524_288); // 512 KB/s
+        // With 50ms refill: tokensPerPeriod = 512KB * 50 / 1000 = 25.6 KB
+        // TokenLimit = 25.6 KB (rounded to ~25 KB)
+        // So first request of 512 KB will immediately exhaust bucket and wait
+        
+        // Act - Request smaller amount that fits in bucket
         var startTime = DateTime.UtcNow;
-
-        // Act - Request 512 KB (equal to the limit)
-        await limiter.ThrottleAsync(524_288);
+        await limiter.ThrottleAsync(25_600); // 25 KB - should fit in initial bucket
         var elapsed = DateTime.UtcNow - startTime;
 
         // Assert
-        Assert.True(elapsed.TotalMilliseconds < 100, "First request should use available tokens");
+        Assert.True(elapsed.TotalMilliseconds < 100, "Small request within bucket should not throttle");
 
-        // Act - Second request should be throttled
+        // Act - Request more than bucket holds
         startTime = DateTime.UtcNow;
-        await limiter.ThrottleAsync(524_288);
+        await limiter.ThrottleAsync(51_200); // 50 KB - exceeds bucket, needs ~2 refills
         elapsed = DateTime.UtcNow - startTime;
 
-        // Assert - Should take approximately 1 second
-        Assert.True(elapsed.TotalMilliseconds >= 900, "Second request should be throttled");
+        // Assert - Should take at least one refill (~50ms) for the overflow portion
+        Assert.True(elapsed.TotalMilliseconds >= 40, $"Request should wait for bucket refills, got {elapsed.TotalMilliseconds}ms");
     }
 
     [Fact]
@@ -106,8 +109,10 @@ public class SpeedLimiterTests
     {
         // Arrange
         var limiter = new SpeedLimiter(1_048_576); // 1 MB/s
-        const int chunkSize = 8192; // 8 KB
-        const int numChunks = 256; // Total: 2 MB (exceeds initial bucket of 1 MB)
+        // With 50ms refill: tokensPerPeriod = 1MB * 50 / 1000 = 51.2 KB (~51 KB)
+        // TokenLimit = 51.2 KB per refill cycle
+        const int chunkSize = 8192; // 8 KB per request
+        const int numChunks = 256; // Total: 2 MB
         var startTime = DateTime.UtcNow;
 
         // Act
@@ -118,24 +123,27 @@ public class SpeedLimiterTests
 
         var elapsed = DateTime.UtcNow - startTime;
 
-        // Assert - Should throttle for the data exceeding initial bucket
-        // Bucket refills during transfer, so ~0.6s is reasonable for 2 MB
-        Assert.True(elapsed.TotalSeconds >= 0.5,
-            $"Expected at least 0.5 seconds for 2 MB transfer with throttling, got {elapsed.TotalSeconds} seconds");
+        // Assert
+        // 2 MB at 1 MB/s should take ~2 seconds
+        // With 50ms refill and tight bucket, we expect roughly 2 seconds
+        Assert.True(elapsed.TotalSeconds >= 1.2,
+            $"Expected at least 1.2 seconds for 2 MB transfer with throttling, got {elapsed.TotalSeconds} seconds");
     }
 
     [Fact]
     public async Task ThrottleAsync_WithCancellation_ThrowsOperationCanceledException()
     {
         // Arrange
-        var limiter = new SpeedLimiter(1024); // Very low limit
+        var limiter = new SpeedLimiter(10240); // 10 KB/s
+        // With 50ms refill: tokensPerPeriod = 10KB * 50 / 1000 = 512 B
+        // TokenLimit = 512 B bucket
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(100); // Cancel after 100ms
+        cts.CancelAfter(50); // Cancel after 50ms
 
         // Act & Assert - TaskCanceledException derives from OperationCanceledException
         var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
-            // Request large amount that would require significant delay
+            // Request 1 MB - will need many refill cycles, should be cancelled
             await limiter.ThrottleAsync(1_048_576, cts.Token);
         });
         Assert.True(exception is TaskCanceledException);
@@ -146,12 +154,14 @@ public class SpeedLimiterTests
     {
         // Arrange
         var limiter = new SpeedLimiter(1_048_576); // 1 MB/s
+        // With 50ms refill: tokensPerPeriod = 1MB * 50 / 1000 = 51.2 KB
+        // TokenLimit = 51.2 KB bucket, very tight for concurrent access
         const int chunkSize = 8192; // 8 KB
         const int numTasks = 10;
-        const int chunksPerTask = 20; // Increased to exceed bucket
+        const int chunksPerTask = 20; // Total 1.6 MB
         var startTime = DateTime.UtcNow;
 
-        // Act
+        // Act - Multiple concurrent tasks requesting throttling
         var tasks = Enumerable.Range(0, numTasks)
             .Select(async _ =>
             {
@@ -164,9 +174,9 @@ public class SpeedLimiterTests
         await Task.WhenAll(tasks);
         var elapsed = DateTime.UtcNow - startTime;
 
-        // Total data: 10 * 20 * 8KB = 1.6 MB
-        // Should throttle concurrently without race conditions
-        Assert.True(elapsed.TotalSeconds >= 0.1,
-            $"Expected throttling delay for 1.6 MB concurrent transfer, got {elapsed.TotalSeconds} seconds");
+        // Assert
+        // 1.6 MB at 1 MB/s requires at least 1.6 seconds with tight bucket
+        Assert.True(elapsed.TotalSeconds >= 1.0,
+            $"Expected significant throttling delay for 1.6 MB concurrent transfer, got {elapsed.TotalSeconds} seconds");
     }
 }

@@ -1,18 +1,19 @@
-using System.Diagnostics;
+using System.Threading.RateLimiting;
 
 using KuriousLabs.Kurio.Core.Abstractions;
 
 namespace KuriousLabs.Kurio.Core.Engine;
 
 /// <summary>
-///     Implements token bucket algorithm for bandwidth throttling.
+///     Implements bandwidth throttling using the standard .NET rate limiting API.
+///     Uses token bucket algorithm for smooth bandwidth control.
 /// </summary>
-public sealed class SpeedLimiter : ISpeedLimiter
+public sealed class SpeedLimiter : ISpeedLimiter, IAsyncDisposable
 {
     private readonly System.Threading.Lock _lock = new();
-    private readonly long _maxBytesPerSecond;
-    private long _availableTokens;
-    private Stopwatch _stopwatch;
+    private long _maxBytesPerSecond;
+    private TokenBucketRateLimiter? _limiter;
+    private int _tokenLimit;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SpeedLimiter" /> class.
@@ -26,8 +27,7 @@ public sealed class SpeedLimiter : ISpeedLimiter
         }
 
         _maxBytesPerSecond = maxBytesPerSecond;
-        _availableTokens = maxBytesPerSecond;
-        _stopwatch = Stopwatch.StartNew();
+        _limiter = CreateLimiter(maxBytesPerSecond, out _tokenLimit);
     }
 
     /// <summary>
@@ -54,38 +54,96 @@ public sealed class SpeedLimiter : ISpeedLimiter
             return;
         }
 
-        TimeSpan delayTime;
+        TokenBucketRateLimiter? limiter;
+        int tokenLimit;
+        lock (_lock)
+        {
+            limiter = _limiter;
+            tokenLimit = _tokenLimit;
+        }
+
+        if (limiter == null)
+        {
+            return;
+        }
+
+        // TokenBucketRateLimiter enforces a per-request token cap. Chunk requests to avoid ArgumentOutOfRangeException.
+        var remainingBytes = (long)bytesRequested;
+        var maxTokensPerRequest = tokenLimit > 0 ? tokenLimit : int.MaxValue;
+
+        while (remainingBytes > 0)
+        {
+            var toThrottle = (int)Math.Min(remainingBytes, maxTokensPerRequest);
+            using var lease = await limiter.AcquireAsync(toThrottle, cancellationToken).ConfigureAwait(false);
+            remainingBytes -= toThrottle;
+        }
+    }
+
+    /// <summary>
+    ///     Updates the maximum speed limit. Can be called at runtime.
+    /// </summary>
+    /// <param name="newMaxBytesPerSecond">New maximum bytes per second (0 = unlimited).</param>
+    public void UpdateMaxSpeed(long newMaxBytesPerSecond)
+    {
+        if (newMaxBytesPerSecond < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newMaxBytesPerSecond), "Speed limit cannot be negative.");
+        }
 
         lock (_lock)
         {
-            // Refill tokens based on elapsed time
-            var elapsedSeconds = _stopwatch.Elapsed.TotalSeconds;
-            _stopwatch.Restart();
-
-            var tokensToAdd = (long)(elapsedSeconds * _maxBytesPerSecond);
-            _availableTokens = Math.Min(_availableTokens + tokensToAdd, _maxBytesPerSecond);
-
-            // Calculate delay if not enough tokens available
-            if (_availableTokens < bytesRequested)
-            {
-                var tokensNeeded = bytesRequested - _availableTokens;
-                var secondsNeeded = tokensNeeded / (double)_maxBytesPerSecond;
-                delayTime = TimeSpan.FromSeconds(secondsNeeded);
-
-                // Deduct all available tokens
-                _availableTokens = 0;
-            }
-            else
-            {
-                // Enough tokens available, deduct and proceed
-                _availableTokens -= bytesRequested;
-                delayTime = TimeSpan.Zero;
-            }
+            _maxBytesPerSecond = newMaxBytesPerSecond;
+            _limiter?.Dispose();
+            _limiter = CreateLimiter(newMaxBytesPerSecond, out _tokenLimit);
         }
+    }
 
-        if (delayTime > TimeSpan.Zero)
+    /// <summary>
+    ///     Disposes the rate limiter.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        lock (_lock)
         {
-            await Task.Delay(delayTime, cancellationToken).ConfigureAwait(false);
+            _limiter?.Dispose();
+            _limiter = null;
+            _tokenLimit = 0;
         }
+
+        await ValueTask.CompletedTask.ConfigureAwait(false);
+    }
+
+    private static TokenBucketRateLimiter? CreateLimiter(long maxBytesPerSecond, out int tokenLimit)
+    {
+        // Disabled state - no rate limiter
+        if (maxBytesPerSecond <= 0)
+        {
+            tokenLimit = 0;
+            return null;
+        }
+
+        // Replenish every 50ms: tokens per period = (maxBytesPerSecond / 1000) * 50
+        // This means we refill twice as often as we used to, creating more granular throttling
+        const long replenishMilliseconds = 50;
+        var tokensPerPeriod = Math.Max(1, (maxBytesPerSecond * replenishMilliseconds) / 1000);
+        
+        // TokenLimit: Set to the refill amount per period
+        // This means we can only transfer one period's worth of data before waiting for refill
+        // Much tighter throttling = more predictable behavior for tests
+        var bucketSize = tokensPerPeriod;
+
+        tokenLimit = (int)Math.Min(bucketSize, int.MaxValue);
+
+        var options = new TokenBucketRateLimiterOptions
+        {
+            // TokenLimit = max tokens available at any time; cap at int.MaxValue
+            TokenLimit = tokenLimit,
+            TokensPerPeriod = (int)Math.Min(tokensPerPeriod, int.MaxValue),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = int.MaxValue, // Allow backpressure instead of failing requests
+            ReplenishmentPeriod = TimeSpan.FromMilliseconds(replenishMilliseconds)
+        };
+
+        return new TokenBucketRateLimiter(options);
     }
 }

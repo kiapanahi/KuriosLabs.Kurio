@@ -23,18 +23,22 @@ public sealed class HttpProtocolHandler : IProtocolHandler
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<HttpProtocolHandler>? _logger;
+    private readonly ISpeedLimiter? _speedLimiter;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="HttpProtocolHandler" /> class.
     /// </summary>
     /// <param name="httpClientFactory">The HTTP client factory.</param>
     /// <param name="logger">Optional logger instance.</param>
+    /// <param name="speedLimiter">Optional speed limiter for bandwidth throttling.</param>
     public HttpProtocolHandler(
         IHttpClientFactory httpClientFactory,
-        ILogger<HttpProtocolHandler>? logger = null)
+        ILogger<HttpProtocolHandler>? logger = null,
+        ISpeedLimiter? speedLimiter = null)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _logger = logger;
+        _speedLimiter = speedLimiter;
     }
 
     /// <inheritdoc />
@@ -190,6 +194,12 @@ public sealed class HttpProtocolHandler : IProtocolHandler
                     }
 
                     lastDataReceivedAt = DateTime.UtcNow;
+
+                    // Apply speed limiting if enabled
+                    if (_speedLimiter?.IsEnabled == true)
+                    {
+                        await _speedLimiter.ThrottleAsync(bytesRead, cancellationToken).ConfigureAwait(false);
+                    }
 
                     // Write the data using the main cancellation token (not the timeout token)
                     await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);

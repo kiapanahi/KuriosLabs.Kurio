@@ -37,6 +37,17 @@ public record QueueStatistics(
     long TotalBytesDownloaded,
     double AverageSpeed);
 
+public record UpdateSpeedLimitRequest(
+    bool Enabled,
+    long MaxDownloadSpeedBytesPerSecond,
+    long MaxUploadSpeedBytesPerSecond);
+
+public record SpeedLimitResponse(
+    bool Enabled,
+    long MaxDownloadSpeedBytesPerSecond,
+    long MaxUploadSpeedBytesPerSecond,
+    long CurrentLimitBytesPerSecond);
+
 public enum DownloadStateFilter
 {
     All,

@@ -70,7 +70,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private void ShowSettings()
     {
-        CurrentView = new SettingsViewModel();
+        CurrentView = new SettingsViewModel(_apiClient);
         StatusText = "Settings";
     }
 

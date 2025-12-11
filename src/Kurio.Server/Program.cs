@@ -35,6 +35,7 @@ builder.Services.AddSignalR(options =>
 });
 
 // Add Kurio.Core services
+builder.Services.AddKurioConfiguration();
 builder.Services.AddKurioDownloadEngine();
 
 // Add hosted services

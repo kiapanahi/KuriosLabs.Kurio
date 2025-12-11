@@ -112,8 +112,28 @@ public static class ServiceCollectionExtensions
         // Register error handling services
         services.AddSingleton<IErrorClassifier, ErrorClassifier>();
 
+        // Register speed limiter based on configuration
+        services.AddSingleton<ISpeedLimiter>(sp =>
+        {
+            var configService = sp.GetService<IConfigurationService>();
+            var config = configService?.GetConfiguration();
+            
+            var maxSpeed = config?.Network.BandwidthLimit.Enabled == true
+                ? config.Network.BandwidthLimit.MaxDownloadSpeed
+                : 0; // 0 = unlimited
+
+            return new SpeedLimiter(maxSpeed);
+        });
+
         // Register protocol handlers
-        services.AddSingleton<IProtocolHandler, HttpProtocolHandler>();
+        services.AddSingleton<IProtocolHandler>(sp =>
+        {
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var logger = sp.GetService<ILogger<HttpProtocolHandler>>();
+            var speedLimiter = sp.GetRequiredService<ISpeedLimiter>();
+            
+            return new HttpProtocolHandler(httpClientFactory, logger, speedLimiter);
+        });
 
         // Register protocol handler factory
         services.AddSingleton<IProtocolHandlerFactory>(sp =>

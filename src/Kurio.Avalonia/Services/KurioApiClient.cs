@@ -28,6 +28,8 @@ public interface IKurioApiClient : IAsyncDisposable
     Task ResumeDownloadAsync(Guid id, CancellationToken cancellationToken = default);
     Task CancelDownloadAsync(Guid id, bool removeFiles = false, CancellationToken cancellationToken = default);
     Task<QueueStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
+    Task<SpeedLimitResponse> GetSpeedLimitAsync(CancellationToken cancellationToken = default);
+    Task<SpeedLimitResponse> UpdateSpeedLimitAsync(UpdateSpeedLimitRequest request, CancellationToken cancellationToken = default);
 
     IAsyncEnumerable<DownloadProgressDto> StreamProgressAsync(Guid? taskId = null,
         CancellationToken cancellationToken = default);
@@ -248,6 +250,34 @@ public class KurioApiClient : IKurioApiClient
 
         return await response.Content.ReadFromJsonAsync<QueueStatistics>(_jsonOptions, cancellationToken)
                ?? throw new InvalidOperationException("Failed to deserialize statistics");
+    }
+
+    public async Task<SpeedLimitResponse> GetSpeedLimitAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            "api/config/speed-limit",
+            cancellationToken);
+
+        await EnsureSuccessStatusCodeAsync(response);
+
+        return await response.Content.ReadFromJsonAsync<SpeedLimitResponse>(_jsonOptions, cancellationToken)
+               ?? throw new InvalidOperationException("Failed to deserialize speed limit response");
+    }
+
+    public async Task<SpeedLimitResponse> UpdateSpeedLimitAsync(
+        UpdateSpeedLimitRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PutAsJsonAsync(
+            "api/config/speed-limit",
+            request,
+            _jsonOptions,
+            cancellationToken);
+
+        await EnsureSuccessStatusCodeAsync(response);
+
+        return await response.Content.ReadFromJsonAsync<SpeedLimitResponse>(_jsonOptions, cancellationToken)
+               ?? throw new InvalidOperationException("Failed to deserialize speed limit response");
     }
 
     public async IAsyncEnumerable<DownloadProgressDto> StreamProgressAsync(

@@ -12,6 +12,21 @@ builder.Services.AddOptions<KurioServerOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<KurioServerOptions>, KurioServerOptionsValidator>();
 
+// Authentication (optional, disabled by default for local dev)
+var authEnabled = builder.Configuration.GetValue<bool>("Authentication:Enabled");
+if (authEnabled)
+{
+    builder.Services.AddAuthentication("Cookies")
+        .AddCookie("Cookies", options =>
+        {
+            options.LoginPath = "/login";
+            options.LogoutPath = "/logout";
+            options.ExpireTimeSpan = TimeSpan.FromHours(24);
+            options.SlidingExpiration = true;
+        });
+    builder.Services.AddAuthorization();
+}
+
 // Services
 builder.Services.AddResponseCompression(options =>
 {
@@ -26,6 +41,12 @@ builder.Services.AddHttpClient<KurioApiClient>((sp, client) =>
     var options = sp.GetRequiredService<IOptionsMonitor<KurioServerOptions>>().CurrentValue;
     client.BaseAddress = options.BaseUrl;
     client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    
+    // Add API key if authentication is enabled
+    if (options.Authentication?.Enabled == true && !string.IsNullOrEmpty(options.Authentication.ApiKey))
+    {
+        client.DefaultRequestHeaders.Add("X-Api-Key", options.Authentication.ApiKey);
+    }
 }).AddStandardResilienceHandler();
 
 builder.Services.AddSingleton<HubClientFactory>();
@@ -43,6 +64,13 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+if (authEnabled)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
 app.UseResponseCompression();
 
 app.MapBlazorHub();

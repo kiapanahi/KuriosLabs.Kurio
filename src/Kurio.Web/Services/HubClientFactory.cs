@@ -31,7 +31,12 @@ public sealed class HubClientFactory
         var connection = new HubConnectionBuilder()
             .WithUrl(hubUri, options =>
             {
-                // Placeholder for auth headers/token once #73 is defined.
+                // Add API key header if authentication is enabled
+                var auth = _options.CurrentValue.Authentication;
+                if (auth?.Enabled == true && !string.IsNullOrEmpty(auth.ApiKey))
+                {
+                    options.Headers.Add("X-Api-Key", auth.ApiKey);
+                }
             })
             .WithAutomaticReconnect(new[]
             {

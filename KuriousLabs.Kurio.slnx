@@ -10,6 +10,7 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
+    <Project Path="test/Kurio.Server.Tests/Kurio.Server.Tests.csproj" />
   </Folder>
 
   <Folder Name="/misc/">

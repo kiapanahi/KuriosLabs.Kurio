@@ -276,7 +276,7 @@ public class DownloadsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public IActionResult ChangePriority(Guid id, [FromBody] ChangePriorityRequest request)
+    public async Task<IActionResult> ChangePriority(Guid id, [FromBody] ChangePriorityRequest request)
     {
         var success = _engine.ChangePriority(id, request.Priority);
         if (!success)

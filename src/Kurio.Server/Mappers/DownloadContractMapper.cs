@@ -1,16 +1,16 @@
-using KuriousLabs.Kurio.Contracts.Downloads;
 using KuriousLabs.Kurio.Core.Abstractions;
-using KuriousLabs.Kurio.Core.Models;
+using CoreModels = KuriousLabs.Kurio.Core.Models;
+using ContractDownloads = KuriousLabs.Kurio.Contracts.Downloads;
 
 namespace KuriousLabs.Kurio.Server.Mappers;
 
 public static class DownloadContractMapper
 {
-    public static DownloadSummary ToContract(this IDownloadTask task)
+    public static ContractDownloads.DownloadSummary ToContract(this IDownloadTask task)
     {
         ArgumentNullException.ThrowIfNull(task);
 
-        return new DownloadSummary
+        return new ContractDownloads.DownloadSummary
         {
             Id = task.Id,
             Name = task.FileName,
@@ -35,11 +35,11 @@ public static class DownloadContractMapper
         };
     }
 
-    public static DownloadProgressUpdate ToProgressUpdate(this DownloadProgress progress)
+    public static ContractDownloads.DownloadProgressUpdate ToProgressUpdate(this CoreModels.DownloadProgress progress)
     {
         ArgumentNullException.ThrowIfNull(progress);
 
-        return new DownloadProgressUpdate
+        return new ContractDownloads.DownloadProgressUpdate
         {
             Id = progress.TaskId,
             DownloadedBytes = progress.BytesDownloaded,
@@ -54,76 +54,76 @@ public static class DownloadContractMapper
         };
     }
 
-    public static KuriousLabs.Kurio.Core.Models.DownloadStateFilter ToCoreFilter(this DownloadStateFilter filter)
+    public static CoreModels.DownloadStateFilter ToCoreFilter(this ContractDownloads.DownloadStateFilter filter)
     {
-        if (filter == DownloadStateFilter.All)
+        if (filter == ContractDownloads.DownloadStateFilter.All)
         {
-            return KuriousLabs.Kurio.Core.Models.DownloadStateFilter.All;
+            return CoreModels.DownloadStateFilter.All;
         }
 
-        if (filter == DownloadStateFilter.None)
+        if (filter == ContractDownloads.DownloadStateFilter.None)
         {
-            return KuriousLabs.Kurio.Core.Models.DownloadStateFilter.None;
+            return CoreModels.DownloadStateFilter.None;
         }
 
-        KuriousLabs.Kurio.Core.Models.DownloadStateFilter mapped = 0;
+        CoreModels.DownloadStateFilter mapped = 0;
 
-        if (filter.HasFlag(DownloadStateFilter.Created))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Created))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Created;
+            mapped |= CoreModels.DownloadStateFilter.Created;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Queued))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Queued))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Queued;
+            mapped |= CoreModels.DownloadStateFilter.Queued;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Analyzing))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Analyzing))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Analyzing;
+            mapped |= CoreModels.DownloadStateFilter.Analyzing;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Downloading))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Downloading))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Downloading;
+            mapped |= CoreModels.DownloadStateFilter.Downloading;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Paused))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Paused))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Paused;
+            mapped |= CoreModels.DownloadStateFilter.Paused;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Completed))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Completed))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Completed;
+            mapped |= CoreModels.DownloadStateFilter.Completed;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Failed))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Failed))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Failed;
+            mapped |= CoreModels.DownloadStateFilter.Failed;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Cancelled))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Cancelled))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Cancelled;
+            mapped |= CoreModels.DownloadStateFilter.Cancelled;
         }
 
-        if (filter.HasFlag(DownloadStateFilter.Active))
+        if (filter.HasFlag(ContractDownloads.DownloadStateFilter.Active))
         {
-            mapped |= KuriousLabs.Kurio.Core.Models.DownloadStateFilter.Active;
+            mapped |= CoreModels.DownloadStateFilter.Active;
         }
 
         return mapped;
     }
 
-    private static DownloadFailureInfo? MapError(DownloadError? error)
+    private static ContractDownloads.DownloadFailureInfo? MapError(CoreModels.DownloadError? error)
     {
         if (error is null)
         {
             return null;
         }
 
-        return new DownloadFailureInfo
+        return new ContractDownloads.DownloadFailureInfo
         {
             Category = MapErrorCategory(error.Category),
             Message = error.UserFriendlyMessage ?? error.Message,
@@ -135,58 +135,58 @@ public static class DownloadContractMapper
         };
     }
 
-    private static DownloadErrorCategory MapErrorCategory(Core.Models.DownloadErrorCategory category)
+    private static ContractDownloads.DownloadErrorCategory MapErrorCategory(CoreModels.DownloadErrorCategory category)
     {
         return category switch
         {
-            Core.Models.DownloadErrorCategory.Network => DownloadErrorCategory.Network,
-            Core.Models.DownloadErrorCategory.Http => DownloadErrorCategory.Http,
-            Core.Models.DownloadErrorCategory.DiskIo => DownloadErrorCategory.DiskIo,
-            Core.Models.DownloadErrorCategory.Protocol => DownloadErrorCategory.Protocol,
-            Core.Models.DownloadErrorCategory.ResourceNotFound => DownloadErrorCategory.ResourceNotFound,
-            Core.Models.DownloadErrorCategory.Authentication => DownloadErrorCategory.Authentication,
-            Core.Models.DownloadErrorCategory.RateLimiting => DownloadErrorCategory.RateLimiting,
-            _ => DownloadErrorCategory.Unknown
+            CoreModels.DownloadErrorCategory.Network => ContractDownloads.DownloadErrorCategory.Network,
+            CoreModels.DownloadErrorCategory.Http => ContractDownloads.DownloadErrorCategory.Http,
+            CoreModels.DownloadErrorCategory.DiskIo => ContractDownloads.DownloadErrorCategory.DiskIo,
+            CoreModels.DownloadErrorCategory.Protocol => ContractDownloads.DownloadErrorCategory.Protocol,
+            CoreModels.DownloadErrorCategory.ResourceNotFound => ContractDownloads.DownloadErrorCategory.ResourceNotFound,
+            CoreModels.DownloadErrorCategory.Authentication => ContractDownloads.DownloadErrorCategory.Authentication,
+            CoreModels.DownloadErrorCategory.RateLimiting => ContractDownloads.DownloadErrorCategory.RateLimiting,
+            _ => ContractDownloads.DownloadErrorCategory.Unknown
         };
     }
 
-    internal static DownloadPriority MapPriority(Core.Models.DownloadPriority priority)
+    internal static ContractDownloads.DownloadPriority MapPriority(CoreModels.DownloadPriority priority)
     {
         return priority switch
         {
-            Core.Models.DownloadPriority.Low => DownloadPriority.Low,
-            Core.Models.DownloadPriority.Normal => DownloadPriority.Normal,
-            Core.Models.DownloadPriority.High => DownloadPriority.High,
-            Core.Models.DownloadPriority.Critical => DownloadPriority.Critical,
-            _ => DownloadPriority.Normal
+            CoreModels.DownloadPriority.Low => ContractDownloads.DownloadPriority.Low,
+            CoreModels.DownloadPriority.Normal => ContractDownloads.DownloadPriority.Normal,
+            CoreModels.DownloadPriority.High => ContractDownloads.DownloadPriority.High,
+            CoreModels.DownloadPriority.Critical => ContractDownloads.DownloadPriority.Critical,
+            _ => ContractDownloads.DownloadPriority.Normal
         };
     }
 
-    public static Core.Models.DownloadPriority ToCorePriority(this DownloadPriority priority)
+    public static CoreModels.DownloadPriority ToCorePriority(this ContractDownloads.DownloadPriority priority)
     {
         return priority switch
         {
-            DownloadPriority.Low => Core.Models.DownloadPriority.Low,
-            DownloadPriority.Normal => Core.Models.DownloadPriority.Normal,
-            DownloadPriority.High => Core.Models.DownloadPriority.High,
-            DownloadPriority.Critical => Core.Models.DownloadPriority.Critical,
-            _ => Core.Models.DownloadPriority.Normal
+            ContractDownloads.DownloadPriority.Low => CoreModels.DownloadPriority.Low,
+            ContractDownloads.DownloadPriority.Normal => CoreModels.DownloadPriority.Normal,
+            ContractDownloads.DownloadPriority.High => CoreModels.DownloadPriority.High,
+            ContractDownloads.DownloadPriority.Critical => CoreModels.DownloadPriority.Critical,
+            _ => CoreModels.DownloadPriority.Normal
         };
     }
 
-    private static DownloadState MapState(Core.Models.DownloadState state)
+    private static ContractDownloads.DownloadState MapState(CoreModels.DownloadState state)
     {
         return state switch
         {
-            Core.Models.DownloadState.Created => DownloadState.Created,
-            Core.Models.DownloadState.Queued => DownloadState.Queued,
-            Core.Models.DownloadState.Analyzing => DownloadState.Analyzing,
-            Core.Models.DownloadState.Downloading => DownloadState.Downloading,
-            Core.Models.DownloadState.Paused => DownloadState.Paused,
-            Core.Models.DownloadState.Completed => DownloadState.Completed,
-            Core.Models.DownloadState.Failed => DownloadState.Failed,
-            Core.Models.DownloadState.Cancelled => DownloadState.Cancelled,
-            _ => DownloadState.Created
+            CoreModels.DownloadState.Created => ContractDownloads.DownloadState.Created,
+            CoreModels.DownloadState.Queued => ContractDownloads.DownloadState.Queued,
+            CoreModels.DownloadState.Analyzing => ContractDownloads.DownloadState.Analyzing,
+            CoreModels.DownloadState.Downloading => ContractDownloads.DownloadState.Downloading,
+            CoreModels.DownloadState.Paused => ContractDownloads.DownloadState.Paused,
+            CoreModels.DownloadState.Completed => ContractDownloads.DownloadState.Completed,
+            CoreModels.DownloadState.Failed => ContractDownloads.DownloadState.Failed,
+            CoreModels.DownloadState.Cancelled => ContractDownloads.DownloadState.Cancelled,
+            _ => ContractDownloads.DownloadState.Created
         };
     }
 }

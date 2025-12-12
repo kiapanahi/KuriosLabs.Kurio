@@ -7,6 +7,7 @@
     <Project Path="src/Kurio.Contracts/Kurio.Contracts.csproj" />
     <Project Path="src/Kurio.Server/Kurio.Server.csproj" />
     <Project Path="src/Kurio.ServiceDefaults/Kurio.ServiceDefaults.csproj" />
+    <Project Path="src/Kurio.Web/Kurio.Web.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
@@ -28,5 +29,6 @@
   </Folder>
   <Folder Name="/docs/prd/">
     <File Path="docs/prd/web-dashboard.md" />
+    <File Path="docs/prd/kurio-web-host.md" />
   </Folder>
 </Solution>

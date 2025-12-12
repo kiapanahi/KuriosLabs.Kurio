@@ -1,0 +1,395 @@
+@page "/downloads"
+@implements IAsyncDisposable
+@inject HubClientFactory HubFactory
+@inject KurioApiClient ApiClient
+
+<h1>Downloads</h1>
+
+<div class="toolbar">
+	<form class="add-form" @onsubmit="AddDownloadAsync" @onsubmit:preventDefault>
+		<input placeholder="Download URL" @bind="_newDownload.Url" required />
+		<input placeholder="File name (optional)" @bind="_newDownload.FileName" />
+		<input placeholder="Destination directory" @bind="_newDownload.DestinationDirectory" />
+		<input type="number" min="1" placeholder="Max connections" @bind="_newDownload.MaxConnections" />
+		<select @bind="_newPriority">
+			@foreach (var priority in Enum.GetValues<DownloadPriority>())
+			{
+				<option value="@priority">@priority</option>
+			}
+		</select>
+		<button type="submit" class="primary">Add</button>
+	</form>
+
+	<div class="filters">
+		<label>Filter
+			<select @bind="_filter">
+				<option value="@DownloadStateFilter.All">All</option>
+				<option value="@DownloadStateFilter.Active">Active</option>
+				<option value="@DownloadStateFilter.Completed">Completed</option>
+				<option value="@DownloadStateFilter.Failed">Failed</option>
+				<option value="@DownloadStateFilter.Paused">Paused</option>
+			</select>
+		</label>
+		<label>
+			<input type="checkbox" @bind="_includeCompleted" /> Include completed in snapshots
+		</label>
+		<button @onclick="RefreshSnapshotAsync" class="ghost">Refresh</button>
+		<button @onclick="ClearCompletedAsync" class="ghost" disabled="@(!_downloads.Any(d => d.State == DownloadState.Completed))">Clear completed</button>
+	</div>
+</div>
+
+@if (_error is not null)
+{
+	<div class="alert error">@_error</div>
+}
+else if (_connecting)
+{
+	<p class="muted">Connecting to downloads hub…</p>
+}
+else if (_downloads.Count == 0)
+{
+	<p class="muted">No downloads yet.</p>
+}
+else
+{
+	<table class="data-table">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Status</th>
+				<th>Progress</th>
+				<th>Speed</th>
+				<th>ETA</th>
+				<th>Priority</th>
+				<th>Created</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var download in _downloads.OrderByDescending(d => d.Priority).ThenBy(d => d.CreatedAt))
+			{
+				<tr>
+					<td>
+						<div class="title">@download.Name</div>
+						<div class="sub">@download.Url</div>
+					</td>
+					<td><span class="badge @GetStateClass(download.State)">@download.State</span></td>
+					<td>
+						<div class="progress">
+							<div class="bar" style="width:@(download.PercentComplete?.ToString("F0") ?? "0")%"></div>
+						</div>
+						<small>@(download.PercentComplete?.ToString("F1") ?? "0")%</small>
+					</td>
+					<td>@FormatRate(download.BytesPerSecond)</td>
+					<td>@FormatEta(download.EstimatedTimeRemaining)</td>
+					<td>
+						<select value="@download.Priority" @onchange="e => ChangePriorityAsync(download.Id, Enum.Parse<DownloadPriority>(e.Value?.ToString() ?? nameof(DownloadPriority.Normal)))">
+							@foreach (var priority in Enum.GetValues<DownloadPriority>())
+							{
+								<option value="@priority" selected="@(priority == download.Priority)">@priority</option>
+							}
+						</select>
+					</td>
+					<td>@download.CreatedAt.LocalDateTime.ToString("g")</td>
+					<td class="actions">
+						@foreach (var action in GetActions(download.State))
+						{
+							<button class="ghost" @onclick="() => ExecuteActionAsync(action, download.Id)" disabled="@_actionBusy.Contains(download.Id)">@action</button>
+						}
+						<button class="danger" @onclick="() => CancelAsync(download.Id)" disabled="@_actionBusy.Contains(download.Id)">Cancel</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+@code {
+	private readonly HashSet<Guid> _actionBusy = new();
+	private HubConnection? _connection;
+	private bool _connecting = true;
+	private string? _error;
+	private List<DownloadSummary> _downloads = [];
+	private DownloadSubscriptionRequest _subscription = new();
+	private DownloadStateFilter _filter = DownloadStateFilter.All;
+	private bool _includeCompleted = true;
+	private CreateDownloadRequest _newDownload = new();
+	private DownloadPriority _newPriority = DownloadPriority.Normal;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await ConnectAsync();
+	}
+
+	private async Task ConnectAsync()
+	{
+		_connection = HubFactory.CreateDownloadsHub();
+
+		_connection.Reconnecting += _ => OnReconnectState(ConnectionStatusKind.Reconnecting, "downloads hub reconnecting");
+		_connection.Reconnected += _ => RequestSnapshotAsync();
+		_connection.Closed += error =>
+		{
+			_error = error?.Message ?? "Connection closed";
+			_connecting = false;
+			return Task.CompletedTask;
+		};
+
+		_connection.On<IReadOnlyList<DownloadSummary>>(nameof(IDownloadsClient.ReceiveSnapshotAsync), snapshot =>
+		{
+			_downloads = snapshot.ToList();
+			_connecting = false;
+			_error = null;
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<DownloadSummary>(nameof(IDownloadsClient.DownloadUpdatedAsync), download =>
+		{
+			Upsert(download);
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<DownloadProgressUpdate>(nameof(IDownloadsClient.DownloadProgressedAsync), update =>
+		{
+			var item = _downloads.FirstOrDefault(d => d.Id == update.Id);
+			if (item is not null)
+			{
+				item = item with
+				{
+					DownloadedBytes = update.DownloadedBytes,
+					TotalBytes = update.TotalBytes,
+					PercentComplete = update.PercentComplete,
+					BytesPerSecond = update.BytesPerSecond,
+					EstimatedTimeRemaining = update.EstimatedTimeRemaining,
+					ActiveConnections = update.ActiveConnections
+				};
+				Upsert(item);
+			}
+
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<DownloadStatusChange>(nameof(IDownloadsClient.DownloadStatusChangedAsync), change =>
+		{
+			var item = _downloads.FirstOrDefault(d => d.Id == change.Id);
+			if (item is not null)
+			{
+				var updated = item with
+				{
+					State = change.CurrentState,
+					LastError = change.Failure
+				};
+				Upsert(updated);
+			}
+
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<Guid>(nameof(IDownloadsClient.DownloadRemovedAsync), id =>
+		{
+			_downloads.RemoveAll(d => d.Id == id);
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<IReadOnlyCollection<Guid>>(nameof(IDownloadsClient.DownloadsClearedAsync), ids =>
+		{
+			_downloads = _downloads.Where(d => !ids.Contains(d.Id)).ToList();
+			return InvokeAsync(StateHasChanged);
+		});
+
+		await _connection.StartAsync();
+		await RefreshSnapshotAsync();
+	}
+
+	private async Task RefreshSnapshotAsync()
+	{
+		_connecting = true;
+		_subscription = new DownloadSubscriptionRequest
+		{
+			States = _filter,
+			IncludeCompleted = _includeCompleted
+		};
+
+		if (_connection is not null)
+		{
+			await _connection.InvokeAsync(nameof(IDownloadsHub.SubscribeDownloadsAsync), _subscription);
+		}
+	}
+
+	private Task RequestSnapshotAsync()
+	{
+		_connecting = true;
+		_downloads.Clear();
+		return _connection?.InvokeAsync(nameof(IDownloadsHub.RequestSnapshotAsync)) ?? Task.CompletedTask;
+	}
+
+	private async Task AddDownloadAsync()
+	{
+		_newDownload = _newDownload with { Url = _newDownload.Url.Trim(), Priority = _newPriority };
+
+		_actionBusy.Add(Guid.Empty);
+		try
+		{
+			var request = _newDownload with { Priority = _newPriority };
+			var success = await ApiClient.AddDownloadAsync(request).ConfigureAwait(false);
+			if (!success)
+			{
+				_error = "Failed to add download";
+			}
+			else
+			{
+				_error = null;
+				_newDownload = new CreateDownloadRequest();
+			}
+		}
+		finally
+		{
+			_actionBusy.Remove(Guid.Empty);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private async Task ExecuteActionAsync(string action, Guid id)
+	{
+		_actionBusy.Add(id);
+		try
+		{
+			var success = action switch
+			{
+				"Start" => await ApiClient.StartDownloadAsync(id).ConfigureAwait(false),
+				"Pause" => await ApiClient.PauseDownloadAsync(id).ConfigureAwait(false),
+				"Resume" => await ApiClient.ResumeDownloadAsync(id).ConfigureAwait(false),
+				_ => false
+			};
+
+			if (!success)
+			{
+				_error = $"Action {action} failed";
+			}
+		}
+		finally
+		{
+			_actionBusy.Remove(id);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private async Task CancelAsync(Guid id)
+	{
+		_actionBusy.Add(id);
+		try
+		{
+			var success = await ApiClient.CancelDownloadAsync(id, removeFiles: false).ConfigureAwait(false);
+			if (!success)
+			{
+				_error = "Cancel failed";
+			}
+		}
+		finally
+		{
+			_actionBusy.Remove(id);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private async Task ClearCompletedAsync()
+	{
+		var success = await ApiClient.ClearCompletedAsync().ConfigureAwait(false);
+		if (!success)
+		{
+			_error = "Clear completed failed";
+		}
+	}
+
+	private async Task ChangePriorityAsync(Guid id, DownloadPriority priority)
+	{
+		_actionBusy.Add(id);
+		try
+		{
+			var success = await ApiClient.ChangeDownloadPriorityAsync(id, priority).ConfigureAwait(false);
+			if (!success)
+			{
+				_error = "Priority change failed";
+			}
+		}
+		finally
+		{
+			_actionBusy.Remove(id);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private static IEnumerable<string> GetActions(DownloadState state) => state switch
+	{
+		DownloadState.Created or DownloadState.Queued => ["Start"],
+		DownloadState.Paused or DownloadState.Failed => ["Resume"],
+		DownloadState.Downloading or DownloadState.Analyzing => ["Pause"],
+		_ => []
+	};
+
+	private static string GetStateClass(DownloadState state) => state switch
+	{
+		DownloadState.Completed => "ok",
+		DownloadState.Downloading or DownloadState.Analyzing => "warn",
+		DownloadState.Failed or DownloadState.Cancelled => "error",
+		_ => "muted"
+	};
+
+	private static string FormatRate(long? bytesPerSecond)
+	{
+		if (bytesPerSecond is null || bytesPerSecond <= 0)
+		{
+			return "-";
+		}
+
+		var rate = bytesPerSecond.Value;
+		return rate switch
+		{
+			> 1_000_000 => $"{rate / 1_000_000d:F1} MB/s",
+			> 1_000 => $"{rate / 1_000d:F1} KB/s",
+			_ => $"{rate} B/s"
+		};
+	}
+
+	private static string FormatEta(TimeSpan? eta)
+	{
+		if (eta is null)
+		{
+			return "-";
+		}
+
+		if (eta.Value.TotalHours >= 1)
+		{
+			return $"{eta:hh\\:mm\\:ss}";
+		}
+
+		return $"{eta:mm\\:ss}";
+	}
+
+	private void Upsert(DownloadSummary download)
+	{
+		var existingIndex = _downloads.FindIndex(d => d.Id == download.Id);
+		if (existingIndex >= 0)
+		{
+			_downloads[existingIndex] = download;
+		}
+		else
+		{
+			_downloads.Add(download);
+		}
+	}
+
+	private Task OnReconnectState(ConnectionStatusKind status, string message)
+	{
+		_connecting = status is ConnectionStatusKind.Connecting or ConnectionStatusKind.Reconnecting;
+		_error = message;
+		return InvokeAsync(StateHasChanged);
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_connection is not null)
+		{
+			await _connection.DisposeAsync();
+		}
+	}
+}

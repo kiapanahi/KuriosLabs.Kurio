@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Kurio.Server\Kurio.Server.csproj" />
+    <ProjectReference Include="..\Kurio.Web\Kurio.Web.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

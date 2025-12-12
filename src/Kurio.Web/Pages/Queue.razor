@@ -1,0 +1,212 @@
+@page "/queue"
+@implements IAsyncDisposable
+@inject HubClientFactory HubFactory
+@inject KurioApiClient ApiClient
+
+<h1>Queue</h1>
+
+<div class="toolbar">
+	<button class="ghost" @onclick="RefreshSnapshotAsync">Refresh</button>
+</div>
+
+@if (_error is not null)
+{
+	<div class="alert error">@_error</div>
+}
+else if (_connecting)
+{
+	<p class="muted">Connecting to queue hub…</p>
+}
+else if (_items.Count == 0)
+{
+	<p class="muted">Queue is empty.</p>
+}
+else
+{
+	<table class="data-table">
+		<thead>
+			<tr>
+				<th>Position</th>
+				<th>Name</th>
+				<th>Category</th>
+				<th>Priority</th>
+				<th>Added</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var item in _items.OrderBy(i => i.Position))
+			{
+				<tr>
+					<td>@item.Position</td>
+					<td>@item.Name</td>
+					<td>@(item.Category ?? "-")</td>
+					<td>
+						<select value="@item.Priority" @onchange="e => ChangePriorityAsync(item.DownloadId, Enum.Parse<DownloadPriority>(e.Value?.ToString() ?? nameof(DownloadPriority.Normal)))">
+							@foreach (var priority in Enum.GetValues<DownloadPriority>())
+							{
+								<option value="@priority" selected="@(priority == item.Priority)">@priority</option>
+							}
+						</select>
+					</td>
+					<td>@item.AddedAt.LocalDateTime.ToString("g")</td>
+					<td class="actions">
+						<button class="ghost" @onclick="() => MoveUp(item.DownloadId)" disabled="@_busy.Contains(item.DownloadId)">Up</button>
+						<button class="ghost" @onclick="() => MoveDown(item.DownloadId)" disabled="@_busy.Contains(item.DownloadId)">Down</button>
+						<button class="ghost" @onclick="() => MoveTop(item.DownloadId)" disabled="@_busy.Contains(item.DownloadId)">Top</button>
+						<button class="ghost" @onclick="() => MoveBottom(item.DownloadId)" disabled="@_busy.Contains(item.DownloadId)">Bottom</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+@code {
+	private HubConnection? _connection;
+	private List<QueueItem> _items = [];
+	private string? _error;
+	private bool _connecting = true;
+	private readonly HashSet<Guid> _busy = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		await ConnectAsync();
+	}
+
+	private async Task ConnectAsync()
+	{
+		_connection = HubFactory.CreateQueueHub();
+
+		_connection.Reconnecting += _ => OnReconnect("Queue hub reconnecting");
+		_connection.Reconnected += _ => RequestSnapshotAsync();
+		_connection.Closed += error =>
+		{
+			_error = error?.Message ?? "Connection closed";
+			_connecting = false;
+			return Task.CompletedTask;
+		};
+
+		_connection.On<IReadOnlyList<QueueItem>>(nameof(IQueueClient.QueueSnapshotAsync), snapshot =>
+		{
+			_items = snapshot.OrderBy(i => i.Position).ToList();
+			_connecting = false;
+			_error = null;
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<QueueItem>(nameof(IQueueClient.QueueItemEnqueuedAsync), item =>
+		{
+			Upsert(item);
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<Guid>(nameof(IQueueClient.QueueItemRemovedAsync), id =>
+		{
+			_items.RemoveAll(i => i.DownloadId == id);
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<QueuePositionChanged>(nameof(IQueueClient.QueuePositionChangedAsync), change =>
+		{
+			var item = _items.FirstOrDefault(i => i.DownloadId == change.DownloadId);
+			if (item is not null)
+			{
+				Upsert(item with { Position = change.Position, Priority = change.Priority });
+			}
+
+			return InvokeAsync(StateHasChanged);
+		});
+
+		await _connection.StartAsync();
+		await RefreshSnapshotAsync();
+	}
+
+	private async Task RefreshSnapshotAsync()
+	{
+		_connecting = true;
+		if (_connection is not null)
+		{
+			await _connection.InvokeAsync(nameof(IQueueHub.SubscribeQueueAsync));
+		}
+	}
+
+	private Task RequestSnapshotAsync()
+	{
+		_connecting = true;
+		_items.Clear();
+		return _connection?.InvokeAsync(nameof(IQueueHub.RequestQueueSnapshotAsync)) ?? Task.CompletedTask;
+	}
+
+	private async Task MoveAsync(Guid id, string action)
+	{
+		_busy.Add(id);
+		try
+		{
+			var success = await ApiClient.MoveQueueAsync(id, action).ConfigureAwait(false);
+			if (!success)
+			{
+				_error = "Queue move failed";
+			}
+		}
+		finally
+		{
+			_busy.Remove(id);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private Task MoveUp(Guid id) => MoveAsync(id, "move-up");
+
+	private Task MoveDown(Guid id) => MoveAsync(id, "move-down");
+
+	private Task MoveTop(Guid id) => MoveAsync(id, "move-top");
+
+	private Task MoveBottom(Guid id) => MoveAsync(id, "move-bottom");
+
+	private async Task ChangePriorityAsync(Guid id, DownloadPriority priority)
+	{
+		_busy.Add(id);
+		try
+		{
+			var success = await ApiClient.ChangeQueuePriorityAsync(id, priority).ConfigureAwait(false);
+			if (!success)
+			{
+				_error = "Priority change failed";
+			}
+		}
+		finally
+		{
+			_busy.Remove(id);
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private Task OnReconnect(string message)
+	{
+		_connecting = true;
+		_error = message;
+		return InvokeAsync(StateHasChanged);
+	}
+
+	private void Upsert(QueueItem item)
+	{
+		var index = _items.FindIndex(i => i.DownloadId == item.DownloadId);
+		if (index >= 0)
+		{
+			_items[index] = item;
+		}
+		else
+		{
+			_items.Add(item);
+		}
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_connection is not null)
+		{
+			await _connection.DisposeAsync();
+		}
+	}
+}

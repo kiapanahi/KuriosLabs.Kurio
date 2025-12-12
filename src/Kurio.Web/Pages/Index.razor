@@ -1,0 +1,11 @@
+@page "/"
+@inject NavigationManager Navigation
+
+<p class="muted">Redirecting to overview…</p>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/overview", true);
+    }
+}

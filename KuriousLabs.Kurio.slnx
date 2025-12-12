@@ -4,11 +4,14 @@
     <Project Path="src/Kurio.Avalonia/Kurio.Avalonia.csproj" />
     <Project Path="src/Kurio.Cli/Kurio.Cli.csproj" />
     <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
+    <Project Path="src/Kurio.Contracts/Kurio.Contracts.csproj" />
     <Project Path="src/Kurio.Server/Kurio.Server.csproj" />
     <Project Path="src/Kurio.ServiceDefaults/Kurio.ServiceDefaults.csproj" />
+    <Project Path="src/Kurio.Web/Kurio.Web.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Kurio.Core.Tests/Kurio.Core.Tests.csproj" />
+    <Project Path="test/Kurio.Server.Tests/Kurio.Server.Tests.csproj" />
   </Folder>
 
   <Folder Name="/misc/">
@@ -24,19 +27,8 @@
   <Folder Name="/.github/">
     <File Path=".github/copilot-instructions.md" />
   </Folder>
-  <Folder Name="/docs/">
-    <File Path="docs/implementation-plan.md" />
-    <File Path="docs\implementation-summary-connection-loss-recovery-fix.md" />
-    <File Path="docs\implementation-summary-connection-resilience.md" />
-  </Folder>
-  <Folder Name="/docs/architecture/">
-    <File Path="docs/architecture/domain-model.md" />
-  </Folder>
   <Folder Name="/docs/prd/">
-    <File Path="docs/prd/core-engine-architecture.md" />
-    <File Path="docs/prd/configuration-and-storage.md" />
-    <File Path="docs/prd/tui-implementation.md" />
-    <File Path="docs/prd/web-service-architecture.md" />
-    <File Path="docs\prd\connection-resilience.md" />
+    <File Path="docs/prd/web-dashboard.md" />
+    <File Path="docs/prd/kurio-web-host.md" />
   </Folder>
 </Solution>

@@ -1,4 +1,142 @@
 @page "/stats"
+@implements IAsyncDisposable
+@inject HubClientFactory HubFactory
 
 <h1>Statistics</h1>
-<p>Planned: live throughput, history, and session metrics streamed from Kurio.Server hubs.</p>
+
+@if (_error is not null)
+{
+	<div class="alert error">@_error</div>
+}
+else if (_snapshot is null)
+{
+	<p class="muted">Waiting for stats…</p>
+}
+else
+{
+	<div class="grid">
+		<div class="card">
+			<div class="label">Active</div>
+			<div class="value">@_snapshot.ActiveCount</div>
+		</div>
+		<div class="card">
+			<div class="label">Queued</div>
+			<div class="value">@_snapshot.QueuedCount</div>
+		</div>
+		<div class="card">
+			<div class="label">Completed</div>
+			<div class="value">@_snapshot.CompletedCount</div>
+		</div>
+		<div class="card">
+			<div class="label">Failed</div>
+			<div class="value">@_snapshot.FailedCount</div>
+		</div>
+		<div class="card">
+			<div class="label">Throughput (now)</div>
+			<div class="value">@FormatRate(_snapshot.CurrentThroughputBytesPerSecond)</div>
+		</div>
+		<div class="card">
+			<div class="label">Throughput (avg)</div>
+			<div class="value">@FormatRate(_snapshot.AverageThroughputBytesPerSecond)</div>
+		</div>
+		<div class="card">
+			<div class="label">Total bytes</div>
+			<div class="value">@FormatBytes(_snapshot.TotalBytesDownloaded)</div>
+		</div>
+		<div class="card">
+			<div class="label">Started</div>
+			<div class="value">@(_snapshot.StartedAt?.LocalDateTime.ToString("g") ?? "-" )</div>
+		</div>
+	</div>
+}
+
+@code {
+	private HubConnection? _connection;
+	private StatsSnapshot? _snapshot;
+	private string? _error;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await ConnectAsync();
+	}
+
+	private async Task ConnectAsync()
+	{
+		_connection = HubFactory.CreateStatsHub();
+
+		_connection.Reconnected += _ => RequestSnapshotAsync();
+		_connection.Reconnecting += _ => OnReconnect("Stats hub reconnecting");
+		_connection.Closed += error =>
+		{
+			_error = error?.Message ?? "Connection closed";
+			return Task.CompletedTask;
+		};
+
+		_connection.On<StatsSnapshot>(nameof(IStatsClient.StatsSnapshotAsync), snapshot =>
+		{
+			_snapshot = snapshot;
+			_error = null;
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<StatsSnapshot>(nameof(IStatsClient.StatsUpdatedAsync), snapshot =>
+		{
+			_snapshot = snapshot;
+			return InvokeAsync(StateHasChanged);
+		});
+
+		_connection.On<Alert>(nameof(IStatsClient.AlertRaisedAsync), alert =>
+		{
+			_error = alert.Message;
+			return InvokeAsync(StateHasChanged);
+		});
+
+		await _connection.StartAsync();
+		await RequestSnapshotAsync();
+	}
+
+	private Task RequestSnapshotAsync()
+	{
+		return _connection?.InvokeAsync(nameof(IStatsHub.SubscribeStatsAsync)) ?? Task.CompletedTask;
+	}
+
+	private Task OnReconnect(string message)
+	{
+		_error = message;
+		return InvokeAsync(StateHasChanged);
+	}
+
+	private static string FormatRate(long bytesPerSecond)
+	{
+		if (bytesPerSecond <= 0)
+		{
+			return "-";
+		}
+
+		return bytesPerSecond switch
+		{
+			> 1_000_000 => $"{bytesPerSecond / 1_000_000d:F1} MB/s",
+			> 1_000 => $"{bytesPerSecond / 1_000d:F1} KB/s",
+			_ => $"{bytesPerSecond} B/s"
+		};
+	}
+
+	private static string FormatBytes(long value)
+	{
+		return value switch
+		{
+			> 1_000_000_000 => $"{value / 1_000_000_000d:F1} GB",
+			> 1_000_000 => $"{value / 1_000_000d:F1} MB",
+			> 1_000 => $"{value / 1_000d:F1} KB",
+			_ => $"{value} B"
+		};
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_connection is not null)
+		{
+			await _connection.DisposeAsync();
+		}
+	}
+}

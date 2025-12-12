@@ -25,27 +25,27 @@ public sealed class DownloadHub : Hub<IDownloadsClient>, IDownloadsHub
         _logger = logger;
     }
 
-    public async Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request, CancellationToken cancellationToken = default)
+    public async Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request)
     {
         _logger.LogInformation("Client {ConnectionId} subscribed to downloads", Context.ConnectionId);
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
-        await SendSnapshotAsync(request, cancellationToken).ConfigureAwait(false);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
+        await SendSnapshotAsync(request).ConfigureAwait(false);
     }
 
-    public async Task UnsubscribeDownloadsAsync(CancellationToken cancellationToken = default)
+    public async Task UnsubscribeDownloadsAsync()
     {
         _logger.LogInformation("Client {ConnectionId} unsubscribed from downloads", Context.ConnectionId);
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
     }
 
-    public async Task RequestSnapshotAsync(CancellationToken cancellationToken = default)
+    public async Task RequestSnapshotAsync()
     {
         _logger.LogInformation("Client {ConnectionId} requested snapshot", Context.ConnectionId);
-        await SendSnapshotAsync(null, cancellationToken).ConfigureAwait(false);
+        await SendSnapshotAsync(null).ConfigureAwait(false);
     }
 
-    private async Task SendSnapshotAsync(DownloadSubscriptionRequest? request, CancellationToken cancellationToken)
+    private async Task SendSnapshotAsync(DownloadSubscriptionRequest? request)
     {
         var filter = request?.States ?? DownloadStateFilter.All;
         var tasks = _engine.GetDownloads(filter.ToCoreFilter())

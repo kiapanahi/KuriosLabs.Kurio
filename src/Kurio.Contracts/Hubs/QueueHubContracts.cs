@@ -4,11 +4,11 @@ namespace KuriousLabs.Kurio.Contracts.Hubs;
 
 public interface IQueueHub
 {
-    Task SubscribeQueueAsync(CancellationToken cancellationToken = default);
+    Task SubscribeQueueAsync();
 
-    Task UnsubscribeQueueAsync(CancellationToken cancellationToken = default);
+    Task UnsubscribeQueueAsync();
 
-    Task RequestQueueSnapshotAsync(CancellationToken cancellationToken = default);
+    Task RequestQueueSnapshotAsync();
 }
 
 public interface IQueueClient

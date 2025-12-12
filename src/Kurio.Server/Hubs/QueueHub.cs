@@ -24,26 +24,26 @@ public sealed class QueueHub : Hub<IQueueClient>, IQueueHub
         _logger = logger;
     }
 
-    public async Task SubscribeQueueAsync(CancellationToken cancellationToken = default)
+    public async Task SubscribeQueueAsync()
     {
         _logger.LogInformation("Client {ConnectionId} subscribed to queue", Context.ConnectionId);
-        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
-        await SendSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
+        await SendSnapshotAsync().ConfigureAwait(false);
     }
 
-    public async Task UnsubscribeQueueAsync(CancellationToken cancellationToken = default)
+    public async Task UnsubscribeQueueAsync()
     {
         _logger.LogInformation("Client {ConnectionId} unsubscribed from queue", Context.ConnectionId);
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
     }
 
-    public async Task RequestQueueSnapshotAsync(CancellationToken cancellationToken = default)
+    public async Task RequestQueueSnapshotAsync()
     {
         _logger.LogInformation("Client {ConnectionId} requested queue snapshot", Context.ConnectionId);
-        await SendSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        await SendSnapshotAsync().ConfigureAwait(false);
     }
 
-    private async Task SendSnapshotAsync(CancellationToken cancellationToken)
+    private async Task SendSnapshotAsync()
     {
         var queueItems = _queueManager.GetQueuedTasks()
             .Select((task, index) => task.ToContract(index + 1))

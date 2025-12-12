@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Kurio.Core\Kurio.Core.csproj"/>
     <ProjectReference Include="..\Kurio.ServiceDefaults\Kurio.ServiceDefaults.csproj"/>
+    <ProjectReference Include="..\Kurio.Contracts\Kurio.Contracts.csproj"/>
   </ItemGroup>
 
 </Project>

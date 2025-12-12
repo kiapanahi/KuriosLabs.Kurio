@@ -1,0 +1,49 @@
+@implements IDisposable
+@inject ConnectionStateService ConnectionState
+
+<span class="status @CssClass">
+    @StatusText
+    <small title="Last checked (UTC)">@TimestampText</small>
+</span>
+
+@code {
+    private ConnectionStatusSnapshot _snapshot = new(ConnectionStatusKind.Unknown, DateTimeOffset.UtcNow, "Pending");
+
+    private string StatusText => _snapshot.Status switch
+    {
+        ConnectionStatusKind.Connected => "Connected",
+        ConnectionStatusKind.Connecting => "Connecting",
+        ConnectionStatusKind.Reconnecting => "Reconnecting",
+        ConnectionStatusKind.Disconnected => "Disconnected",
+        ConnectionStatusKind.Error => _snapshot.Message ?? "Unavailable",
+        _ => "Unknown"
+    };
+
+    private string CssClass => _snapshot.Status switch
+    {
+        ConnectionStatusKind.Connected => "ok",
+        ConnectionStatusKind.Connecting or ConnectionStatusKind.Reconnecting => "warn",
+        ConnectionStatusKind.Disconnected or ConnectionStatusKind.Error => "error",
+        _ => "warn"
+    };
+
+    private string TimestampText => _snapshot.UpdatedAtUtc.ToString("u");
+
+    protected override async Task OnInitializedAsync()
+    {
+        ConnectionState.Changed += OnChanged;
+        _snapshot = ConnectionState.Current;
+        await ConnectionState.TriggerProbeAsync();
+    }
+
+    private void OnChanged(ConnectionStatusSnapshot snapshot)
+    {
+        _snapshot = snapshot;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ConnectionState.Changed -= OnChanged;
+    }
+}

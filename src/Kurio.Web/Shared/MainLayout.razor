@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<PageTitle>Kurio Dashboard</PageTitle>
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <header class="top-bar">
+            <h1>Kurio Dashboard</h1>
+            <ConnectionStatus />
+        </header>
+        <article class="content">
+            @Body
+        </article>
+    </main>
+</div>

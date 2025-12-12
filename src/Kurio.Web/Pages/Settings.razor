@@ -1,4 +1,98 @@
 @page "/settings"
+@inject KurioApiClient ApiClient
 
 <h1>Settings</h1>
-<p>Planned: configuration surface for server endpoints, categories, and preferences (auth to be defined in #73).</p>
+
+@if (_error is not null)
+{
+	<div class="alert error">@_error</div>
+}
+
+@if (_speedLimit is null)
+{
+	<p class="muted">Loading speed limit…</p>
+}
+else
+{
+	<form class="stack" @onsubmit="UpdateAsync" @onsubmit:preventDefault>
+		<label>
+			<input type="checkbox" @bind="_speedLimit.Enabled" /> Enable speed limit
+		</label>
+		<label>
+			Max download (B/s)
+			<input type="number" min="0" @bind="_speedLimit.MaxDownloadSpeedBytesPerSecond" />
+		</label>
+		<label>
+			Max upload (B/s)
+			<input type="number" min="0" @bind="_speedLimit.MaxUploadSpeedBytesPerSecond" />
+		</label>
+		<p class="muted">Current limit: @(_speedLimit.CurrentLimitBytesPerSecond == 0 ? "Unlimited" : FormatRate(_speedLimit.CurrentLimitBytesPerSecond))</p>
+		<button type="submit" class="primary" disabled="@_busy">Save</button>
+	</form>
+}
+
+@code {
+	private SpeedLimitResponseModel? _speedLimit;
+	private string? _error;
+	private bool _busy;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadAsync();
+	}
+
+	private async Task LoadAsync()
+	{
+		_speedLimit = await ApiClient.GetSpeedLimitAsync().ConfigureAwait(false);
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private async Task UpdateAsync()
+	{
+		if (_speedLimit is null)
+		{
+			return;
+		}
+
+		_busy = true;
+		_error = null;
+		try
+		{
+			var success = await ApiClient.UpdateSpeedLimitAsync(new UpdateSpeedLimitRequestModel
+			{
+				Enabled = _speedLimit.Enabled,
+				MaxDownloadSpeedBytesPerSecond = _speedLimit.MaxDownloadSpeedBytesPerSecond,
+				MaxUploadSpeedBytesPerSecond = _speedLimit.MaxUploadSpeedBytesPerSecond
+			}).ConfigureAwait(false);
+
+			if (!success)
+			{
+				_error = "Failed to update speed limit";
+			}
+			else
+			{
+				_speedLimit = await ApiClient.GetSpeedLimitAsync().ConfigureAwait(false);
+			}
+		}
+		finally
+		{
+			_busy = false;
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+
+	private static string FormatRate(long bytesPerSecond)
+	{
+		if (bytesPerSecond <= 0)
+		{
+			return "Unlimited";
+		}
+
+		return bytesPerSecond switch
+		{
+			> 1_000_000 => $"{bytesPerSecond / 1_000_000d:F1} MB/s",
+			> 1_000 => $"{bytesPerSecond / 1_000d:F1} KB/s",
+			_ => $"{bytesPerSecond} B/s"
+		};
+	}
+}

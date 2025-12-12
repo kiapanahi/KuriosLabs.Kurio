@@ -1,4 +1,198 @@
 @page "/overview"
+@implements IAsyncDisposable
+@inject HubClientFactory HubFactory
 
 <h1>Overview</h1>
-<p>This page will summarize active downloads, throughput, and health. Data will be populated from Kurio.Server contracts and hubs.</p>
+
+<div class="grid">
+	<div class="card">
+		<div class="label">Active</div>
+		<div class="value">@(_stats?.ActiveCount ?? 0)</div>
+	</div>
+	<div class="card">
+		<div class="label">Queued</div>
+		<div class="value">@(_stats?.QueuedCount ?? 0)</div>
+	</div>
+	<div class="card">
+		<div class="label">Completed</div>
+		<div class="value">@(_stats?.CompletedCount ?? 0)</div>
+	</div>
+	<div class="card">
+		<div class="label">Failed</div>
+		<div class="value">@(_stats?.FailedCount ?? 0)</div>
+	</div>
+	<div class="card">
+		<div class="label">Throughput</div>
+		<div class="value">@FormatRate(_stats?.CurrentThroughputBytesPerSecond)</div>
+	</div>
+	<div class="card">
+		<div class="label">Average</div>
+		<div class="value">@FormatRate(_stats?.AverageThroughputBytesPerSecond)</div>
+	</div>
+</div>
+
+<section>
+	<header class="section-header">
+		<h2>Active Downloads</h2>
+		<NavLink class="ghost" href="/downloads">View all</NavLink>
+	</header>
+	@if (_downloads.Count == 0)
+	{
+		<p class="muted">No active downloads.</p>
+	}
+	else
+	{
+		<ul class="download-list">
+			@foreach (var download in _downloads.OrderByDescending(d => d.Priority).ThenBy(d => d.CreatedAt).Take(5))
+			{
+				<li>
+					<div class="title">@download.Name</div>
+					<div class="sub">@download.Url</div>
+					<div class="meta">
+						<span class="badge @GetStateClass(download.State)">@download.State</span>
+						<span>@(download.PercentComplete?.ToString("F1") ?? "0")%</span>
+						<span>@FormatRate(download.BytesPerSecond)</span>
+						<span>@FormatEta(download.EstimatedTimeRemaining)</span>
+					</div>
+					<div class="progress small">
+						<div class="bar" style="width:@(download.PercentComplete?.ToString("F0") ?? "0")%"></div>
+					</div>
+				</li>
+			}
+		</ul>
+	}
+</section>
+
+@code {
+	private HubConnection? _statsConnection;
+	private HubConnection? _downloadsConnection;
+	private StatsSnapshot? _stats;
+	private List<DownloadSummary> _downloads = [];
+
+	protected override async Task OnInitializedAsync()
+	{
+		await ConnectStatsAsync();
+		await ConnectDownloadsAsync();
+	}
+
+	private async Task ConnectStatsAsync()
+	{
+		_statsConnection = HubFactory.CreateStatsHub();
+		_statsConnection.On<StatsSnapshot>(nameof(IStatsClient.StatsSnapshotAsync), snapshot =>
+		{
+			_stats = snapshot;
+			return InvokeAsync(StateHasChanged);
+		});
+		_statsConnection.On<StatsSnapshot>(nameof(IStatsClient.StatsUpdatedAsync), snapshot =>
+		{
+			_stats = snapshot;
+			return InvokeAsync(StateHasChanged);
+		});
+		await _statsConnection.StartAsync();
+		await _statsConnection.InvokeAsync(nameof(IStatsHub.SubscribeStatsAsync));
+	}
+
+	private async Task ConnectDownloadsAsync()
+	{
+		_downloadsConnection = HubFactory.CreateDownloadsHub();
+		_downloadsConnection.On<IReadOnlyList<DownloadSummary>>(nameof(IDownloadsClient.ReceiveSnapshotAsync), snapshot =>
+		{
+			_downloads = snapshot.ToList();
+			return InvokeAsync(StateHasChanged);
+		});
+		_downloadsConnection.On<DownloadSummary>(nameof(IDownloadsClient.DownloadUpdatedAsync), download =>
+		{
+			Upsert(download);
+			return InvokeAsync(StateHasChanged);
+		});
+		_downloadsConnection.On<DownloadProgressUpdate>(nameof(IDownloadsClient.DownloadProgressedAsync), progress =>
+		{
+			var item = _downloads.FirstOrDefault(d => d.Id == progress.Id);
+			if (item is not null)
+			{
+				Upsert(item with
+				{
+					DownloadedBytes = progress.DownloadedBytes,
+					TotalBytes = progress.TotalBytes,
+					PercentComplete = progress.PercentComplete,
+					BytesPerSecond = progress.BytesPerSecond,
+					EstimatedTimeRemaining = progress.EstimatedTimeRemaining,
+					ActiveConnections = progress.ActiveConnections
+				});
+			}
+			return InvokeAsync(StateHasChanged);
+		});
+
+		await _downloadsConnection.StartAsync();
+		await _downloadsConnection.InvokeAsync(nameof(IDownloadsHub.SubscribeDownloadsAsync), new DownloadSubscriptionRequest
+		{
+			States = DownloadStateFilter.Active,
+			IncludeCompleted = false,
+			Limit = 10
+		});
+	}
+
+	private static string GetStateClass(DownloadState state) => state switch
+	{
+		DownloadState.Completed => "ok",
+		DownloadState.Downloading or DownloadState.Analyzing => "warn",
+		DownloadState.Failed or DownloadState.Cancelled => "error",
+		_ => "muted"
+	};
+
+	private void Upsert(DownloadSummary download)
+	{
+		var index = _downloads.FindIndex(d => d.Id == download.Id);
+		if (index >= 0)
+		{
+			_downloads[index] = download;
+		}
+		else
+		{
+			_downloads.Add(download);
+		}
+	}
+
+	private static string FormatRate(long? bytesPerSecond)
+	{
+		if (bytesPerSecond is null || bytesPerSecond <= 0)
+		{
+			return "-";
+		}
+
+		return bytesPerSecond.Value switch
+		{
+			> 1_000_000 => $"{bytesPerSecond.Value / 1_000_000d:F1} MB/s",
+			> 1_000 => $"{bytesPerSecond.Value / 1_000d:F1} KB/s",
+			_ => $"{bytesPerSecond} B/s"
+		};
+	}
+
+	private static string FormatEta(TimeSpan? eta)
+	{
+		if (eta is null)
+		{
+			return "-";
+		}
+
+		if (eta.Value.TotalHours >= 1)
+		{
+			return $"{eta:hh\\:mm\\:ss}";
+		}
+
+		return $"{eta:mm\\:ss}";
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_statsConnection is not null)
+		{
+			await _statsConnection.DisposeAsync();
+		}
+
+		if (_downloadsConnection is not null)
+		{
+			await _downloadsConnection.DisposeAsync();
+		}
+	}
+}

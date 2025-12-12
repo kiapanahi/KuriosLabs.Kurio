@@ -4,11 +4,11 @@ namespace KuriousLabs.Kurio.Contracts.Hubs;
 
 public interface IDownloadsHub
 {
-    Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request, CancellationToken cancellationToken = default);
+    Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request);
 
-    Task UnsubscribeDownloadsAsync(CancellationToken cancellationToken = default);
+    Task UnsubscribeDownloadsAsync();
 
-    Task RequestSnapshotAsync(CancellationToken cancellationToken = default);
+    Task RequestSnapshotAsync();
 }
 
 public interface IDownloadsClient

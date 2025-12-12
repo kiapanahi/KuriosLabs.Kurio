@@ -4,11 +4,11 @@ namespace KuriousLabs.Kurio.Contracts.Hubs;
 
 public interface IStatsHub
 {
-    Task SubscribeStatsAsync(CancellationToken cancellationToken = default);
+    Task SubscribeStatsAsync();
 
-    Task UnsubscribeStatsAsync(CancellationToken cancellationToken = default);
+    Task UnsubscribeStatsAsync();
 
-    Task RequestStatsSnapshotAsync(CancellationToken cancellationToken = default);
+    Task RequestStatsSnapshotAsync();
 }
 
 public interface IStatsClient

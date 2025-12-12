@@ -1,11 +1,11 @@
 @page "/"
+@inject NavigationManager Navigation
 
-<h1>Dashboard Host Ready</h1>
+<p class="muted">Redirecting to overview…</p>
 
-<p>This host is wired to Kurio.Server via contracts, HTTP, and SignalR. Upcoming pages will surface downloads, queue, and stats.</p>
-
-<ul>
-    <li>Server base URL and hubs are configurable via <code>appsettings.json</code>.</li>
-    <li>Only contracts are referenced; engine dependencies stay on the server side.</li>
-    <li>SignalR connections are created via <code>HubClientFactory</code> with automatic reconnect.</li>
-</ul>
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/overview", true);
+    }
+}

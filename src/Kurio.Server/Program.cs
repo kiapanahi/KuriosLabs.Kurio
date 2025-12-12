@@ -45,16 +45,33 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<ProgressBroadcaste
 builder.Services.AddSingleton<StatsBroadcaster>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<StatsBroadcaster>());
 
-// Add CORS
+// Add CORS with enhanced configuration for dashboard and third-party clients
 var allowedOrigins = builder.Configuration
     .GetSection("Kurio:Server:AllowedOrigins")
     .Get<string[]>() ?? ["http://localhost:5173", "http://localhost:3000"];
 
-builder.Services.AddCors(options => options.AddPolicy("AllowWebClients", policy =>
-    policy.WithOrigins(allowedOrigins)
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()));
+var corsPolicy = builder.Configuration.GetValue<string>("Kurio:Server:CorsPolicy") ?? "AllowWebClients";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicy, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetIsOriginAllowedToAllowWildcardSubdomains();
+    });
+
+    // Stricter policy for production reverse-proxy scenarios
+    options.AddPolicy("SameOriginOnly", policy =>
+    {
+        policy.WithOrigins(builder.Configuration.GetValue<string>("Kurio:Server:BaseUrl") ?? "https://localhost:7206")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 // Add response compression
 builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
@@ -80,7 +97,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseResponseCompression();
 app.UseHttpsRedirection();
-app.UseCors("AllowWebClients");
+app.UseCors(corsPolicy);
 app.UseAuthorization();
 
 app.MapControllers();

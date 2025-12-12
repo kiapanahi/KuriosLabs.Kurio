@@ -4,6 +4,7 @@
     <Project Path="src/Kurio.Avalonia/Kurio.Avalonia.csproj" />
     <Project Path="src/Kurio.Cli/Kurio.Cli.csproj" />
     <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
+    <Project Path="src/Kurio.Contracts/Kurio.Contracts.csproj" />
     <Project Path="src/Kurio.Server/Kurio.Server.csproj" />
     <Project Path="src/Kurio.ServiceDefaults/Kurio.ServiceDefaults.csproj" />
   </Folder>
@@ -38,5 +39,6 @@
     <File Path="docs/prd/tui-implementation.md" />
     <File Path="docs/prd/web-service-architecture.md" />
     <File Path="docs\prd\connection-resilience.md" />
+    <File Path="docs/prd/web-dashboard.md" />
   </Folder>
 </Solution>

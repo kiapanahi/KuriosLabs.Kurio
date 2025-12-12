@@ -42,6 +42,8 @@ builder.Services.AddKurioDownloadEngine();
 builder.Services.AddHostedService<DownloadEngineHostedService>();
 builder.Services.AddSingleton<ProgressBroadcaster>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ProgressBroadcaster>());
+builder.Services.AddSingleton<StatsBroadcaster>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<StatsBroadcaster>());
 
 // Add CORS
 var allowedOrigins = builder.Configuration
@@ -83,6 +85,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<DownloadHub>("/hubs/downloads");
+app.MapHub<QueueHub>("/hubs/queue");
+app.MapHub<StatsHub>("/hubs/stats");
 app.MapHealthChecks("/health");
 
 // SSE endpoint for progress streaming

@@ -1,5 +1,7 @@
+using KuriousLabs.Kurio.Contracts.Hubs;
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Server.Hubs;
+using KuriousLabs.Kurio.Server.Mappers;
 
 using Microsoft.AspNetCore.SignalR;
 
@@ -11,12 +13,12 @@ namespace KuriousLabs.Kurio.Server.Services;
 public class ProgressBroadcaster : BackgroundService
 {
     private readonly IDownloadEngine _engine;
-    private readonly IHubContext<DownloadHub> _hubContext;
+    private readonly IHubContext<DownloadHub, IDownloadsClient> _hubContext;
     private readonly ILogger<ProgressBroadcaster> _logger;
 
     public ProgressBroadcaster(
         IDownloadEngine engine,
-        IHubContext<DownloadHub> hubContext,
+        IHubContext<DownloadHub, IDownloadsClient> hubContext,
         ILogger<ProgressBroadcaster> logger)
     {
         _engine = engine;
@@ -34,11 +36,10 @@ public class ProgressBroadcaster : BackgroundService
             {
                 try
                 {
-                    // Broadcast to all connected SignalR clients
-                    await _hubContext.Clients.All.SendAsync(
-                        "ProgressUpdate",
-                        progress,
-                        stoppingToken);
+                    var update = progress.ToProgressUpdate();
+                    await _hubContext.Clients.Group(DownloadHub.GroupName)
+                        .DownloadProgressedAsync(update)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

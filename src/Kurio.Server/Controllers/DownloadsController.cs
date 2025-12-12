@@ -1,8 +1,14 @@
+using System.Linq;
+
+using KuriousLabs.Kurio.Contracts.Hubs;
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
+using KuriousLabs.Kurio.Server.Hubs;
+using KuriousLabs.Kurio.Server.Mappers;
 using KuriousLabs.Kurio.Server.Models;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace KuriousLabs.Kurio.Server.Controllers;
 
@@ -15,13 +21,22 @@ namespace KuriousLabs.Kurio.Server.Controllers;
 public class DownloadsController : ControllerBase
 {
     private readonly IDownloadEngine _engine;
+    private readonly IDownloadQueueManager _queueManager;
+    private readonly IHubContext<DownloadHub, IDownloadsClient> _downloadsHubContext;
+    private readonly IHubContext<QueueHub, IQueueClient> _queueHubContext;
     private readonly ILogger<DownloadsController> _logger;
 
     public DownloadsController(
         IDownloadEngine engine,
+        IDownloadQueueManager queueManager,
+        IHubContext<DownloadHub, IDownloadsClient> downloadsHubContext,
+        IHubContext<QueueHub, IQueueClient> queueHubContext,
         ILogger<DownloadsController> logger)
     {
         _engine = engine;
+        _queueManager = queueManager;
+        _downloadsHubContext = downloadsHubContext;
+        _queueHubContext = queueHubContext;
         _logger = logger;
     }
 
@@ -51,7 +66,7 @@ public class DownloadsController : ControllerBase
             var task = await _engine.AddDownloadAsync(
                 uri,
                 request.ToDownloadOptions(),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             // Set priority if different from default
             if (request.Priority != DownloadPriority.Normal)
@@ -60,6 +75,8 @@ public class DownloadsController : ControllerBase
             }
 
             var response = DownloadResponse.FromTask(task);
+            await BroadcastDownloadUpdateAsync(task, cancellationToken).ConfigureAwait(false);
+            await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return CreatedAtAction(nameof(GetDownload), new { id = task.Id }, response);
         }
         catch (Exception ex)
@@ -124,7 +141,9 @@ public class DownloadsController : ControllerBase
     {
         try
         {
-            await _engine.StartDownloadAsync(id, cancellationToken);
+            await _engine.StartDownloadAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastDownloadUpdateIfExistsAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -158,7 +177,9 @@ public class DownloadsController : ControllerBase
     {
         try
         {
-            await _engine.PauseDownloadAsync(id, cancellationToken);
+            await _engine.PauseDownloadAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastDownloadUpdateIfExistsAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -192,7 +213,9 @@ public class DownloadsController : ControllerBase
     {
         try
         {
-            await _engine.ResumeDownloadAsync(id, cancellationToken);
+            await _engine.ResumeDownloadAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastDownloadUpdateIfExistsAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -229,7 +252,9 @@ public class DownloadsController : ControllerBase
     {
         try
         {
-            await _engine.CancelDownloadAsync(id, removeFiles, cancellationToken);
+            await _engine.CancelDownloadAsync(id, removeFiles, cancellationToken).ConfigureAwait(false);
+            await BroadcastDownloadRemovedAsync(id, cancellationToken).ConfigureAwait(false);
+            await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return NoContent();
         }
         catch (Exception ex)
@@ -251,7 +276,7 @@ public class DownloadsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public IActionResult ChangePriority(Guid id, [FromBody] ChangePriorityRequest request)
+    public async Task<IActionResult> ChangePriority(Guid id, [FromBody] ChangePriorityRequest request)
     {
         var success = _engine.ChangePriority(id, request.Priority);
         if (!success)
@@ -262,6 +287,8 @@ public class DownloadsController : ControllerBase
                 title: "Download not found or not queued");
         }
 
+        await BroadcastDownloadUpdateIfExistsAsync(id, HttpContext.RequestAborted).ConfigureAwait(false);
+        await BroadcastQueueSnapshotAsync(HttpContext.RequestAborted).ConfigureAwait(false);
         return NoContent();
     }
 
@@ -274,7 +301,15 @@ public class DownloadsController : ControllerBase
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     public async Task<ActionResult<int>> PauseAll(CancellationToken cancellationToken)
     {
-        var count = await _engine.PauseAllAsync(cancellationToken);
+        var count = await _engine.PauseAllAsync(cancellationToken).ConfigureAwait(false);
+
+        var active = _engine.GetDownloads(DownloadStateFilter.Active).ToList();
+        foreach (var task in active)
+        {
+            await BroadcastDownloadUpdateAsync(task, cancellationToken).ConfigureAwait(false);
+        }
+
+        await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
         return Ok(count);
     }
 
@@ -283,9 +318,19 @@ public class DownloadsController : ControllerBase
     /// </summary>
     [HttpPost("clear-completed")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public IActionResult ClearCompleted()
+    public async Task<IActionResult> ClearCompleted(CancellationToken cancellationToken)
     {
+        var completedIds = _engine.GetDownloads(DownloadStateFilter.Completed)
+            .Select(d => d.Id)
+            .ToList();
+
         _engine.ClearCompleted();
+
+        if (completedIds.Count > 0)
+        {
+            await BroadcastDownloadsClearedAsync(completedIds, cancellationToken).ConfigureAwait(false);
+        }
+
         return NoContent();
     }
 
@@ -308,5 +353,47 @@ public class DownloadsController : ControllerBase
             CompletedDownloads = allDownloads.Count(d => d.State == DownloadState.Completed),
             FailedDownloads = allDownloads.Count(d => d.State == DownloadState.Failed)
         });
+    }
+
+    private async Task BroadcastDownloadUpdateAsync(IDownloadTask task, CancellationToken cancellationToken)
+    {
+        var summary = task.ToContract();
+        await _downloadsHubContext.Clients.Group(DownloadHub.GroupName)
+            .DownloadUpdatedAsync(summary)
+            .ConfigureAwait(false);
+    }
+
+    private async Task BroadcastDownloadUpdateIfExistsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var task = _engine.GetDownload(id);
+        if (task != null)
+        {
+            await BroadcastDownloadUpdateAsync(task, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task BroadcastDownloadRemovedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await _downloadsHubContext.Clients.Group(DownloadHub.GroupName)
+            .DownloadRemovedAsync(id)
+            .ConfigureAwait(false);
+    }
+
+    private async Task BroadcastDownloadsClearedAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        await _downloadsHubContext.Clients.Group(DownloadHub.GroupName)
+            .DownloadsClearedAsync(ids)
+            .ConfigureAwait(false);
+    }
+
+    private async Task BroadcastQueueSnapshotAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = _queueManager.GetQueuedTasks()
+            .Select((task, index) => task.ToContract(index + 1))
+            .ToList();
+
+        await _queueHubContext.Clients.Group(QueueHub.GroupName)
+            .QueueSnapshotAsync(snapshot)
+            .ConfigureAwait(false);
     }
 }

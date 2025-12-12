@@ -1,15 +1,19 @@
+using System.Linq;
+
+using KuriousLabs.Kurio.Contracts.Downloads;
+using KuriousLabs.Kurio.Contracts.Hubs;
 using KuriousLabs.Kurio.Core.Abstractions;
-using KuriousLabs.Kurio.Server.Models;
+using KuriousLabs.Kurio.Server.Mappers;
+using CoreModels = KuriousLabs.Kurio.Core.Models;
 
 using Microsoft.AspNetCore.SignalR;
 
 namespace KuriousLabs.Kurio.Server.Hubs;
 
-/// <summary>
-///     SignalR hub for real-time download updates and operations.
-/// </summary>
-public class DownloadHub : Hub
+public sealed class DownloadHub : Hub<IDownloadsClient>, IDownloadsHub
 {
+    public const string GroupName = "downloads";
+
     private readonly IDownloadEngine _engine;
     private readonly ILogger<DownloadHub> _logger;
 
@@ -21,64 +25,51 @@ public class DownloadHub : Hub
         _logger = logger;
     }
 
-    /// <summary>
-    ///     Subscribe to progress updates for a specific task or all tasks.
-    /// </summary>
-    /// <param name="taskId">Optional task ID to filter progress updates. If null, receives all progress.</param>
-    public async Task SubscribeToProgress(Guid? taskId = null)
+    public async Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request, CancellationToken cancellationToken = default)
     {
-        var connectionId = Context.ConnectionId;
-        _logger.LogInformation("Client {ConnectionId} subscribed to progress for task {TaskId}",
-            connectionId, taskId?.ToString() ?? "all");
+        _logger.LogInformation("Client {ConnectionId} subscribed to downloads", Context.ConnectionId);
 
-        // Note: Progress streaming is handled by ProgressBroadcaster
-        await Clients.Caller.SendAsync("Subscribed", taskId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
+        await SendSnapshotAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    ///     Unsubscribe from progress updates.
-    /// </summary>
-    public async Task UnsubscribeFromProgress()
+    public async Task UnsubscribeDownloadsAsync(CancellationToken cancellationToken = default)
     {
-        var connectionId = Context.ConnectionId;
-        _logger.LogInformation("Client {ConnectionId} unsubscribed from progress", connectionId);
-
-        await Clients.Caller.SendAsync("Unsubscribed");
+        _logger.LogInformation("Client {ConnectionId} unsubscribed from downloads", Context.ConnectionId);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    ///     Get download details for a specific task.
-    /// </summary>
-    /// <param name="id">Download task ID.</param>
-    /// <returns>Download details.</returns>
-    public async Task<DownloadResponse> GetDownload(Guid id)
+    public async Task RequestSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        var task = _engine.GetDownload(id);
-        if (task == null)
+        _logger.LogInformation("Client {ConnectionId} requested snapshot", Context.ConnectionId);
+        await SendSnapshotAsync(null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendSnapshotAsync(DownloadSubscriptionRequest? request, CancellationToken cancellationToken)
+    {
+        var filter = request?.States ?? DownloadStateFilter.All;
+        var tasks = _engine.GetDownloads(filter.ToCoreFilter())
+            .Where(task => request?.Category is null || task.Options.Category == request.Category)
+            .OrderByDescending(task => task.Priority)
+            .ThenBy(task => task.CreatedAt)
+            .ToList();
+
+        if (request?.IncludeCompleted == false)
         {
-            throw new HubException($"Download {id} not found");
+            tasks = tasks
+                .Where(t => t.State != CoreModels.DownloadState.Completed)
+                .ToList();
         }
 
-        return await Task.FromResult(DownloadResponse.FromTask(task));
-    }
-
-    public override async Task OnConnectedAsync()
-    {
-        _logger.LogInformation("Client {ConnectionId} connected", Context.ConnectionId);
-        await base.OnConnectedAsync();
-    }
-
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        if (exception != null)
+        if (request?.Limit is { } limit && limit > 0)
         {
-            _logger.LogWarning(exception, "Client {ConnectionId} disconnected with error", Context.ConnectionId);
-        }
-        else
-        {
-            _logger.LogInformation("Client {ConnectionId} disconnected", Context.ConnectionId);
+            tasks = tasks.Take(limit).ToList();
         }
 
-        await base.OnDisconnectedAsync(exception);
+        var snapshot = tasks
+            .Select(t => t.ToContract())
+            .ToList();
+
+        await Clients.Caller.ReceiveSnapshotAsync(snapshot).ConfigureAwait(false);
     }
 }

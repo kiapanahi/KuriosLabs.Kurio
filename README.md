@@ -1,7 +1,6 @@
 # Kurio
 
-A powerful, cross-platform download manager built with .NET that provides advanced features for managing and
-accelerating your downloads.
+A cross-platform download manager built with modern .NET, providing advanced features for managing and accelerating downloads across multiple protocols.
 
 ## Features
 
@@ -37,7 +36,7 @@ accelerating your downloads.
 ### User Experience
 
 - **Cross-Platform** - Works on Windows, macOS, and Linux
-- **Command-Line Interface** - Powerful TUI for advanced users
+- **Web UI** - Blazor-based web interface
 - **Streaming Media Support** - Download streaming media content
 - **Automatic Updates** - Stay up-to-date with the latest features and security patches
 
@@ -54,6 +53,13 @@ accelerating your downloads.
 - .NET 10.0 or later
 - Supported operating systems: Windows, macOS, Linux
 
+Key constraints and guidelines:
+- Always use minimal APIs for ASP.NET Core components.
+- Use centralized package management via NuGet.
+- Use `System.Threading.Lock` instead of `SemaphoreSlim(1, 1)` for lock objects.
+- Use `LoggerMessageAttribute` for logging.
+- For non-UI services (API, Core, CLI), use `.ConfigureAwait(false)` for all async calls.
+
 ### Installation
 
 ```bash
@@ -63,28 +69,35 @@ git clone https://github.com/kiapanahi/KuriosLabs.Kurio.git
 # Navigate to the project directory
 cd KuriosLabs.Kurio
 
-# Build the project
+# Restore and build the solution
+dotnet restore
 dotnet build
 
-# Run the application
-dotnet run --project src/Kurio
+# Run the server (REST API + SignalR)
+dotnet run --project src/Kurio.Server
+
+# Run the web UI (Blazor WebAssembly/Server per project settings)
+dotnet run --project src/Kurio.Web
+
+# Optional: run the Aspire AppHost (if using .NET Aspire)
+dotnet run --project src/Kurio.AppHost
 ```
 
 ## Documentation
 
-- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Detailed component descriptions and getting started guide
-- **[DOCS.md](DOCS.md)** - Technical documentation, architecture, and development guidelines
+- See [docs/](docs/) for guides and PRDs.
+- See [.github/copilot-instructions.md](.github/copilot-instructions.md) for development rules and workflows.
 
 ## Project Structure
 
 ```text
 .
 ├── src/
-│   ├── Kurio.Core/          # Core download engine library
-│   ├── Kurio.Server/        # ASP.NET Core REST API + SignalR
-│   ├── Kurio.Cli/           # Terminal User Interface (TUI)
-│   ├── Kurio.Avalonia/      # Cross-platform desktop GUI
-│   ├── Kurio.AppHost/       # .NET Aspire application host
+│   ├── Kurio.Contracts/       # Shared contracts (DTOs, Hubs, Settings, Queue)
+│   ├── Kurio.Core/            # Core download engine and services
+│   ├── Kurio.Server/          # ASP.NET Core REST API + SignalR (minimal APIs)
+│   ├── Kurio.Web/             # Blazor-based web UI
+│   ├── Kurio.AppHost/         # .NET Aspire application host
 │   └── Kurio.ServiceDefaults/ # Shared service defaults
 ├── test/                    # Unit and integration tests
 └── .github/                 # GitHub workflows and templates
@@ -92,8 +105,18 @@ dotnet run --project src/Kurio
 
 ## Contributing
 
-We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to
-contribute to the project.
+We welcome contributions from the community! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Workflow essentials:
+- For any new feature or bug fix, create a PRD in `docs/prd/` outlining requirements and specifications.
+- From the PRD, generate user stories and tasks in GitHub Issues.
+- Write unit and integration tests where applicable.
+- Versioning is mandatory: update `Directory.Build.props` BEFORE committing any feature or fix.
+	- MAJOR (X.0.0): breaking changes
+	- MINOR (x.Y.0): new features, backward compatible
+	- PATCH (x.y.Z): bug fixes, minor improvements
+	- Include a separate commit: `chore: bump version to X.Y.Z`
+- Git: follow Gitflow, use feature branches, Conventional Commits, and always open a PR.
 
 ## Technology Stack
 
@@ -105,9 +128,10 @@ contribute to the project.
 
 This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
 
-## Documentation
+## Branches
 
-For detailed documentation, please visit the [docs/](docs/) directory.
+- Default branch: `main`
+- Current working branch may vary; see repository for active branches. Example: `remove-redundant-projects`.
 
 ## Changelog
 
@@ -115,5 +139,4 @@ See [CHANGELOG.md](CHANGELOG.md) for a history of changes and releases.
 
 ## Support
 
-For issues, questions, or feature requests, please use
-the [GitHub Issues](https://github.com/kiapanahi/KuriosLabs.Kurio/issues) page.
+For issues, questions, or feature requests, use the [GitHub Issues](https://github.com/kiapanahi/KuriosLabs.Kurio/issues) page.

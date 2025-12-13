@@ -1,8 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Kurio.AppHost/Kurio.AppHost.csproj" />
-    <Project Path="src/Kurio.Avalonia/Kurio.Avalonia.csproj" />
-    <Project Path="src/Kurio.Cli/Kurio.Cli.csproj" />
     <Project Path="src/Kurio.Core/Kurio.Core.csproj" />
     <Project Path="src/Kurio.Contracts/Kurio.Contracts.csproj" />
     <Project Path="src/Kurio.Server/Kurio.Server.csproj" />

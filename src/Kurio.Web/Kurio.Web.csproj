@@ -10,5 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Kurio.Contracts\Kurio.Contracts.csproj" />
+    <ProjectReference Include="..\Kurio.ServiceDefaults\Kurio.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

@@ -59,13 +59,12 @@ public sealed class JsonStatePersistence : IStatePersistence
             {
                 await JsonSerializer.SerializeAsync(fileStream, state, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                fileStream.Close();
-
-                // Atomic move
-                File.Move(tempFilePath, filePath, true);
-
-                _logger.LogStateSaved(state.TaskId, filePath);
             }
+
+            // Atomic move — only after disposal has fully released the file handle
+            File.Move(tempFilePath, filePath, true);
+
+            _logger.LogStateSaved(state.TaskId, filePath);
         }
         catch (Exception ex)
         {

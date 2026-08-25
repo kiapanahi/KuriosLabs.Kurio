@@ -248,10 +248,10 @@ public sealed class StatisticsService : IStatisticsService
             {
                 await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                fileStream.Close();
-
-                File.Move(tempFilePath, _statisticsFilePath, true);
             }
+
+            // Atomic move — only after disposal has fully released the file handle
+            File.Move(tempFilePath, _statisticsFilePath, true);
         }
         catch (Exception ex)
         {

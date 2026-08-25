@@ -316,10 +316,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             {
                 await JsonSerializer.SerializeAsync(fileStream, _entries, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                fileStream.Close();
-
-                File.Move(tempFilePath, _historyFilePath, true);
             }
+
+            // Atomic move — only after disposal has fully released the file handle
+            File.Move(tempFilePath, _historyFilePath, true);
         }
         catch (Exception ex)
         {

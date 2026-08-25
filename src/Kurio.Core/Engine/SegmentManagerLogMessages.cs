@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Engine;
+namespace KuriousLabs.Kurio.Core.Engine;
 
 internal static partial class SegmentManagerLogMessages
 {

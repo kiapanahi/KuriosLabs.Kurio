@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Protocols;
+namespace KuriousLabs.Kurio.Core.Protocols;
 
 internal static partial class HttpProtocolHandlerLogMessages
 {

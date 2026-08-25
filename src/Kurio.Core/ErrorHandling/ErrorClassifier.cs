@@ -1,7 +1,5 @@
 using System.Net.Sockets;
 
-using Kurio.Core.ErrorHandling;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 

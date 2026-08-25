@@ -82,13 +82,12 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to get info for file {File}", file);
+                    _logger.LogFileInfoFailed(ex, file);
                 }
             }
         }
 
-        _logger.LogInformation("Found {Count} orphaned files totaling {Bytes} bytes",
-            orphanedFiles.Count, totalBytes);
+        _logger.LogOrphanedFilesFound(orphanedFiles.Count, totalBytes);
 
         return Task.FromResult(new OrphanedFilesInfo(orphanedFiles.Count, totalBytes, orphanedFiles));
     }
@@ -97,7 +96,7 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
         TimeSpan olderThan,
         CancellationToken cancellationToken = default)
     {
-        var orphanedInfo = await ScanForOrphanedFilesAsync(cancellationToken);
+        var orphanedInfo = await ScanForOrphanedFilesAsync(cancellationToken).ConfigureAwait(false);
 
         var threshold = DateTime.Now - olderThan;
         var filesToDelete = orphanedInfo.Files
@@ -120,21 +119,19 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
                 File.Delete(file.Path);
                 deleted++;
                 bytesFreed += file.Size;
-                _logger.LogDebug("Deleted orphaned file {File}", file.Path);
+                _logger.LogOrphanedFileDeleted(file.Path);
             }
             catch (Exception ex)
             {
                 failed++;
-                _logger.LogWarning(ex, "Failed to delete orphaned file {File}", file.Path);
+                _logger.LogOrphanedFileDeleteFailed(ex, file.Path);
             }
         }
 
         // Clean up empty directories
         CleanupEmptyDirectories(_tempDirectory);
 
-        _logger.LogInformation(
-            "Cleanup complete: {Deleted} deleted, {Failed} failed, {Bytes} bytes freed",
-            deleted, failed, bytesFreed);
+        _logger.LogCleanupComplete(deleted, failed, bytesFreed);
 
         return new CleanupResult(deleted, bytesFreed, failed);
     }
@@ -153,11 +150,11 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
         try
         {
             Directory.Delete(taskDirectory, true);
-            _logger.LogInformation("Cleaned up temporary files for task {TaskId}", taskId);
+            _logger.LogTaskFilesCleanedUp(taskId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to cleanup temporary files for task {TaskId}", taskId);
+            _logger.LogTaskFilesCleanupFailed(ex, taskId);
         }
 
         return Task.CompletedTask;
@@ -179,14 +176,14 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogDebug(ex, "Failed to delete empty directory {Directory}", subDir);
+                        _logger.LogEmptyDirectoryDeleteFailed(ex, subDir);
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to cleanup empty directories in {Directory}", directory);
+            _logger.LogEmptyDirectoriesCleanupFailed(ex, directory);
         }
     }
 }

@@ -2,8 +2,6 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-using Kurio.Core.Engine;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 using KuriousLabs.Kurio.Core.Queue;
@@ -102,7 +100,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         Guid? taskId = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
             // Filter by task ID if specified
             if (taskId == null || progress.TaskId == taskId)
@@ -309,7 +307,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
     {
         var activeTasks = _queueManager.GetActiveTasks();
-        var activeCount = activeTasks.Count();
+        var activeCount = activeTasks.Count;
         _logger.LogPausingAll(activeCount);
 
         var pausedCount = 0;

@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 
-using Kurio.Core.Protocols;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 

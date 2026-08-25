@@ -1,0 +1,9 @@
+{
+  // Markdown lint policy for this repo (markdownlint-cli2).
+  // Prose lines up to 120 chars; code fences and tables are exempt.
+  "MD013": {
+    "line_length": 120,
+    "code_blocks": false,
+    "tables": false
+  }
+}

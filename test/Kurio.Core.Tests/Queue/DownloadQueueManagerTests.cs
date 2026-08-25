@@ -116,6 +116,60 @@ public class DownloadQueueManagerTests
     }
 
     [Fact]
+    public void GetNextTask_ClaimsActiveSlot()
+    {
+        // Arrange
+        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        for (var i = 0; i < 5; i++)
+        {
+            queueManager.Enqueue(CreateTestTask());
+        }
+
+        // Act
+        var first = queueManager.GetNextTask();
+        var second = queueManager.GetNextTask();
+
+        // Assert
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(2, queueManager.ActiveDownloadsCount);
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
+        Assert.False(queueManager.CanStartNewDownload());
+
+        // A redundant MarkAsStarted for an already-claimed task must be a no-op
+        queueManager.MarkAsStarted(first!.Id);
+        Assert.Equal(2, queueManager.ActiveDownloadsCount);
+    }
+
+    [Fact]
+    public void GetNextTask_SchedulerSequence_EnforcesMaxConcurrent()
+    {
+        // Arrange: replicate the engine scheduler loop exactly
+        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        for (var i = 0; i < 5; i++)
+        {
+            queueManager.Enqueue(CreateTestTask());
+        }
+
+        // Act
+        var started = 0;
+        while (queueManager.CanStartNewDownload())
+        {
+            var next = queueManager.GetNextTask();
+            if (next is null)
+            {
+                break;
+            }
+
+            started++;
+        }
+
+        // Assert
+        Assert.Equal(2, started);
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
+    }
+
+    [Fact]
     public void Dequeue_RemovesTaskFromQueue()
     {
         // Arrange

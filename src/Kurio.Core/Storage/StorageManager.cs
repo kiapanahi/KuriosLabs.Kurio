@@ -246,6 +246,21 @@ public sealed class StorageManager : IStorageManager
             Directory.CreateDirectory(finalDirectory);
         }
 
+        if (segmentCount == 1)
+        {
+            var singleSegmentPath = Path.Combine(taskDirectory, "segment_0000.part");
+            if (!File.Exists(singleSegmentPath))
+            {
+                throw new FileNotFoundException($"Segment file not found: {singleSegmentPath}");
+            }
+
+            // A single segment already holds the complete payload; rename it into
+            // place instead of copying (the payload can be arbitrarily large when
+            // the server does not support ranges).
+            File.Move(singleSegmentPath, finalPath, true);
+            return;
+        }
+
         await using FileStream outputStream = new(
             finalPath,
             FileMode.Create,

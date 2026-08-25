@@ -222,8 +222,8 @@ public sealed class StatsHubTests
         await _hub.SubscribeStatsAsync();
 
         // Assert
-        _mockQueueManager.Verify(q => q.ActiveDownloadsCount, Times.AtLeastOnce);
-        _mockQueueManager.Verify(q => q.QueuedDownloadsCount, Times.AtLeastOnce);
+        _mockQueueManager.VerifyGet(q => q.ActiveDownloadsCount, Times.AtLeastOnce);
+        _mockQueueManager.VerifyGet(q => q.QueuedDownloadsCount, Times.AtLeastOnce);
     }
 
     [Fact]

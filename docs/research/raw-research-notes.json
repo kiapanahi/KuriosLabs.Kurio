@@ -1,0 +1,968 @@
+[
+ {
+  "name": "aria2",
+  "repo": "aria2/aria2",
+  "language": "C++",
+  "popularity": "~25k+ GitHub stars, very widely deployed as an embedded engine (used by Motrix, many NAS vendors, etc.); maintenance is slow/low-activity upstream but the project is considered feature-complete and stable, so ecosystem tooling (AriaNg, aria2p, Motrix) continues to thrive around it years after last major release.",
+  "architecture": "aria2c is a single long-running daemon process that does the actual downloading (HTTP/HTTPS/FTP/SFTP/BitTorrent/Metalink, segmented/multi-connection) and exposes control entirely through an RPC server, never a GUI. The RPC server (HttpListenCommand) speaks both JSON-RPC 2.0 and XML-RPC over the same HTTP port, plus JSON-RPC over WebSocket for push-style usage; protocol is auto-detected per request. Every download is identified by an opaque GID; state transitions and progress are queried by GID via tellStatus/tellActive/tellWaiting/tellStopped rather than pushed automatically unless the client uses the WebSocket transport, which lets aria2 emit onDownloadStart/onDownloadPause/onDownloadStop/onDownloadComplete/onDownloadError/onBtDownloadComplete notifications. Authentication is a single shared secret token (--rpc-secret) passed as the first RPC parameter (`token:SECRET`), no per-user accounts. Any number of independent frontends (CLI flags, AriaNg, Motrix, aria2p, custom scripts) can drive the same daemon concurrently because all state lives server-side in the daemon, not in any client.",
+  "standout_features": [
+   "Full RPC surface with system.multicall for batching many calls in one round trip, and system.listMethods/listNotifications for client-side introspection/capability discovery",
+   "Per-download binary control files (<file>.aria2) that store piece bitfields and checksums next to the partial download, enabling resume even after an ungraceful kill, independent of any session file",
+   "--save-session writes all still-incomplete/errored downloads' URIs + per-download options to a plain text file on exit (or every --save-session-interval seconds); --input-file re-reads that same file format to resume a whole queue, effectively giving a human-readable/git-diffable queue snapshot",
+   "Every option (getOption/changeOption per-GID, getGlobalOption/changeGlobalOption globally) is settable at runtime through RPC, not just at process start, so a UI can let users tweak speed limits, segment counts, etc. live",
+   "Deliberately decouples 'engine that downloads' from 'thing that renders UI' — the daemon has zero UI code, which is exactly why dozens of unrelated frontends could be built against it without any coordination with the aria2 maintainers"
+  ],
+  "pitfalls_to_avoid": [
+   "XML-RPC support exists but is legacy/deprecated in practice — don't build new integrations against it, JSON-RPC (HTTP or WS) is the one that matters",
+   "Session files (--save-session) are a periodic/on-exit snapshot, not a transactional log — a hard crash between saves loses queue state even though per-file .aria2 control files still allow resuming the bytes; don't treat the session file alone as durable state",
+   "The shared single secret token model has no concept of per-user permissions or audit trail — fine for a single-user daemon, not a template for multi-tenant auth"
+  ],
+  "ideas_for_kurio": [
+   "Formalize Kurio.Server's SignalR hub methods as a small, versioned, documented RPC surface (AddDownload, Pause, Resume, Remove, ChangePriority/Position, GetStatus, GetGlobalStats, ChangeOptions) so that any future frontend (CLI, TUI, third-party) can drive Kurio without needing SignalR-specific knowledge — mirror aria2's tellActive/tellWaiting/tellStopped split as three queue-status endpoints",
+   "Add a GetCapabilities/ListMethods-equivalent REST endpoint so new UIs can introspect what the running server version supports, easing future plugin/extension work",
+   "Adopt aria2's per-item resume model: persist per-download resume metadata (segment offsets, checksums-in-progress) in its own small file/row keyed by download ID, separate from the overall queue snapshot, so a crash mid-download doesn't require re-downloading segments already verified — check whether Kurio.Core's current JSON state persistence already does this per-download or only as one big blob",
+   "Add a --save-session-interval equivalent: periodic (e.g. every N seconds) durable flush of the in-flight queue state in addition to on-shutdown save, so an unclean process exit (crash, OOM-kill, container restart) loses at most N seconds of queue changes",
+   "Expose runtime-changeable global and per-download options (speed limit, max connections/segments, retry policy) via the REST/SignalR API the same way aria2 exposes changeOption/changeGlobalOption, instead of requiring a restart to apply new settings",
+   "Support a human-readable export/import of the download queue (URIs + per-item options), similar to aria2's --input-file text format, to satisfy the 'import/export' backlog item and let users batch-add or migrate queues via a text file",
+   "Push events over SignalR for lifecycle transitions (download started/paused/completed/failed) using named events analogous to onDownloadStart/onDownloadComplete/onDownloadError, rather than only progress-percentage updates, so a thin frontend can react to state changes without polling"
+  ]
+ },
+ {
+  "name": "Motrix",
+  "repo": "agalwood/Motrix",
+  "language": "JavaScript/TypeScript (Electron)",
+  "popularity": "~48k+ GitHub stars historically one of the most popular cross-platform download-manager GUIs; recent activity has slowed (project largely feature-frozen), but still widely used as the reference example of 'GUI wrapping aria2'.",
+  "architecture": "Motrix is an Electron app: the main process supervises a bundled aria2c binary as a child process (EngineSupervisor), and the renderer (Vue UI) talks to aria2 exclusively through JSON-RPC over WebSocket via an Aria2RpcClient — never by touching the child process directly. Startup is staged: verify the bundled aria2 binary's version/feature set, generate an aria2.conf via an Aria2ConfigBuilder (picking a free RPC port, secret, download dirs, etc.), spawn the process with the built config/args, then open the RPC WebSocket connection. A background health check runs periodically (~every 30s) to detect a dead/hung engine and can restart it or produce a diagnostics report (checks: bundled binary present, feature support, port availability, process ownership — i.e. confirming a process squatting on the port is actually Motrix's own before killing it). Notably, Motrix v2 does not fully rely on aria2's own session/control files for its task list UI — it layers a SQLite database on top to store task metadata/history, using aria2 purely as the transfer engine underneath.",
+  "standout_features": [
+   "Clean separation of 'engine lifecycle management' (spawn/health-check/restart/config-generation) from 'engine control' (RPC client) as distinct components/classes",
+   "Self-diagnostics flow (Diagnostics dialog: bundled aria2 check, feature check, port check, process-ownership check, RPC communication check) exposed directly to end users when something goes wrong, rather than a silent failure",
+   "Verifies process ownership before offering to force-kill a process on its RPC port — avoids accidentally killing an unrelated process that happens to occupy the same port",
+   "Own persistence layer (SQLite) for richer task metadata/history than the underlying engine natively tracks, decoupling UI-facing state from engine-native session state"
+  ],
+  "pitfalls_to_avoid": [
+   "Coupling UI database state with engine state risks drift/desync if the two aren't kept reconciled on every startup (e.g. engine reports a GID Motrix's DB doesn't know about, or vice versa after a crash) — needs an explicit reconciliation step on launch",
+   "Bundling a specific engine binary version ties the app to that engine's exact RPC/feature set and requires the app to re-verify compatibility (version/feature checks) on every startup, adding real startup latency and failure surface",
+   "A generic 30s poll-based health check can be slow to notice a hung (not crashed) process; would benefit from a lighter heartbeat RPC call rather than only process-alive checks"
+  ],
+  "ideas_for_kurio": [
+   "Since Kurio.Core is an in-process library rather than an external daemon, Kurio doesn't need Motrix's spawn/supervise-external-process complexity — but it should still borrow the 'reconcile persisted state against actual engine state on startup' step: on Kurio.Server startup, reconcile the JSON-persisted download records against Kurio.Core's actual in-memory/resumable segment state before exposing them to the dashboard",
+   "Add a self-diagnostics endpoint/page in Kurio.Web mirroring Motrix's Diagnostics dialog: checks like 'disk space for download dir', 'write permission', 'network reachability', 'stale partial files without matching queue entries' — surfaced to the user instead of failing silently",
+   "If Kurio ever adds a lightweight local health/heartbeat signal for long-running downloads (e.g. a per-download watchdog that flags a segment worker as stuck if no byte progress in N seconds), that's a more responsive analogue to Motrix's health check than pure process-alive polling",
+   "Consider Motrix's pattern of storing richer queue/task metadata (history, tags, notes) in a small SQLite/EF Core store on the server side, separate from the low-level per-segment resume data in Kurio.Core, so Kurio.Web can show download history/analytics without bloating the engine's resume-state format"
+  ]
+ },
+ {
+  "name": "AriaNg",
+  "repo": "mayswind/AriaNg",
+  "language": "JavaScript (AngularJS/vanilla, static HTML/CSS/JS)",
+  "popularity": "~11k+ GitHub stars, actively used as 'the' generic web UI for any aria2 instance; moderate ongoing maintenance (mayswind), long-lived and stable rather than fast-moving.",
+  "architecture": "AriaNg has zero backend of its own — it is pure static HTML/CSS/JS shipped in three build flavors (standard, for hosting on any web server with on-demand asset loading; all-in-one, a single self-contained HTML file; and AriaNg Native, an Electron-style wrapper for local/offline use without a browser). All application state (which aria2 RPC endpoint(s) to talk to, host/port/secret, UI preferences) is configured client-side and stored in the browser (localStorage), then the page talks directly to one or more aria2 daemons' JSON-RPC endpoints over HTTP or WebSocket from the browser's JS. It supports connecting to and switching between multiple aria2 RPC hosts from the same static deployment, and minimizes bandwidth by requesting only incremental/delta status updates rather than re-fetching full state each poll.",
+  "standout_features": [
+   "Entirely serverless frontend — deployable by dropping files on any static file host (or opening the single HTML file locally), proving that a sufficiently well-designed RPC API needs no bespoke backend glue code per-frontend",
+   "Multi-endpoint support: one AriaNg deployment can be pointed at several different aria2 daemons and switch between them, since connection config is just client-side state, not baked into a build",
+   "Deliberately requests incremental data rather than full snapshots on each poll cycle to keep the UI responsive over slow/metered connections",
+   "Full coverage of aria2's global + per-download options through generic forms driven off the RPC's own option schema, rather than hand-coding a form per option"
+  ],
+  "pitfalls_to_avoid": [
+   "Storing the RPC secret token in browser localStorage/URL is inherently exposed to anything with page access (XSS, browser extensions, shared machines) — acceptable for a trusted single-user LAN daemon, not a pattern to copy for a multi-user server exposed to the internet",
+   "No server-side authorization/session model at all — every permission decision is 'does the browser have the secret', which doesn't map to a real multi-user product like Kurio might become",
+   "A fully static, no-backend frontend can't do anything the RPC API doesn't already expose (e.g. no server-side aggregation/caching) — every feature has to be pushed down into the RPC surface design up front"
+  ],
+  "ideas_for_kurio": [
+   "Design Kurio.Server's REST/SignalR API to be rich and generic enough (full CRUD + option schema + queue reordering + stats) that a future minimal/alternate frontend (e.g. a lightweight static page, a mobile app, a CLI) could be built against it without any new server code — treat Kurio.Web (Blazor) as just one client of that API, not the only possible one",
+   "Add a generic 'describe available download/global options' endpoint (name, type, default, constraints) so Kurio.Web (and any future client) can render option-editing forms dynamically instead of hand-coding a form per setting whenever a new option is added to Kurio.Core",
+   "If/when Kurio needs to support connecting one dashboard instance to multiple Kurio.Server backends (e.g. home server + NAS), take AriaNg's approach of storing the list of known server endpoints client-side and letting the user switch between them, rather than hard-coding a single server URL",
+   "For efficiency, make SignalR progress broadcasts delta-only (changed fields since last tick) rather than full download-state snapshots each tick, especially once many concurrent downloads are running, mirroring AriaNg's 'incremental data' bandwidth optimization",
+   "Do not copy AriaNg's client-stored-secret auth model as-is for Kurio if multi-user/remote-exposure is ever a goal — plan for proper ASP.NET Core auth (cookies/JWT) on the API even though today's dashboard is trusted/local, so the API design doesn't calcify around a single shared secret"
+  ]
+ },
+ {
+  "name": "Gopeed",
+  "repo": "GopeedLab/gopeed",
+  "popularity": "~26,000 GitHub stars, ~1,700 forks, actively maintained (commits as recent as within the last day; releases across Windows/macOS/Linux/Android/iOS/Docker)",
+  "language": "Go (core/backend) + Flutter/Dart (UI, all platforms including web) + JavaScript/Goja (extensions)",
+  "architecture": "Single Go binary hosts everything: a download engine (pkg/download), a REST API server (pkg/rest, using gorilla/mux), and an embedded JS extension VM (Goja). The Flutter app is a thin client that talks to the Go backend purely over HTTP/REST — there is no WebSocket/SignalR-style push channel; the desktop client instead uses a local IPC channel (Unix domain socket on macOS/Linux, TCP on Windows) to the same REST server, and the web deployment (Docker) serves the Flutter web build directly from the Go binary alongside the API (embedded FS with cache headers, plus /fs/tasks and /fs/extensions virtual filesystems for serving downloaded/extension files). Protocols are abstracted behind a `Fetcher`/`FetcherManager` interface pair: `FetcherManager` registers URL/file/base64 `SchemeFilter`s per protocol (http, bt, ...) and builds/stores/restores `Fetcher` instances; each `Fetcher` implements Setup/Resolve/Start/Patch/Pause/Close/Stats/Meta/Progress/Wait, decoupling task orchestration from protocol specifics. Persistence is pluggable via a `Storage` interface with two implementations: `MemStorage` (in-memory map, for testing/embedded use) and `BoltStorage` (bbolt embedded KV store, file `gopeed.db`, JSON-marshaled values per bucket/key) — tasks, extensions, extension-storage, and config all live in separate 'buckets' inside one Bolt file, and on startup the downloader lists the tasks bucket and calls each FetcherManager's `Restore()` to rehydrate in-flight/paused downloads. Auth is optional (API token header `X-Api-Token`, or Basic-auth-derived AES-GCM encrypted bearer token for the web UI with 7-day expiry).",
+  "standout_features": [
+   "Clean Fetcher/FetcherManager interface: protocols self-register SchemeFilters (by URL scheme, file extension, or base64 mime type) so the core doesn't need protocol-specific branching to pick a handler for a given link",
+   "Pluggable Storage interface (Mem vs Bolt) with bucket/key JSON persistence — trivial to swap backends, and restore-on-boot is just `Storage.List(bucket)` + FetcherManager.Restore() per task",
+   "JavaScript extension system (Goja ECMAScript 5.1 VM) with declarative manifest.json: scripts declare an `event` (onResolve/onStart/onError/onDone), a `match` block (Chrome-extension-style URL match patterns + request label matching), and an `entry` JS file; a fresh JS engine+context is spun up per trigger and the extension registers handlers via `gopeed.events.onResolve(fn)` etc.",
+   "Extensions are distributed as plain git repositories (installed via `InstallExtensionByGit`, using go-git PlainClone with depth=1, supporting a `repo_url#subdirectory` syntax and proxy config) — no central marketplace/registry service required, and extensions declare their own repository URL in manifest.json for one-click update checks",
+   "Per-extension persistent KV storage (`ContextStorage` in JS) and per-extension typed settings (string/number/boolean with options list, merged intelligently across upgrades so old values survive version bumps while new/removed settings are reconciled)",
+   "Extension dev mode: install-by-folder with `devMode` flag skips copying into the extensions dir and instead runs directly from the source path, enabling live-reload style extension development",
+   "onError hook gets a special `Continue()` capability (auto-retry/resume) not exposed to other hooks — a deliberate least-privilege API surface per event type",
+   "Outbound webhooks (DOWNLOAD_DONE/DOWNLOAD_ERROR) as a separate, simpler notification channel from the extension system — POSTs a JSON payload with the full cloned Task to configured URLs, decoupled from the polling REST API",
+   "REST API surface is small and resource-oriented: /api/v1/resolve (protocol-agnostic link resolution before task creation), /api/v1/tasks (+ batch, pause/continue singular and bulk, patch), /api/v1/tasks/{id}/stats, /api/v1/extensions CRUD + settings + switch (enable/disable) + update-check/update, /api/v1/webhook/test, and a generic /api/v1/proxy passthrough endpoint"
+  ],
+  "ideas_for_kurio": [
+   "Add a formal `IFetcher`/`IFetcherManager`-style abstraction in Kurio.Core if not already present: SchemeFilter-like matching (by URL scheme / extension / mime) so adding FTP or magnet/BT later doesn't require touching the HTTP-specific engine code",
+   "Add an /api/resolve endpoint that resolves a URL to file name/size/resumability before a task is created, separate from actual task creation — useful for UI preview and for a future extension/plugin hook point",
+   "Design a JS (or C# Roslyn scripting / NuGet plugin) extension system around explicit lifecycle hooks mirroring onResolve/onStart/onError/onDone, with a declarative manifest (JSON) describing URL match patterns and entry point, distributed as git repos rather than a bespoke package registry — directly addresses the 'plugin/extension system' backlog item",
+   "Give extensions/plugins their own isolated KV storage namespace and a typed settings schema (string/number/bool with validation) surfaced generically in the Blazor dashboard as an auto-generated settings form",
+   "Add outbound webhook support (task done/error POST to user-configured URLs) as a lightweight integration point distinct from SignalR — useful for headless/server deployments where nobody has a live dashboard connection open",
+   "Adopt a Storage interface abstraction (in-memory vs persistent) in Kurio.Core so JSON-file persistence can be swapped for an embedded KV store (e.g. LiteDB or a bucketed JSON store) without touching engine logic; keep the current JSON persistence but formalize it behind this interface for testability",
+   "Support installing/updating 'site handler' extensions via git URL with an optional #subdirectory suffix and a depth=1 shallow clone, enabling community-contributed link resolvers (e.g., for cloud-storage share links) without app redeploys",
+   "Consider an API-token header auth mode (simple shared-secret via header) as a lightweight alternative to full auth for headless/automation use of the REST API",
+   "Note the resume/restore pattern: on startup, list all persisted tasks and call a protocol-specific Restore() to rebuild in-memory Fetcher/download state — verify Kurio.Core's own resume path follows the same 'restore metadata then re-attach fetcher' shape rather than re-deriving everything from scratch"
+  ]
+ },
+ {
+  "name": "Brisk",
+  "repo": "BrisklyDev/brisk",
+  "popularity": "~1.5k GitHub stars, 59 forks, 1,151+ commits on main, 38 open issues, 1 open PR — actively maintained, Flutter SDK v3.32.0",
+  "language": "Dart (Flutter)",
+  "architecture": "Brisk is a Flutter desktop app (Windows/macOS/Linux, distributed via Flatpak/Snap/AUR/direct) with a fully custom download engine written in Dart on top of the stock `http` package — no aria2 or other external download utility is shelled out to. There is no separate server process: the download engine runs in-process (Dart isolates are the natural mechanism for parallel segment fetches, keeping the UI thread free), and persistent session/resume state is written to disk so paused/interrupted downloads can be resumed. A companion `brisk-browser-extension` repo (Chrome/Edge/Opera/Firefox, on official add-on stores) captures browser download requests and M3U8 stream URLs and forwards them into the running Brisk app; exact IPC transport (likely a local loopback listener in the app) wasn't documented in the README and would require reading the extension's source to confirm, but the pattern mirrors IDM/JDownloader-style 'browser posts captured link to local desktop app' integrations. Queueing/scheduling is a first-class feature: downloads can be grouped into queues and scheduled to start at specific times (e.g., overnight/off-peak).",
+  "standout_features": [
+   "Dynamic connection spawn: downloads start with a single connection and additional connections are added on the fly only as needed, rather than always opening N connections up front",
+   "Dynamic connection reuse: once a connection finishes its assigned byte range, it is immediately reassigned to help another still-active connection's remaining range instead of sitting idle, keeping the active-connection count and aggregate speed pegged near the target until the whole file completes",
+   "Automatic detection and reset of hanging/stalled connections",
+   "Browser extension integration that captures normal download requests AND M3U8 adaptive-stream manifests directly from the page, letting Brisk download and reassemble streaming video",
+   "Soft-subtitle handling/integration when downloading video content captured from streaming sites",
+   "Bulk link capture: extension can extract every download link from a selected block of page text and hand them to Brisk as a batch",
+   "Download queues with time-based scheduling (start queues at a specific time to hit off-peak bandwidth windows)",
+   "Polished, lightweight UI with multiple themes (catppuccin, tokyo night) and system tray integration across platforms",
+   "Custom global hotkey to capture a URL straight from the clipboard without touching the browser extension"
+  ],
+  "ideas_for_kurio": [
+   "Add dynamic connection reuse to Kurio.Core's segmented downloader: when a connection finishes its assigned byte range early (fast source), reassign it to steal/split the remaining range of the slowest still-running connection instead of leaving it idle — this is the single most-praised Brisk engine behavior and directly improves aggregate throughput on uneven links",
+   "Start new downloads with 1 connection and ramp connection count up dynamically based on observed throughput/segment completion rate, rather than always opening the configured max connections immediately — reduces server-side rate-limit/ban risk and matches user expectations from Brisk/IDM",
+   "Add a 'stalled connection watchdog' in Kurio.Core: detect segments with no byte progress for N seconds and automatically cancel+re-issue that segment's request (already close to what Polly retry gives you, but should trigger on stall detection, not just HTTP failure)",
+   "Build a lightweight companion browser extension (WebExtension, Chrome/Firefox/Edge) that POSTs captured download URLs (and detected M3U8 manifests) to a local Kurio.Server REST endpoint — this is a much lower-effort integration than full browser plugin architectures and is exactly the pattern Brisk uses to get 'click a link, it appears in the download manager' UX",
+   "Add bulk-add-from-text: a dashboard action (and matching REST endpoint) that accepts a pasted blob of text/HTML and extracts every URL, letting users queue many links at once — trivial to implement and highly requested UX pattern",
+   "Add download queues with scheduled start times (e.g., 'start this queue at 02:00') as a first backlog item for the scheduling feature already listed as open backlog — model it as a Queue entity with a NextRunAt and a background hosted service that flips queued items to Active",
+   "Consider M3U8/HLS capture+reassembly as a scoped follow-up to the existing yt-dlp backlog item: even without yt-dlp, an M3U8 downloader (fetch manifest, download segments in parallel via the same engine, concatenate) covers a common 'download this streaming video' use case with pure HTTP, before investing in full yt-dlp shelling",
+   "For the SignalR dashboard, borrow Brisk's UX detail of surfacing 'active connections' and per-connection state (idle/reassigned/downloading) in the progress view, not just aggregate percent/speed — makes the connection-reuse behavior visible and builds user trust in the engine"
+  ],
+  "pitfalls_to_avoid": [
+   "Brisk's browser-extension-to-app IPC transport wasn't documented publicly in the README/search results I could access; don't assume a specific protocol (native messaging vs. localhost HTTP) without reading the extension source directly if exact parity is desired",
+   "Dynamic connection reuse adds real complexity (need to track remaining ranges per segment and safely hand off an in-flight connection to a different byte range) — prototype it as an isolated strategy behind a feature flag in Kurio.Core rather than baking it into the core segment-scheduling loop right away",
+   "Scheduling/queues need persistence and a resilient background trigger (survive app/server restarts) — don't implement as an in-memory timer only, since Kurio.Server should survive restarts per its stated design goals"
+  ]
+ },
+ {
+  "name": "AB Download Manager (ab-download-manager)",
+  "repo": "amir1376/ab-download-manager",
+  "language": "Kotlin (Compose Multiplatform for UI; core engine is pure Kotlin/coroutines, no UI deps)",
+  "popularity": "17.5k stars, 904 forks, actively maintained (commits/releases within the last week as of Aug 2026), Apache-2.0 license. Companion repos: browser-integration (229 stars, TS/WebExtension), website. This is very likely the project the user meant by 'very popular recently' given its growth curve.",
+  "architecture": "Multi-module Gradle project cleanly separating the download engine from UI: `downloader/core` (pure Kotlin engine: connection handling, part/segment management, persistence, queueing, speed limiting), `downloader/monitor` (read-only state/observability layer exposing `IDownloadMonitor`/`IDownloadItemState` flows for UI or remote consumers without coupling to engine internals), `desktop` and `android/app` (Compose Multiplatform UI consuming the shared `shared` module), and `integration/server` (an embedded HTTP server, default port 15151, documented by a root `REST-API.yml` OpenAPI spec with endpoints `POST /add` (add a link, optionally with headers/downloadPage), `GET /queues` (list queues), `POST /start-headless-download` (add a task programmatically with folder/name/queueId) — this is the local RPC surface the browser extension and external tools talk to). Everything in the engine is built on Kotlin coroutines/Flow: `DownloadManager`/`Downloader`/`DownloadJob` orchestrate `PartDownloader`/`HttpPartDownloader` (segment-level workers) and `HLSPartDownloader` (first-class HLS/m3u8 streaming media downloader alongside HTTP, sharing the same job/queue/monitor abstractions via `HLSDownloadItem`/`HLSDownloader`). Persistence is flat-file JSON: `DownloadListFileStorage` writes one `{id}.json` per download item (metadata) and `PartListFileStorage` writes a parallel `{id}.json` per download recording its `Parts`/segment ranges (offsets, downloaded bytes per part) so paused/interrupted downloads can resume by reconstructing byte-range requests. All writes go through `TransactionalFileSaver`, which writes to a `.tmp` file then does an atomic rename (`tryAtomicMove`) to avoid corrupting state on crash/power loss — no SQLite/DB engine, just crash-safe JSON files. Disk space is pre-reserved via an `expect/actual` `SparseFile` abstraction (platform-specific sparse-file allocation on desktop vs Android) rather than zero-filling. Queueing (`QueueManager`/`DownloadQueue`/`ManualDownloadQueue`) supports multiple independent queues (a reserved default 'Main' queue plus user-created ones with IDs above a reserved threshold) with scheduling (`ScheduleTimes`) and emits `QueueEvent`s via a `SharedFlow`. Speed limiting is implemented via a custom Okio `Throttler` (`OkioCustomizedThrottler`/`SpeedLimiter`) wrapping the byte stream rather than sleep-based limiting. Proxy support is a pluggable `ProxyStrategyProvider`/`AutoConfigurableProxyProvider` abstraction supporting system-proxy detection.",
+  "standout_features": [
+   "Embedded local REST API (port 15151, OpenAPI-documented) purely for browser-extension/automation hand-off, decoupled from the main UI's own IPC — add-link, list-queues, and headless-add-with-folder/name/queue endpoints",
+   "Browser extension (Firefox + Chrome) adds a context-menu 'Download With AB DM' entry, auto-captures download-intent links, and shows a 'Download Selected' popup for multi-link batch capture from a page selection",
+   "Clean 3-tier engine/monitor/UI split: `downloader/core` has zero UI dependencies; `downloader/monitor` is a separate module exposing read-only reactive state (Flow-based) for any consumer (desktop UI, Android UI, or theoretically a server), which is architecturally very close to what a SignalR hub needs to broadcast",
+   "First-class HLS/m3u8 streaming-media download support built on the same DownloadItem/Job/Queue/Monitor abstractions as plain HTTP — not a bolt-on",
+   "Crash-safe persistence via write-tmp-then-atomic-rename for every state file, with per-download JSON metadata file + separate per-download JSON parts/segments file (clean separation of 'what' vs 'how far along')",
+   "Sparse-file pre-allocation abstracted behind a multiplatform `expect/actual` interface so desktop and Android get platform-appropriate space reservation",
+   "Multiple independent, schedulable download queues with reserved ID ranges to leave room for future built-in queues without ID collisions",
+   "Rich typed exception hierarchy for resumability edge cases (e.g. `ServerResumeSupportChangeException`, `ServerPartIsNotTheSameAsWeExpectException`, `FileChangedException`) that explicitly models cases where a paused download must fall back to restarting because the remote resource changed"
+  ],
+  "pitfalls_to_avoid": [
+   "Do not couple the monitor/broadcast layer to engine internals — ab-download-manager's separate `downloader/monitor` module (with its own `IDownloadItemState` types) exists specifically so UI/remote layers never depend on live engine job objects; Kurio.Server's SignalR hub should broadcast a similarly decoupled DTO/state-snapshot type, not raw engine entities",
+   "Naive JSON persistence without atomic writes risks corrupting state files on crash mid-write; always write-to-temp-then-rename",
+   "Treating HLS/streaming downloads as an afterthought bolted onto the HTTP path leads to duplicated queue/resume/monitor logic later — if Kurio ever adds yt-dlp/streaming support, design the job abstraction to accommodate a non-range-based downloader type from the start",
+   "A local RPC surface for browser integration needs explicit versioning/auth even on localhost (extension and app versions can drift) — the OpenAPI spec here is unauthenticated on localhost, which is a reasonable but explicit tradeoff worth calling out rather than accidentally inheriting"
+  ],
+  "ideas_for_kurio": [
+   "Add a documented, versioned local/embedded REST endpoint set explicitly for browser-extension hand-off (e.g. POST /api/browser/add-link with link/headers/referrer/suggestedName, GET /api/queues) separate from the main dashboard API, mirroring the add/queues/start-headless-download trio, and publish an OpenAPI spec file at the repo root the way ab-download-manager does with REST-API.yml",
+   "Build a minimal Chrome/Firefox WebExtension (Manifest V3) that adds a context-menu 'Download with Kurio' item and posts captured links to the Kurio.Server browser-integration endpoint — start with link capture only (no popup UI) as a first GitHub issue",
+   "Introduce a dedicated 'monitor' layer in Kurio.Core (an IDownloadMonitor-style read-only projection over DownloadJob/DownloadQueue state) that Kurio.Server's SignalR hub subscribes to, instead of the hub reading engine internals directly — keeps the engine ignorant of transport/broadcast concerns",
+   "Adopt write-temp-then-atomic-rename for all JSON state persistence in Kurio.Core (metadata files and segment/part-progress files) to guarantee resume integrity across crashes/power loss; audit current JSON persistence code for this pattern",
+   "Split resume-progress data into a separate per-download 'parts' file from the per-download 'metadata' file (mirroring DownloadListFileStorage vs PartListFileStorage) so segment/range state can be rewritten frequently without rewriting slower-changing metadata",
+   "Support multiple independent, schedulable download queues (not just a single global queue) with a small reserved ID range for built-in queues, exposed via both the REST API and the Blazor dashboard",
+   "Add typed resume-failure exceptions (e.g. RemoteResourceChangedException, ResumeSupportChangedException) to Kurio.Core so pause/resume logic can explicitly distinguish 'safe to resume via Range' from 'must restart download' rather than treating all resume failures generically",
+   "Consider sparse-file pre-allocation for large downloads (abstracted per-OS) instead of writing zero-filled placeholder files, to reduce disk I/O and speed up initial allocation",
+   "File a backlog issue for first-class HLS/m3u8 (streaming media) download support in Kurio.Core designed against the same DownloadJob/Queue abstractions used for HTTP, as a stepping stone toward the yt-dlp integration already in Kurio's backlog"
+  ]
+ },
+ {
+  "name": "pyLoad",
+  "repo": "pyload/pyload",
+  "popularity": "~6-7k GitHub stars, actively maintained (rewritten for Python 3 as 'pyload-ng', continuous releases on PyPI/Docker); long-running project (since ~2009)",
+  "language": "Python",
+  "architecture": "Single long-running Python process (module/Core.py historically, now pyload package) hosting a central Core object that owns manager singletons: PluginManager, HookManager (now AddonManager), AccountManager, ThreadManager, FileManager/DatabaseBackend (SQLite). Downloads are represented as PyFile objects grouped into PyPackage objects; state (package/link list, status, position, per-file progress) is persisted in a SQLite DB rather than flat files, so resume after crash means reloading package/link rows and re-querying the hoster plugin for a fresh direct-download URL (pyLoad does not persist raw HTTP byte-range state itself — the underlying chunked downloader writes `.chunk` temp files and a `.hash`/info file per download that let it resume within a session, and hoster plugins are responsible for re-authenticating/re-resolving links after restart). A web interface (Flask-based in pyload-ng) and JSON/RPC-style API (`Api` class, callable via HTTP, exposed with `@Expose` decorators) is the only client; no separate desktop GUI ships. Everything (web UI, CLI, RPC clients) talks to the same in-process Api object over an HTTP+JSON bridge.",
+  "standout_features": [
+   "Four distinct plugin base classes with regex-based dispatch: Hoster (implements process() to resolve+download one link), Crypter/Decrypter (implements decrypt(), appends discovered packages/links to self.packages as (name, urls, folder) tuples so link decryption can recursively expand one URL into many), Account (login/premium-status/traffic-quota plugins keyed by hoster domain), and Hook/Addon (singleton, event-driven, full Api access, used for things like UpdateManager, ExtractArchive, CaptchaTrader)",
+   "URL-to-plugin matching is purely a compiled __pattern__ regex per plugin; the PluginManager scans all installed plugin patterns against each submitted URL to pick a handler — a simple, hot-swappable plugin discovery mechanism (new hoster support = drop in one .py file matching a regex)",
+   "Captcha handling is abstracted through self.decryptCaptcha(url, ...) on the base Plugin class, which hands the captcha image off to either connected web/GUI clients (interactive solve) or to a Hook plugin (e.g. a paid solver service) implementing an event-map hook (newCaptchaTask/captchaCorrect callbacks) — decoupling captcha solving strategy from hoster plugin logic entirely",
+   "Hooks register for lifecycle events either by overriding named methods (coreReady, downloadFinished(pyfile), downloadStarts, etc.) or via an event_map dict of event-name -> method-name, giving a lightweight pub/sub system without a full event bus dependency",
+   "Account plugins are looked up dynamically per-download via self.account = pyfile.m.core.accountManager.getAccountPlugin(name) so a hoster plugin can opt into using stored premium credentials transparently"
+  ],
+  "pitfalls_to_avoid": [
+   "pyLoad's original codebase went years without a Python-3-compatible stable release, causing ecosystem fragmentation (multiple abandoned forks); avoid designing Kurio around a single aging engine version, keep Kurio.Core independent of API/UI framework churn",
+   "Regex-only plugin dispatch became a maintenance burden as hosters changed URL schemes constantly, requiring frequent plugin updates just to keep parity — a lesson to keep protocol/site-specific logic in swappable, independently-versioned plugin assemblies rather than baked into the core engine",
+   "Captcha/premium-account plugin ecosystem decayed because many required paid solver services or reverse-engineered login flows that broke silently; monitor for a similar problem if Kurio ever adds site-specific extractors"
+  ],
+  "ideas_for_kurio": [
+   "Define a Kurio.Plugins.Abstractions assembly with an IHostHandler/ICrawler interface (a UrlPattern property + ResolveAsync returning one-or-more direct download descriptors) so future protocol/site support (FTP, streaming extractors, redirector sites) can be added as separate NuGet-loaded plugins rather than editing Kurio.Core",
+   "Add an IAccountProvider abstraction (stored per-host credentials + premium/traffic-quota state) surfaced through the REST API/dashboard so future premium-hoster or authenticated-download support has a slot to plug into without redesigning DownloadTask",
+   "Add a pluggable ICaptchaChallengeHandler pipeline: engine raises a 'challenge required' event over SignalR, Blazor dashboard renders the challenge image/interactive prompt, user response flows back through the hub to unblock the download — mirrors pyLoad's decouple-solving-from-download-logic pattern and is directly usable for any future auth-walled hoster support",
+   "Adopt an event_map-style lightweight event registration on Kurio.Core's engine (C# events/delegates keyed by name: OnDownloadStarted, OnDownloadFinished, OnQueueChanged) so a future plugin/extension system (per backlog) can subscribe without subclassing core engine types",
+   "Consider persisting queue/package state in SQLite (via EF Core) instead of/alongside JSON files once queue sizes grow — gives crash-safe partial updates and easy querying for the dashboard, addressing a gap JSON-file persistence has at scale"
+  ]
+ },
+ {
+  "name": "JDownloader 2 / MyJDownloader remote API",
+  "repo": "mirror/jdownloader (unofficial GitHub mirror of the closed-source JDownloader 2 codebase); official remote API at api.jdownloader.org",
+  "popularity": "JDownloader itself has millions of users; the GitHub mirror has a few hundred stars and is a community-maintained mirror, not the official repo (source is closed, distributed via appjaredupdate); MyJDownloader wrapper libraries (Python myjdapi, C# My.JDownloader.Api) each have modest star counts (dozens-hundreds) but are actively used/maintained as the de facto integration path",
+  "language": "Java (client), REST/JSON over HTTPS (MyJDownloader API), wrapper libs in Python/C#/others",
+  "architecture": "JDownloader is a thick Java desktop client with its own embedded plugin engine (LinkGrabber for crawling/decrypting, DownloadWatchdog for the download queue, LinkCollector for pre-download link management). Remote control does not use a server pushing to clients directly — instead the JD client establishes an outbound long-poll/HTTPS connection to a central relay (api.jdownloader.org), registers itself as a 'device' under a MyJDownloader account, and remote clients (phone apps, web UI, third-party scripts) authenticate against the same relay, discover the device, and submit RPC 'actions' that get queued and delivered to the device on its next poll — this NAT/firewall-traversing polling-relay model is the core design differentiator from a typical client-server API.",
+  "standout_features": [
+   "End-to-end encrypted RPC: session established via login handshake deriving an AES-128-CBC key + HMAC-SHA256 signing key from the user's email/password (via a server-secret + client-secret split), so the relay operator (or a MITM) cannot read RPC payloads or device responses — every request/response body is encrypted and signed, not just transport-layer TLS",
+   "RPC surface organized into clear namespaces mapping to JD's internal managers: LinkGrabberV2 (addLinks, queryLinks/queryPackages for the pre-download crawl queue, moveToDownloadlist, renameLink), DownloadsV2 (queryLinks/queryPackages for the active download queue, cleanup, rename, setEnabled), DownloadController (start/stop/pause, getSpeedInBps, getState), Accounts (add/list/enable premium accounts), System/Jd (restart, shutdown, exitJd, getStorageInfo), Config (get/set/query arbitrary plugin settings) — i.e. the RPC API is a thin typed wrapper over the same manager objects the desktop GUI itself calls",
+   "Two-stage link pipeline (LinkGrabber staging queue -> Downloader queue) lets decrypter/crawler plugins expand a single pasted URL (e.g. a container or folder link) into many resolved direct links for user review/dedup before they're committed to the actual download queue — separates 'discovery' from 'commit to download'",
+   "Device-offline tolerance: because commands are relayed through polling rather than a direct socket, remote clients can queue actions (add links, start downloads) even while the desktop client is asleep/offline, and they get delivered/executed once it reconnects — a robustness property worth having for any mobile-remote-control feature",
+   "Decrypter/crawler plugins are entirely separate from hoster/downloader plugins (see src/jd/plugins/decrypter/*), so 'figure out what real file URLs a folder/share page points to' is cleanly decoupled from 'download this direct file URL with resume support'"
+  ],
+  "pitfalls_to_avoid": [
+   "Relying on a third-party-operated relay (api.jdownloader.org) for all remote control is a single point of failure/privacy concern outside the user's control — worth avoiding for Kurio; SignalR direct to Kurio.Server (self-hosted) sidesteps this entirely, which is already the better design",
+   "JDownloader's plugin/source code is closed and distributed as signed, auto-updating jars pulled from JD's own CDN — this made the community mirror lag official releases and blocks true open contribution; Kurio should keep its plugin contract open/versioned in a public NuGet feed instead",
+   "The two-queue (linkgrabber vs download list) model adds UX complexity that confuses many users about 'why isn't my link downloading yet' — if Kurio adopts a discovery/crawl step for future site plugins, make the staging step optional/auto-commit for the common single-direct-link case rather than always forcing a review step"
+  ],
+  "ideas_for_kurio": [
+   "Add an offline-tolerant command queue on Kurio.Server: SignalR hub commands (AddDownload, Pause, Resume) issued while a client is disconnected get persisted server-side and replayed/acknowledged on reconnect, rather than requiring the Blazor client to be live — useful groundwork for a future mobile/remote-control app",
+   "Introduce a two-stage 'link discovery' queue distinct from the active download queue: an ILinkCrawler plugin can expand one submitted URL (folder/share page, playlist) into N resolved DownloadRequest entries that land in a review list before the user commits them to Kurio.Core's download queue — directly enables future yt-dlp/streaming and decrypter-style plugin support from the backlog",
+   "Design the future plugin RPC/extension surface as namespaced command groups mirroring engine managers (Queue.*, Speed.*, Accounts.*, Config.*) exposed identically over both the REST API and SignalR hub, so third-party integrations (mobile app, browser extension) get one consistent typed contract instead of ad hoc endpoints",
+   "For the backlog's 'browser integration / clipboard link capture' item, mirror MyJDownloader's device-registration model: give Kurio.Server a lightweight pairing flow (short-lived pairing code) so a browser extension or clipboard watcher can register as a trusted 'device' and push AddDownload commands without needing a full user login each time",
+   "If premium/authenticated hoster support is ever added, adopt JD's Accounts namespace pattern (per-host credential store + enable/disable + traffic/premium status query) exposed as its own REST/SignalR surface, separate from the download-task model"
+  ]
+ },
+ {
+  "name": "Persepolis Download Manager",
+  "repo": "persepolisdm/persepolis",
+  "language": "Python (PySide6/PyQt5 GUI)",
+  "popularity": "~7,400 stars, actively maintained (last push Oct 2025), 315 open issues, multi-platform maintainers for Linux/BSD/macOS/Windows",
+  "architecture": "Single Python process: a Qt (PySide6/PyQt5) GUI (persepolis/gui) driving a scripts package (persepolis/scripts) that used to be a thin wrapper over aria2's XML-RPC but has since replaced that with its own 'persepolis_lib' built on the Python requests library (avoids aria2 crashing mid-session). All state (not just a resume file) lives in three SQLite databases opened via data_base.py: a persistent persepolis.db with category_db_table, download_db_table (gid PRIMARY KEY, file_name, size, downloaded_size, connections, rate, eta, first/last_try_date, category FK), addlink_db_table (per-download options: proxy, auth, headers, cookies, connections, limit_value, start_time/end_time, after_download), and video_finder tables for yt-dlp based media grabs (video_gid/audio_gid pairs to be muxed); plus a temp_db (in-memory) for live per-session state and a plugins_db for queued links coming from the browser extension. Each 'category' acts as an independent queue: a QThread subclass (scripts/queue.py) polls the DB, honors a start_time/end_time window, and runs an 'after' action (shutdown, sleep, etc.) once the queue drains; it retries the whole category up to 5 times per cycle to catch newly queued/failed items. Browser integration (browser_integration.py) is a standard Chrome/Firefox Native Messaging host: it installs a JSON manifest plus a generated shell/registry-pointed intermediary script (persepolis_run_shell) that native messaging invokes with the actual link/cookie payload, writing into the plugins_db table that the main app polls.",
+  "standout_features": [
+   "Per-category queue = independent scheduler thread with its own start/end time window and post-completion action (shutdown/sleep/close app), not just a single global scheduler",
+   "SQLite (three separate DBs: main config/downloads, in-memory temp/live-state, and a plugins queue) instead of a flat JSON resume file — gives crash-safe, queryable state and clean separation of 'durable settings' vs 'live ephemeral progress'",
+   "Dropped aria2 XML-RPC dependency over time in favor of an in-process Python download engine (persepolis_lib) to avoid RPC-crash reliability issues",
+   "Native-messaging browser integration installs a tiny generated wrapper script/registry key per browser rather than hardcoding paths, so it survives app relocation",
+   "Built-in yt-dlp wrapper with separate video/audio gid tracking and a muxing step once both finish"
+  ],
+  "ideas_for_kurio": [
+   "Add a Queue entity independent of the global engine: each queue has its own optional time window (start/end) and an 'on completion' action (shutdown host, notify, run script) — model as a QueueSchedule value object with StartTimeOfDay/EndTimeOfDay/DaysOfWeek plus AfterQueueAction enum, evaluated by a background IHostedService",
+   "Consider splitting Kurio.Core's JSON state persistence into 'durable config' vs 'live progress' concerns even if staying JSON-based (e.g. a lightweight SQLite or LiteDB store for the download catalog/categories, separate from an in-memory progress broadcaster) to reduce write amplification during active transfers",
+   "For a future browser integration issue, register a standard Native Messaging host manifest (per browser) pointing at a tiny wrapper executable, rather than requiring the extension to know Kurio's absolute install path",
+   "For streaming/yt-dlp support, track video-only and audio-only download IDs as a linked pair with a 'muxing pending' status so the queue UI can show one composite item until ffmpeg merges them"
+  ],
+  "pitfalls_to_avoid": [
+   "Its scheduler re-scans the whole category for retries in a fixed loop of 5 iterations — a time-boxed hack; prefer an event-driven queue re-evaluation instead of a hardcoded retry-count loop",
+   "Direct aria2 XML-RPC integration caused reliability problems (aria2 process crashes taking down RPC session) — if Kurio ever wraps an external engine like aria2, isolate it behind a supervised child process with restart/reconnect logic rather than assuming a stable long-lived RPC channel"
+  ]
+ },
+ {
+  "name": "uGet",
+  "repo": "ugetdm/uget",
+  "language": "C (GLib/GTK)",
+  "popularity": "~151 stars, explicitly marked 'not under active development' by maintainers, last push Oct 2024, 69 open issues — effectively dormant/reference-only",
+  "architecture": "Native GTK app (uget-gtk) over a core library (uglib) that defines a formal plugin ABI: UgPluginInterface is a C vtable (global_init/global_finalize/global_set/global_get for process-wide setup, and per-instance init/finalize/set_state/get_state/set/get for each download) registered via ug_plugin_interface_register and looked up by name or by URL scheme/file-type prefix ('scheme.' or 'file.'). Each active download is a UgPlugin instance with its own message queue (ug_plugin_post/ug_plugin_pop_all) so the GTK UI thread polls plugins asynchronously instead of blocking; built-in plugins are UgPlugin-curl (HTTP/FTP via libcurl) and UgPlugin-aria2 (spawns/talks to aria2 over XML-RPC for BitTorrent/Metalink/multi-source). Categories (UgCategory) are queues with active_limit/finished_limit/recycled_limit knobs controlling how many downloads run concurrently and how much finished/trashed history is retained. Persistent state is saved through a UgData/UgMarkup interface (custom XML-like markup serialization implemented per struct) rather than JSON or SQLite. Scheduling is a UgScheduleForm: a 7×24 boolean grid (day-of-week x hour) plus a global speed cap, letting users paint which hours/days downloading is throttled or disabled.",
+  "standout_features": [
+   "Clean C vtable plugin ABI (UgPluginInterface) separating global (process) lifecycle from per-download instance lifecycle, with plugins matched by name OR by URL scheme/file-type — a template for a backend-agnostic download engine abstraction",
+   "Per-plugin async message queue (post/pop_all) decouples the UI polling loop from engine internals",
+   "Category = queue with three independent limits: concurrently-active, kept-finished, and kept-in-recycle-bin counts",
+   "7x24 weekly grid UI for schedule-based speed throttling (paint which hour-of-day/day-of-week gets a lower cap) instead of a single start/end time window",
+   "Delegates BitTorrent/Metalink/multi-source entirely to aria2 via XML-RPC as an optional plugin, keeping the native curl plugin simple for plain HTTP/FTP"
+  ],
+  "ideas_for_kurio": [
+   "Define an IDownloadEngine (or IDownloadBackend) abstraction with clearly separated static/global capability metadata (supported schemes/file types, one-time init) vs per-download instance operations (Start/Pause/Resume/Cancel/GetState/SetSpeedLimit), so alternative backends (e.g. an optional aria2-RPC backend from the existing backlog item) can be registered and selected by URL scheme without touching the core engine",
+   "Add per-category (per-queue) limits beyond just 'max concurrent active downloads': also a 'max retained completed history' and 'max retained failed/recycled items' count, exposed as settings on the queue entity",
+   "For speed-limit UX, offer an optional weekly 7x24 grid (day x hour) editor in the Blazor dashboard as an alternative to a single daily time-window, letting users define e.g. 'throttle 9am-6pm on weekdays, unrestricted otherwise' visually",
+   "Keep the async message-queue pattern already implicit in SignalR broadcasting, but make sure Kurio.Core exposes it as decoupled progress events per download rather than requiring the caller to poll each engine instance"
+  ],
+  "pitfalls_to_avoid": [
+   "uGet's custom UgMarkup serialization format is bespoke and now unmaintained tech debt with no ecosystem tooling — Kurio's existing plain-JSON state persistence is the better choice; don't reinvent a proprietary text format",
+   "Project is effectively abandoned partly because the aria2-XML-RPC coupling made the app fragile to external process lifecycle (matches Persepolis's experience) — treat any external engine integration as an optional, sandboxed plugin, never a hard dependency of core"
+  ]
+ },
+ {
+  "name": "Xtreme Download Manager (XDM)",
+  "repo": "subhra74/xdm",
+  "language": "C# (.NET, targeting both .NET Framework/legacy and modern .NET via shared XDM.Core; separate WinForms/WPF UI for Windows and GTK UI for Linux)",
+  "popularity": "~7,900 stars, large open-issue backlog (~850), last push Jan 2024 — very popular but slowing maintenance cadence",
+  "architecture": "A single desktop process (per-OS UI project: XDM.WinForms.IntegrationUI/XDM.Wpf.UI on Windows, XDM.Gtk.UI on Linux) hosts a shared XDM.Core engine. Segmented downloads are modeled as Chunk objects (Uri, Offset, Size, Downloaded, ChunkState: Ready/InProgress/FailedTransient/FailedFatal/Finished) under Downloader/Progressive (plain HTTP range-based multi-connection) and Downloader/Adaptive (Hls/Dash) for streaming formats, plus a YDLWrapper for yt-dlp-backed sites. Persistence is SQLite (System.Data.SQLite) via DataAccess/AppDB with a WITHOUT ROWID 'downloads' table keyed by a string id, storing all download metadata (status, progress, proxy, auth, target dir); queues are a separate binary-serialized DownloadQueue (versioned via QueueSerializerV1: id, name, list of download ids, optional DownloadSchedule with StartTime/EndTime ticks + a Days-of-week bitmask) persisted outside the DB. A Scheduler class runs a 60-second Timer comparing current hour:minute against each queue's schedule to start/stop its downloads. Browser integration is the most notable subsystem: rather than classic Native Messaging, XDM.Core.BrowserMonitoring.IpcHttpMessageProcessor runs a tiny loopback-only HTTP server (NanoServer bound to 127.0.0.1:8597) that a Manifest V3 browser extension (webRequest permission, service-worker background script) talks to over plain HTTP POST — routes include /sync (poll current filter config + pending video list as JSON), /download and /link (single/batch capture), /media and /vid (candidate media stream detected / user-selected video to grab), /tab-update (tab title/URL for naming), /clear, and /args. The extension's RequestWatcher listens to chrome.webRequest (onSendHeaders/onHeadersReceived/onErrorOccurred), matches each request against server-supplied filter rules (blockedHosts, fileExts, mediaExts, matchingHosts like 'googlevideo', mediaTypes, regex urlPatterns) fetched via /sync, and POSTs matches to the app. VideoUrlHelper on the app side further classifies HLS (.m3u8) vs DASH (.mpd) vs YouTube's own format manifests vs generic progressive video by Content-Type/size threshold, and de-dupes by tracking which tabs already resolved to an HLS/DASH manifest (m3u8MpdTabs) and which URLs look like fragmented mp4 init segments (suspectedMp4Fragments) to avoid re-capturing every media fragment as a separate 'video'. A legacy Windows Named-Pipe based NativeMessagingHostHandler (PipeName 'XDM_Ipc_Browser_Monitoring_Pipe') and an even older raw Native Messaging stdio handler exist in the codebase but are effectively superseded/commented out in favor of the loopback HTTP approach.",
+  "standout_features": [
+   "Ditched Chrome Native Messaging (stdio JSON framing + per-browser manifest installation) in favor of a simple loopback-only HTTP server the extension calls directly — much less install/registry friction, still not exposed off localhost",
+   "Extension-side request filtering rules (blocked hosts, extensions, content-types, regex URL patterns, 'matching hosts' like googlevideo) are server-configured and pulled by the extension via /sync, so filter logic lives in one place (the app) and can change without shipping a new extension version",
+   "Media-type disambiguation pipeline: Content-Type + URL pattern checks for HLS/DASH/YouTube-manifest formats, size-threshold gating for 'is this really a video worth offering', and de-dupe heuristics (skip normal-video capture on tabs that already resolved an HLS/DASH manifest; skip likely fragmented-mp4 init segments) to avoid flooding the user with false video-capture prompts",
+   "Queues are versioned, binary-serialized objects independent from the SQLite download table, with a day-of-week bitmask + start/end time for weekly recurring schedules",
+   "Shared cross-platform C# core (XDM.Core) driving distinct native UIs per OS (WinForms/WPF vs GTK) — closest architectural analog to a hypothetical Kurio engine/UI split, though Kurio's split (Core engine + separate Server/Web) is already cleaner"
+  ],
+  "ideas_for_kurio": [
+   "Open a GitHub issue for 'browser link/media capture via companion extension': add a loopback-only HTTP endpoint set to Kurio.Server (e.g. under /api/capture) with routes mirroring /sync (push current filter config: blocked hosts, file/media extensions, url regex patterns), /link (single or batch captured request → enqueue download), and /media (candidate streaming media detected) — avoids the Native Messaging manifest-per-browser installation entirely and fits naturally since Kurio.Server already exposes a REST API",
+   "Ship a minimal MV3 browser extension (manifest permissions: webRequest, downloads, tabs, storage, host_permissions *://*/*) whose background service worker watches chrome.webRequest events, filters by extension/content-type/regex fetched from Kurio.Server's /sync, and POSTs matches — bind the extension's target host/port to Kurio.Server's own address so it works whether Kurio.Server runs locally or on a LAN box",
+   "For streaming media capture, replicate the classification pipeline: check Content-Type for HLS(m3u8)/DASH(mpd) vs generic video, apply a minimum-size threshold config, and track 'has this tab already resolved a manifest' to suppress duplicate fragment-level capture noise — surface this as a MediaCaptureOptions section in Kurio.Core config",
+   "Model queues as first-class objects separate from individual downloads (a DownloadQueue with Id, Name, ordered list of DownloadIds, optional weekly Schedule with Days-of-week bitmask) so scheduling and 'shutdown after queue completes' can be added later without redesigning the download entity itself",
+   "For the resume/state format, keep Kurio's existing JSON persistence but consider XDM's SQLite 'downloads' table pattern (WITHOUT ROWID, string primary key = download GUID) as a fallback design if JSON-file-per-download proves to not scale well with hundreds of queued items"
+  ],
+  "pitfalls_to_avoid": [
+   "XDM's Scheduler polls once per 60-second Timer tick and matches on exact hour:minute equality to fire start/stop — if the app is asleep, paused, or the timer tick is delayed past the exact minute, the scheduled action can be silently skipped entirely; use a range check (now >= start && now < end, evaluated on every tick) rather than exact-match triggers",
+   "The codebase carries three generations of browser-IPC mechanisms side by side (raw stdio Native Messaging, Windows Named Pipes, and the current loopback HTTP server) with large commented-out blocks left in place — decide on one browser-integration transport for Kurio up front and don't leave dead alternatives in the tree",
+   "Binding the capture/browser-IPC HTTP listener to loopback only is essential (XDM does this correctly on 127.0.0.1:8597); if Kurio's REST API already binds to all interfaces for LAN dashboard access, the capture endpoints must be scoped/authenticated separately so a hostile webpage can't drive an internet-exposed Kurio.Server instance via CORS-less POSTs from the browser extension context"
+  ]
+ },
+ {
+  "name": "Varia",
+  "repo": "giantpinkrobots/varia",
+  "language": "Python (GTK4/GObject, PyGObject) + Deno (browser extension helper) + C/Vala build via Meson",
+  "popularity": "~1.8k stars, 99 forks, 507 commits; actively developed (has a 'next' branch), Flathub-first distribution, Windows/macOS support experimental",
+  "architecture": "Varia is a thin GTK4/Libadwaita frontend, not an engine of its own: on startup it spawns `aria2c` as a background subprocess (see src/download and variamain.py) and talks to it exclusively through the aria2 JSON-RPC interface, wrapped by the Python `aria2p` client library rather than raw JSON-RPC calls. A dedicated background thread (`listen_to_aria2()`) polls aria2's `tellActive`/`tellWaiting`/`tellStopped`-style status endpoints on an interval and marshals updates back to the GTK main loop to refresh rows in the download list (poll-based, not push/streaming). Torrents/magnet links are handed to the same aria2 instance (libtorrent-backed). Video/audio URLs take a separate code path: yt-dlp is invoked as its own subprocess for extraction/format-selection before the resulting direct URL (or yt-dlp's own segmented download) is handed off; FFmpeg is used for post-processing/muxing. A companion browser extension ('Varia Integrator', built with Deno tooling) captures links from Firefox/Chrome and forwards them to the desktop app's local server.py (a small local HTTP/RPC endpoint) so 'send to Varia' works from the browser. Session resume relies on aria2's own on-disk `.aria2` control files plus persisted GIDs so the app can reattach to in-progress transfers after restart.",
+  "standout_features": [
+   "Delegates all transport complexity (multi-connection HTTP, torrent, resume) to aria2 via aria2p, keeping the GTK app a pure UI+orchestration layer",
+   "Unified queue that mixes plain HTTP downloads, torrents, and yt-dlp media jobs in one list with distinct row renderers",
+   "Local HTTP server (server.py) exposing an add-download endpoint that the browser extension posts to, enabling 'right click -> download with Varia' from any tab",
+   "Single global bandwidth limit plus authentication (basic auth) fields exposed per-download, mapped straight onto aria2 RPC options",
+   "Notification handler module decoupled from the main window (notification_handler.py) for completion/error toasts"
+  ],
+  "ideas_for_kurio": [
+   "Add a lightweight local HTTP endpoint on Kurio.Server (e.g. POST /api/downloads/capture) purpose-built for a future browser extension to push right-click 'Download with Kurio' links, mirroring Varia's Integrator pattern",
+   "Model yt-dlp/streaming support as a separate DownloadKind in Kurio.Core (distinct from the HTTP segmented engine) so it can shell out to yt-dlp and report progress through the same SignalR progress hub without forcing streaming downloads through the byte-range/segment code path",
+   "Consider whether an aria2-integration mode (spawn aria2c, drive it over JSON-RPC) is worth offering as an alternative backend for protocols Kurio.Core doesn't natively support (e.g. torrents/FTP) rather than reimplementing them",
+   "Expose a single global speed-limit plus optional per-download override in the dashboard UI, matching the simple mental model users expect from aria2-style managers"
+  ],
+  "pitfalls_to_avoid": [
+   "Polling-thread-based progress updates (Varia's listen_to_aria2) are simpler than a push model but add latency and busy-work; Kurio already has SignalR push, so keep leveraging that instead of introducing polling",
+   "Tight coupling to a single external engine (aria2) makes platform packaging heavy (bundling aria2c/yt-dlp/ffmpeg per OS); if Kurio adds yt-dlp support, plan explicit binary-provisioning/update strategy up front"
+  ]
+ },
+ {
+  "name": "Parabolic",
+  "repo": "NickvisionApps/Parabolic",
+  "language": "C# / .NET 10 (libparabolic core) with native GNOME (GTK4/libadwaita, C++ via GTK bindings) and WinUI front ends",
+  "popularity": "~6.9k stars, 85 open issues, active development (recent issues from 2026 about yt-dlp auth diagnostics); actively maintained flagship Nickvision app",
+  "architecture": "Follows an MVC-ish split: 'Nickvision.Parabolic.Shared' is the platform-agnostic core (Models/Controllers/Services/Events/Helpers) referenced by both the GNOME and WinUI head projects, which supply only views. Models directory shows the domain: Download.cs, DownloadOptions.cs, DownloadStatus.cs, Media.cs/MediaSelectionItem.cs/Format.cs (yt-dlp's probed format list), HistoricDownload.cs/RecoverableDownload.cs (persisted download history / crash-recovery), PostProcessor.cs/PostProcessorArgument.cs (ffmpeg post-processing steps), Executable.cs (locating/validating yt-dlp, ffmpeg, aria2c binaries), YtdlpException.cs (structured error mapping from yt-dlp's stderr/exit codes). Controllers (AddDownloadDialogController, MainWindowController, HistoryViewController) mediate between UI events and the Services layer, which wraps yt-dlp/ffmpeg/aria2c as supervised subprocesses, parses their stdout progress lines into strongly-typed progress events, and optionally offloads the actual transfer to aria2c (aria2c can be selected as yt-dlp's --downloader for improved multi-connection throughput). Crash/interruption recovery is handled via RecoverableDownload records that let a download resume post-crash by replaying yt-dlp/ffmpeg with recorded options rather than a raw byte-offset resume.",
+  "standout_features": [
+   "Clean core-library/UI separation (libparabolic-equivalent 'Shared' project) shared across two completely different native UI stacks (GTK4/libadwaita and WinUI) -- a direct model for splitting Kurio.Core from any future desktop shell",
+   "Executable.cs abstraction for discovering/validating bundled vs. system yt-dlp/ffmpeg/aria2c binaries with version checks",
+   "Optional aria2c as yt-dlp's downloader backend for parallel-connection speed on plain HTTP media, while yt-dlp itself remains the extractor/muxer",
+   "Structured YtdlpException mapping known yt-dlp failure signatures (auth required, bot check, geo-block) into typed, actionable UI errors rather than raw stderr dumps",
+   "Persisted download History with 'HistoryLength' retention setting and RecoverableDownload state to resume/re-run interrupted downloads after an app crash",
+   "Browser extension (extension/ dir) for Firefox/Chrome to send video URLs to the desktop app, similar to Varia's Integrator"
+  ],
+  "ideas_for_kurio": [
+   "Adopt Parabolic's Executable-discovery pattern for Kurio: an IExternalToolLocator service that finds/validates yt-dlp and ffmpeg (bundled or system PATH), surfaced via a Kurio.Server health/settings endpoint the Blazor dashboard can show ('yt-dlp: v2026.x found / missing')",
+   "Add a typed exception/error-mapping layer for any embedded yt-dlp process (parse known failure substrings from stderr) and surface them as structured DownloadError DTOs over SignalR instead of raw process output",
+   "Introduce a RecoverableDownload-style persisted record: if Kurio.Server crashes/restarts mid-download of a yt-dlp job, store enough state (URL, format id, output path, post-processor args) to safely re-invoke rather than trying byte-range resume on a process-based download",
+   "Model format/quality selection as a two-step flow like Parabolic's AddDownloadDialogController: probe (yt-dlp -J) to list available Media/Format options, let the user pick resolution/codec/audio-only, then enqueue -- expose this as a POST /api/downloads/probe + POST /api/downloads endpoint pair",
+   "Consider a small browser extension later (mirrors Parabolic's extension/) that just posts a URL to Kurio.Server's capture endpoint, deferring all format logic to the server"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't conflate yt-dlp-driven downloads with the segmented HTTP engine's pause/resume semantics -- they need separate progress-reporting and resume strategies (process replay vs byte offset)",
+   "Structured error mapping from a rapidly-changing external tool (yt-dlp) is high-maintenance; keep the mapping table small/pattern-based and fail open to a generic error rather than trying to enumerate every yt-dlp failure mode"
+  ]
+ },
+ {
+  "name": "DownThemAll! (WebExtension)",
+  "repo": "downthemall/downthemall",
+  "language": "TypeScript (WebExtension: background scripts + HTML-based windows), webpack build",
+  "popularity": "~1.1k stars, 126 forks, 459 commits on master; actively maintained but self-described as functionally reduced vs. the legacy XUL add-on due to WebExtension API limits",
+  "architecture": "Manifest V2 WebExtension with a persistent background script (lib/background.ts) that owns a Manager (lib/manager/man.ts) coordinating a queue of Download objects (lib/manager/download.ts, extending BaseDownload). Because WebExtensions cannot implement their own network stack, actual byte transfer is delegated entirely to the browser's native `browser.downloads` API (lib/browser.ts) -- DTA's value-add is everything around that: mass link/image discovery in a page (lib/select.ts, lib/textlinks.ts), regex/glob filtering (lib/filters.ts implements a Matcher that accepts literal strings, `*`/`?` fnmatch globs, or `/regex/flags` syntax, consolidating multiple filters into merged sensitive/insensitive RegExp pairs for fast bulk matching), per-domain concurrency Limits (lib/manager/limits.ts, a Prefs-backed map of domain -> max concurrent downloads, default global concurrency 4), a Renamer (lib/manager/renamer.ts) implementing the classic '*name*.*ext*' mask-substitution language for batch file naming, a Preroller (lib/manager/preroller.ts) that HEAD-probes URLs before queuing to resolve filename/size/conflict, and a Scheduler (lib/manager/scheduler.ts) for queue ordering. Persistence is IndexedDB (lib/db.ts, database 'downloads', object store 'queue' keyed by autoincrement dbId with a by_position index) -- on save, RUNNING/RETRYING items are normalized back to QUEUED so a reload always resumes as queued rather than claiming to be actively running. Import/export of batches is handled by lib/imex.ts and lib/batches.ts (turns a list of discovered links into a reusable named batch template). windowstatetracker.ts persists window geometry across sessions.",
+  "standout_features": [
+   "Mask-based batch renaming language (Renamer) letting users template output filenames from URL components, page title, counters, etc. across an entire batch",
+   "Filter Matcher supporting three input syntaxes (plain substring, glob with * and ?, and full /regex/flags) merged into a small number of consolidated RegExp objects for O(1)-ish bulk filtering of thousands of links",
+   "Per-domain concurrency limits map (not just one global concurrency slider) so e.g. a slow file host can be capped independently of the global setting",
+   "Preroller: proactively HEAD/GET-probes each queued URL to resolve real filename/extension/size and detect naming conflicts before the download actually starts",
+   "IndexedDB-backed queue persistence with defensive state-normalization on save (RUNNING -> QUEUED) so a browser restart never lies about a download's real state",
+   "Batches: named, reusable templates of a filtered/selected link set for repeatable mass-download workflows"
+  ],
+  "ideas_for_kurio": [
+   "Port the Renamer mask-template concept to Kurio: let users define an output filename/path template (e.g. `{host}/{date}/{filename}`) applied when adding batches of URLs, exposed as a field on the batch-add API",
+   "Add a Filters concept to Kurio's batch-add flow: accept a list of URLs plus an include/exclude filter (glob, regex, or plain substring) and only enqueue matches -- directly reusable in a future browser-extension-driven 'send all links matching X' feature",
+   "Add per-host/per-domain concurrency and speed-limit overrides in Kurio.Core (a Limits-style domain->maxConcurrent map) layered on top of the existing global speed limiter, configurable from the dashboard",
+   "Adopt a Preroller step in Kurio's add-download flow: before creating a Download entity, issue a HEAD request to resolve real filename (Content-Disposition), size, and range support, and flag naming conflicts up front instead of discovering them mid-transfer",
+   "For state persistence, follow DTA's defensive normalization rule: on any snapshot/save of Kurio's JSON state file, downgrade any 'InProgress' download to 'Queued' so a server crash never leaves a download claiming to be actively transferring when it isn't",
+   "Add a Batches feature: let users save a named, filtered set of URLs (e.g. from a pasted list) as a reusable template they can re-run, mirroring DTA's imex.ts/batches.ts"
+  ],
+  "pitfalls_to_avoid": [
+   "DTA's architecture is fundamentally constrained by delegating transfer to `browser.downloads` -- it cannot do true segmented multi-connection downloads or resume-from-arbitrary-offset; Kurio's Core engine already avoids this limitation by owning the HTTP transfer, so don't regress toward a 'thin UI over OS download manager' model",
+   "The regex/glob filter merging logic (consolidateRegexps) is a nice perf trick but adds real complexity (separate sensitive/insensitive RegExp trees) -- if porting filters to Kurio, a much simpler linear list of compiled Regex plus early-exit is likely sufficient at .NET's expected scale"
+  ]
+ },
+ {
+  "name": "Downloader (bezzad/Downloader)",
+  "repo": "bezzad/Downloader",
+  "language": "C# (.NET 8/9/10; v3.1.x line for .NET Framework 4.6.1+)",
+  "popularity": "~1,700 GitHub stars, 248 forks, actively maintained (0 open issues at time of check, CI across Windows/Linux/macOS, used by v2rayN which has 112k+ stars). MIT license, no external dependencies.",
+  "architecture": "Client-side, in-process library (no server component) built around DownloadService as the orchestrator, DownloadConfiguration for tunable behavior, and DownloadPackage as a lightweight, JSON-serializable state snapshot (URL, file path, per-chunk byte ranges/positions — not the actual bytes). Files are split into ChunkCount segments; when ParallelDownload=true, each chunk runs as an independent HTTP range request and chunks write directly into their offset of the final file (no temp per-chunk files), requiring the server to support Content-Length/Accept-Ranges/Content-Range with fallback to single-stream if absent. Pause/Resume uses stream-level locking for instant suspend/continue; longer-lived resume works by retaining/serializing the DownloadPackage and re-passing it into DownloadFileTaskAsync(pack). EnableAutoResumeDownload appends the serialized package JSON to the tail of the in-progress '.download' file itself (self-contained sidecar-less resume state), read back on next attempt then truncated off once the file completes and is renamed to the target name.",
+  "standout_features": [
+   "DownloadPackage as a small serializable resume token decoupled from file bytes, resumable either by explicit hand-off or by auto-detecting appended state in the .download temp file",
+   "Parallel range-request chunking that writes straight into final-file offsets, avoiding per-chunk temp files and a merge step",
+   "MaximumBytesPerSecond global throttle plus granular ChunkDownloadProgressChanged / DownloadProgressChanged events for per-segment and aggregate speed/ETA reporting",
+   "MaxTryAgainOnFailure + BlockTimeout give a simple built-in retry/backoff loop per chunk without needing an external resilience library",
+   "Fluent RequestConfiguration for headers/cookies/proxy/auth, and graceful fallback to non-parallel mode when the server doesn't advertise range support"
+  ],
+  "ideas_for_kurio": [
+   "Adopt the 'append serialized state to the temp file itself' auto-resume trick as an alternative/complement to Kurio's separate JSON state file — could reduce file-count clutter for large queues and guarantee state and partial bytes never get out of sync",
+   "Expose a Kurio.Core equivalent of ChunkDownloadProgressChanged over SignalR so the Blazor dashboard can render a per-segment progress bar (visualizing which byte ranges are done) instead of only an aggregate bar",
+   "Add automatic fallback path when a server lacks Accept-Ranges/Content-Range: detect via a HEAD/Range probe and degrade to single-connection sequential download rather than failing outright — check whether Kurio.Core already does this and add an explicit integration test for servers without range support",
+   "Consider explicitly guarding against BinaryFormatter for any legacy resume-state code path (Downloader's docs call out this security pitfall) — confirm Kurio's persistence uses System.Text.Json only, never BinaryFormatter",
+   "File this as a GitHub issue: 'Support resuming from a DownloadPackage-like token without requiring the original queue entry' to allow exporting/importing an individual paused download independent of full queue state"
+  ]
+ },
+ {
+  "name": "FluentFTP",
+  "repo": "robinrodricks/FluentFTP",
+  "language": "C# (targets .NET Standard / .NET 7, 8, 9), zero external dependencies",
+  "popularity": "~3.4k GitHub stars, 3,555+ commits, MIT license. Actively maintained with regular contributions and Docker-based automated test suite against real FTP servers.",
+  "architecture": "Pure-managed FTP/FTPS client library, no server or process component — designed to be embedded directly in an application via the FtpClient class. Fully async/await with CancellationToken support on all operations. Handles the full FTP command set (LIST parsing across many server dialects, permissions/CHMOD, hashing/checksums via HASH/XCRC/XMD5/XSHA commands where server-supported), SSL/TLS (including TLS 1.3 and client certs), and FXP (server-to-server transfers that never route bytes through the client). Proxy layer supports HTTP 1.1, SOCKS4/4a/5, User@Host, and BlueCoat proxy chaining. Security hardening explicitly guards against command injection, directory traversal, and malicious LIST-parser payloads.",
+  "standout_features": [
+   "FXP support: transfer directly server-to-server without proxying bytes through the local machine — relevant if Kurio ever needs FTP-to-FTP or mirrored-source transfers",
+   "Automatic directory listing parsing across many divergent FTP server LIST formats (Unix, Windows/IIS, etc.) — a notoriously fragile area to hand-roll",
+   "Layered proxy abstraction (SOCKS4/4a/5, HTTP, User@Host, BlueCoat) that could be reused as a generic proxy-connection layer beyond just FTP",
+   "Explicit security posture against injection/traversal in a protocol that's historically been a source of client vulnerabilities",
+   "Async-first API with per-operation CancellationToken, matching modern .NET idioms that Kurio.Core already follows for HTTP"
+  ],
+  "ideas_for_kurio": [
+   "When implementing FTP support (open backlog item), take a dependency on FluentFTP rather than hand-rolling the protocol — its LIST-parsing and TLS/proxy layers are exactly the hard, unglamorous parts a small team shouldn't re-implement",
+   "Reuse FluentFTP's proxy type taxonomy (HTTP/SOCKS4/4a/5/User@Host) as the shape for Kurio's own 'proxy support' backlog item so one proxy configuration model can serve both HTTP(S) and future FTP downloads",
+   "File an issue: 'FTP download source via FluentFTP with segmented range-resume where server supports REST command' — note FTP resume is coarser (single REST offset, not N parallel chunks) so the Kurio.Core download-engine abstraction needs a resume strategy that can be either multi-range (HTTP) or single-offset (FTP)",
+   "If Kurio ever needs FXP-style mirrored transfers or an FTP-upload/publish feature, flag it as a stretch goal enabled almost for free by FluentFTP"
+  ]
+ },
+ {
+  "name": "MonoTorrent",
+  "repo": "alanmcgovern/monotorrent",
+  "language": "C# (.NET Standard 2.0+)",
+  "popularity": "~1.2k GitHub stars, 409 forks, MIT license. Stable release 3.0.2 (Aug 2024); repository still active in 2026 (issues opened/updated as recently as April/July 2026) — moderately maintained, single primary maintainer.",
+  "architecture": "Embeddable BitTorrent engine centered on a ClientEngine (process-wide connection/DHT/tracker manager) that hosts one or more TorrentManager instances (one per torrent), each exposing piece-picking, prioritization, and per-torrent rate limits, with ClientEngine additionally exposing overall/global rate limits. Persistence is via 'fast resume data' — a serialized snapshot of which pieces/blocks have been verified — that can be saved/restored to skip re-hashing the whole file set on restart, conceptually the direct BitTorrent analogue of Kurio's own JSON download-state persistence. Protocol coverage includes DHT (BEP 5), PEX (BEP 11), UDP/HTTP trackers, BitTorrent v2/hybrid torrents with merkle-layer piece hashing, IPv4/IPv6, and UPnP/NAT-PMP for automatic port mapping. It also ships a built-in tracker server implementation, so an app can act as tracker + client in one process. Piece selection is pluggable at the picker-strategy level (rarest-first as default, plus sequential and priority-aware pickers) rather than hardcoded.",
+  "standout_features": [
+   "ClientEngine/TorrentManager two-level object model cleanly separating process-wide concerns (DHT, global rate limit, port mapping) from per-download concerns (piece picking, file priorities) — a good template for a multi-protocol download engine that needs both global and per-job settings",
+   "Fast-resume data as a purpose-built, non-full-rehash resume format — directly analogous to (and worth comparing against) whatever partial-download verification Kurio.Core does today",
+   "Pluggable piece-picker abstraction (rarest-first / sequential / priority) as a clean strategy-pattern example for swappable scheduling logic",
+   "Built-in overall + per-torrent bandwidth rate limiting API, i.e. rate limiting modeled as a first-class engine concept rather than bolted onto the transport layer",
+   "BitTorrent v2 hybrid-torrent and merkle-tree piece hashing support as a case study in incremental protocol versioning without breaking older clients"
+  ],
+  "ideas_for_kurio": [
+   "If/when torrent support ever gets reconsidered for the backlog, MonoTorrent is the only mature, actively-updated managed BitTorrent engine for .NET and should be the default choice over hand-rolling — but flag its single-maintainer risk profile before depending on it for anything core",
+   "Borrow the ClientEngine (global settings: bandwidth cap, port mapping, DHT) vs TorrentManager (per-job settings: priority, resume state) split as the mental model for Kurio.Core's own DownloadEngine vs per-download-job separation, since Kurio already needs global speed limits plus per-download state",
+   "Compare MonoTorrent's fast-resume-data approach against Kurio's current JSON state persistence to see if a similar 'verified-block bitmap' concept would make Kurio's segment-resume more robust against partial/corrupted chunk files after a crash",
+   "Consider UPnP/NAT-PMP port-mapping as a reusable pattern if Kurio ever adds any listen-for-inbound-connection feature (e.g. a P2P or LAN-transfer mode)"
+  ]
+ },
+ {
+  "name": "YoutubeDLSharp",
+  "repo": "Bluegrams/YoutubeDLSharp",
+  "language": "C# (.NET, targets modern TFMs; wraps external yt-dlp/youtube-dl and ffmpeg binaries)",
+  "popularity": "Actively maintained wrapper library, BSD-3-Clause license, widely used as the standard .NET yt-dlp binding; versions >=1.0 track yt-dlp specifically (0.x tracked legacy youtube-dl).",
+  "architecture": "Not an in-process downloader at all — it's a process-management wrapper: the YoutubeDL high-level class exposes RunVideoDownload/RunAudioDownload/RunVideoPlaylistDownload/RunVideoDataFetch, each of which shells out to a yt-dlp (or ffmpeg) child process built via the lower-level YoutubeDLProcess class, which owns the actual Process object and exposes OutputReceived/ErrorReceived events for raw stdout/stderr line streaming (this is how progress percentages and diagnostic messages are captured/parsed). Configuration is via an OptionSet class whose properties map 1:1 to yt-dlp CLI flags (e.g. Format, RecodeVideo), and OptionSet configs can be persisted to files in the same format yt-dlp's native config files use, so settings are portable outside the wrapper too. Utils.DownloadYtDlp()/DownloadFFmpeg() self-bootstrap the required external binaries on first run. Progress is surfaced through the standard .NET IProgress<DownloadProgress> pattern with a percentage field, and all long operations take a CancellationToken.",
+  "standout_features": [
+   "Self-updating/self-installing external binary bootstrap (Utils.DownloadYtDlp/DownloadFFmpeg) so the host app doesn't need to bundle or manually manage yt-dlp/ffmpeg versions",
+   "OptionSet property-per-CLI-flag design keeps the wrapper trivially up to date with new yt-dlp flags without needing new C# API surface for every option, and stays compatible with community yt-dlp config files",
+   "Clean two-tier API: high-level task methods (RunVideoDownload etc.) for common cases, low-level YoutubeDLProcess for raw process/stdout control when the wrapper's abstraction isn't enough",
+   "RunVideoDataFetch() separates metadata probing (title, formats, uploader) from the download decision, letting a caller present format-choice UI before committing to a download",
+   "Progress<T>/CancellationToken as the sole integration surface — no custom event-based API to learn beyond what .NET already provides"
+  ],
+  "ideas_for_kurio": [
+   "For the 'streaming media (yt-dlp)' backlog item, add a Kurio.Core.YtDlp adapter modeled directly on this: a process-supervisor class that shells to yt-dlp, parses its stdout progress lines, and republishes progress via the same IDownloadJob/SignalR progress contract used for HTTP(S) downloads so the Blazor dashboard doesn't need a special-cased UI for media downloads",
+   "Adopt the self-bootstrapping binary pattern (auto-download/pin a yt-dlp + ffmpeg version under Kurio's data directory, with a version-check/update path) as part of the future auto-update backlog item, rather than requiring the server operator to install yt-dlp manually",
+   "Model yt-dlp job configuration the same way OptionSet does — a typed options object whose properties mirror yt-dlp flags — so advanced users can pass through arbitrary yt-dlp options without Kurio.Server needing bespoke API surface for every option",
+   "Treat yt-dlp downloads as a distinct IDownloadJob type in Kurio.Core's queue (since they're process-driven, not HTTP-range-driven) but keep pause/resume semantics analogous: pause = suspend/kill process and persist the resumable URL+options, resume = re-invoke yt-dlp (most yt-dlp downloads aren't natively resumable mid-file the way HTTP range downloads are, so document this limitation explicitly in the design)"
+  ]
+ },
+ {
+  "name": ".NET IO/rate-limiting primitives (System.IO.Pipelines, System.Threading.RateLimiting, RandomAccess/SafeFileHandle)",
+  "repo": "dotnet/runtime (BCL, not a third-party library)",
+  "language": "C# / .NET (built into the runtime, .NET 6+ for RateLimiting/RandomAccess basics, refined through .NET 10)",
+  "popularity": "First-party BCL components; System.Threading.RateLimiting ships as a standalone NuGet package (currently versioned 10.0.x) and is used inside ASP.NET Core's built-in rate-limiting middleware; System.IO.Pipelines powers Kestrel and SignalR internally, so it's battle-tested at massive scale.",
+  "architecture": "Three complementary low-level primitives relevant to a segmented downloader: (1) System.IO.RandomAccess is a static class for thread-safe positional file I/O against a SafeFileHandle — Write/WriteAsync take an explicit byte offset and do not move/depend on a shared stream position, which is exactly what's needed for N parallel chunk-writers targeting disjoint byte ranges of the same file without a lock; RandomAccess.SetLength(handle, length) lets you preallocate the full file size up front (avoiding fragmentation and enabling out-of-order writes) instead of only appending sequentially via FileStream. (2) System.Threading.RateLimiting provides TokenBucketRateLimiter (plus FixedWindow/SlidingWindow/Concurrency limiters) as a reusable, testable token-bucket abstraction with TokenLimit/ReplenishmentPeriod/TokensPerPeriod/AutoReplenishment options — a drop-in replacement for a hand-rolled speed-limiter loop. (3) System.IO.Pipelines gives a zero-copy, backpressure-aware producer/consumer buffer abstraction (PipeReader/PipeWriter) designed for exactly the 'read from network socket, write to disk' streaming shape, avoiding repeated byte[] allocation/copy on the hot path.",
+  "standout_features": [
+   "RandomAccess.Write/WriteAsync(SafeFileHandle, buffer, offset) is safe for concurrent multi-threaded writers to disjoint file regions with no explicit locking, unlike FileStream.Position which is inherently stateful and not concurrency-safe",
+   "RandomAccess.SetLength for upfront file preallocation, letting parallel chunk downloads begin writing at their target offset immediately instead of needing the file to already be 'grown' sequentially",
+   "TokenBucketRateLimiter as a standard, already-tested token-bucket implementation with clear knobs (TokenLimit, ReplenishmentPeriod, TokensPerPeriod) instead of a bespoke sleep/measure loop for bandwidth caps",
+   "System.IO.Pipelines' built-in backpressure so a fast network source can't blow up memory when the disk writer (or a throttled RateLimiter) is temporarily the bottleneck",
+   "All three are dependency-free BCL/first-party pieces, so adopting them adds no new third-party surface area — pure upgrade over hand-rolled equivalents"
+  ],
+  "ideas_for_kurio": [
+   "Replace any hand-rolled parallel-chunk file writing in Kurio.Core with RandomAccess.Write/WriteAsync against a single SafeFileHandle opened once per download, removing the need for per-chunk temp files or manual offset-seek-then-write sequences on FileStream",
+   "Use RandomAccess.SetLength to preallocate the destination file to its full Content-Length as soon as a download starts (when the server reports it), so segments can start writing to any offset immediately and disk fragmentation/growth stalls are reduced — file as a concrete issue: 'Preallocate file length via RandomAccess.SetLength before starting segmented download'",
+   "Swap Kurio.Core's token-style speed limiter (already token-style per the project description) for System.Threading.RateLimiting's TokenBucketRateLimiter to get a tested, first-party implementation with proper AutoReplenishment instead of maintaining custom bucket math — likely a small, low-risk refactor issue",
+   "Evaluate System.IO.Pipelines for the socket-to-disk hot path per download segment if profiling shows GC pressure from repeated buffer allocation in the current HttpClient-stream-to-FileStream copy loop; note this is a bigger architectural change than the RandomAccess/RateLimiter swaps and should be scoped as its own performance-investigation issue with before/after allocation benchmarks"
+  ]
+ },
+ {
+  "name": "Internet Download Manager (IDM)",
+  "repo": "https://www.internetdownloadmanager.com/ (closed-source, Windows, commercial)",
+  "popularity": "One of the most widely used commercial download accelerators since the early 2000s; still actively sold/updated (v6.4x as of 2026). No public source/star count since closed source.",
+  "architecture": "Native Windows app with a background download engine plus a small native browser-integration bridge process (\"IDM Integration Module\") that talks to browser extensions (Chrome/Firefox/Edge/Opera/Safari) via a native-messaging-like bridge and hands off intercepted download URLs to the engine. Segments are not fixed at start; the engine maintains a live map of segment ranges per file and dynamically rebalances them as connections become free. It periodically flushes segment boundaries/offsets to a resume/state file (multiple times per minute) so pause, crash, or power loss can resume without re-verifying the whole file. Scheduling is a separate subsystem that can trigger connect/disconnect, queue start/stop, and shutdown at specific times, independent of the segment engine. A separate 'media grabber' component hooks into browser page network activity heuristically to detect streaming media URLs.",
+  "standout_features": [
+   "Dynamic mid-flight segmentation: instead of pre-splitting a file into N fixed ranges before download starts, IDM always finds the current largest unfinished segment and bisects it whenever a new connection slot frees up — this keeps every connection busy until the very end and avoids the classic 'one thread starves while others finish' tail-latency problem of static range-splitting.",
+   "Frequent (sub-minute) persistence of segment progress so resume after crash/power-loss is exact, not just at pause time.",
+   "Native browser-integration bridge + extension architecture that intercepts downloads at the browser network-request layer and hands them to the desktop engine, rather than relying on the browser's own download UI.",
+   "Independent scheduler subsystem (time-based connect/download/disconnect/shutdown) decoupled from the transfer engine.",
+   "Visual segment map (color-coded: boundary/downloaded/pending) exposed to the user for transparency into engine behavior."
+  ],
+  "ideas_for_kurio": [
+   "Replace Kurio.Core's (likely static) up-front N-way range split with a dynamic 'largest remaining segment bisection' rebalancer: track segment state as a list of (start,end,downloaded) ranges per download; whenever a worker task completes its range early or a new connection slot opens (e.g., speed-limit token frees up, or a stalled connection is retried), pick the segment with the largest remaining byte count and split it in half, assigning the new half to the new/free connection.",
+   "Change the JSON resume/state schema to persist the full live segment map (not just overall bytes-downloaded) with a periodic flush interval (e.g., every 5-10s or every N MB) via a background timer, so SIGKILL/crash mid-download resumes at exact per-segment offsets instead of re-downloading whole chunks.",
+   "Add a SignalR event (e.g., SegmentMapChanged) that streams the current segment map to Kurio.Web so the dashboard can render a live per-file progress bar broken into colored segments, mirroring IDM's transparency UX.",
+   "Add an independent scheduling module (new Kurio.Core.Scheduling or a hosted service) supporting cron-like or one-shot time windows to start/pause a queue, decoupled from the download engine itself — expose via REST endpoints and a Blazor scheduler page.",
+   "Design a browser-capture story as a small native-messaging host (a lightweight .NET console app) + a browser extension that POSTs intercepted URLs to Kurio.Server's REST API, rather than trying to build this into the server itself."
+  ],
+  "pitfalls_to_avoid": [
+   "Don't tie segment rebalancing decisions to wall-clock timers alone — trigger rebalancing on connection-completion events to avoid idle workers waiting for the next poll tick.",
+   "Persisting segment state too infrequently risks large re-download on crash; too frequently risks I/O contention — make the flush interval configurable and byte-threshold-based, not just time-based."
+  ]
+ },
+ {
+  "name": "Free Download Manager (FDM)",
+  "repo": "https://www.freedownloadmanager.org/ (closed-source current v6.x binary; older 3.x/5.x lineage had open-source roots, no longer actively public on GitHub)",
+  "popularity": "Long-running (20+ years), widely distributed cross-platform (Windows/macOS/Linux/Android) freeware; large install base via download portals, but not a transparent open-source project today — no public star count.",
+  "architecture": "Desktop app with an integrated BitTorrent client, HTTP/FTP downloader, and built-in media previewer, plus a browser extension ('Download with FDM') for Chrome/Firefox that intercepts links similarly to IDM's model. Traffic shaping is implemented as selectable global bandwidth-usage modes (e.g., unlimited / limited / scheduled-limited) applied engine-wide rather than per-download. A smart scheduler triggers start/pause of downloads, launching arbitrary applications, and connect/disconnect of the network interface at specific times.",
+  "standout_features": [
+   "Multiple selectable 'traffic usage modes' that let a user quickly switch between full-speed, bandwidth-capped, and time-windowed throttling profiles instead of manually setting a numeric limit each time.",
+   "Built-in BitTorrent + HTTP(S) + media-grab support unified under one queue/UI.",
+   "Smart scheduler that can also launch external applications and toggle the network connection, not just start/stop downloads.",
+   "Browser add-on ecosystem for site-specific video/file capture."
+  ],
+  "ideas_for_kurio": [
+   "Instead of Kurio's speed-limiter exposing only a raw bytes/sec numeric field, add named 'bandwidth profiles' (Unlimited, Throttled-Background, Scheduled-Quiet-Hours) that map to token-bucket configs, selectable from the dashboard and switchable without editing raw numbers.",
+   "Extend scheduling ideas (shared with IDM) to include a post-download action hook (e.g., run a script/webhook, shut down the orchestration host) — useful for headless server deployments of Kurio.",
+   "Consider a queue-level (not just global) traffic-shaping mode so different queues (e.g., 'bulk ISO downloads' vs 'interactive user downloads') can have independent shaping profiles feeding into the same token-bucket limiter engine."
+  ],
+  "pitfalls_to_avoid": [
+   "Avoid conflating bandwidth mode switching with restarting active transfers — profile changes should hot-apply to the existing token bucket, not require pausing/resuming downloads.",
+   "FDM's plugin/add-on story is thin on public documentation; don't assume there's a stable extension API to emulate — treat 'plugin system' as an open design problem for Kurio rather than copying a concrete FDM mechanism."
+  ]
+ },
+ {
+  "name": "GNU Wget2",
+  "repo": "gnuwget/wget2 (mirrored at rockdaboot/wget2; canonical dev on GitLab gnuwget/wget2)",
+  "popularity": "Official GNU successor to wget1; actively maintained (releases through 2024+, e.g., 2.2.0), moderate GitHub presence (a few hundred stars across mirrors) but authoritative as the GNU project.",
+  "architecture": "Complete rewrite split into libwget (LGPLv3+, reusable core client library) and the wget2 CLI (GPLv3+) that wraps it — a clean library/CLI separation Kurio should note even though Kurio already has this via Kurio.Core. Multithreaded by design: parallel download threads plus intra-file multithreaded chunked download via --chunk-size, unlike wget1's single-threaded, single-connection-per-file model. Networking layer supports HTTP/2 multiplexing (via nghttp2 + GnuTLS ALPN, including streaming/pipelining), TCP Fast Open for both plaintext and TLS, TLS session resumption with a persistent session cache, and transparent decompression (gzip, deflate, bzip2, xz/lzma, brotli, zstandard). It supports Metalink (RFC 5854/6249, Metalink3) for mirror selection and checksum verification, letting it fetch a file from multiple mirrors and verify integrity automatically.",
+  "standout_features": [
+   "Clean library (libwget) vs CLI separation with permissive LGPL core so the engine can be embedded elsewhere.",
+   "--chunk-size: intra-file multithreaded chunked downloads as a first-class CLI flag, not just multi-file parallelism.",
+   "HTTP/2 multiplexing used to reduce connection count while still parallelizing streams.",
+   "TCP Fast Open on both HTTP and HTTPS to cut a round-trip on new connections.",
+   "Persistent TLS session-resumption cache surviving across process runs.",
+   "Native Metalink support for automatic multi-mirror + checksum-verified downloads.",
+   "Broad transparent decompression support (including modern brotli/zstd) applied automatically based on server response headers."
+  ],
+  "ideas_for_kurio": [
+   "Add HTTP/2 awareness to Kurio.Core's segmented downloader: when the origin server negotiates HTTP/2 (or HTTP/3) via SocketsHttpHandler, prefer fewer TCP connections and rely on stream multiplexing for parallel range requests instead of opening N raw sockets — SocketsHttpHandler.EnableMultipleHttp2Connections and per-request PooledConnectionLifetime tuning are the relevant knobs.",
+   "Persist and reuse a TLS session cache across app restarts (SslClientAuthenticationOptions / QUIC session ticket reuse where supported) to shave handshake latency on resumed downloads to the same host, mirroring wget2's persistent session-resumption cache.",
+   "Add a Metalink-like 'multi-mirror' download mode to Kurio.Core: accept multiple candidate URLs for the same logical file, race/split segments across mirrors, and use the existing checksum-verification feature to validate the assembled result regardless of which mirror served which byte range.",
+   "Ensure Kurio.Core transparently handles Content-Encoding (gzip/deflate/br) via HttpClient's decompression handler, and consider adding zstd support (System.IO.Compression added Brotli/ZLib but not Zstd natively — would need a library) for large asset downloads.",
+   "Expose a --chunk-size-equivalent server-side setting (segment size threshold) so operators can tune how aggressively small files get split vs. downloaded as a single connection."
+  ],
+  "pitfalls_to_avoid": [
+   "Don't assume more TCP connections always equals more throughput once HTTP/2 is in play — multiplexed streams over one connection can outperform many raw sockets and reduce origin server load/rate-limit hits.",
+   "wget2's chunk-size multithreading works because it treats each chunk as an independent GET with Range headers reassembled at the end — Kurio's engine should ensure Range-request support is verified (Accept-Ranges header + 206 Partial Content) before attempting segmentation, falling back to single-stream download otherwise, same as wget2/IDM/curl all do."
+  ]
+ },
+ {
+  "name": "curl / libcurl",
+  "repo": "curl/curl",
+  "popularity": "Extremely widely deployed (billions of installations, virtually every OS/embedded device); very actively maintained by Daniel Stenberg and a large contributor base; one of the most battle-tested C networking codebases in existence.",
+  "architecture": "libcurl exposes an Easy API (single blocking-style transfer, handle-based) and a Multi API (event-driven, manages many easy handles concurrently, non-blocking). Connection management is handled by an internal connection cache/pool per multi handle: on a new transfer, libcurl checks the pool for a reusable connection matched primarily by hostname plus port/protocol/other compatibility properties (proxy, TLS config, etc.) before opening a new socket. Idle connections are retained up to CURLOPT_MAXAGE_CONN (default 118s) and CURLOPT_MAXLIFETIME_CONN, with CURLMOPT_MAXCONNECTS bounding pool size (LRU eviction of oldest idle connection when full). Happy Eyeballs (RFC 8305) races IPv6/IPv4 connection attempts with a configurable head start (default 200ms via CURLOPT_HAPPY_EYEBALLS_TIMEOUT_MS) and uses whichever completes first, canceling the other. The CLI's -Z/--parallel mode drives many transfers through the multi interface at once (default cap 50 concurrent, tunable via --parallel-max, with a separate --parallel-max-host origin cap), preferring to multiplex/reuse existing connections over opening new ones unless --parallel-immediate is given. -C/--continue-at resumes a transfer from a specific byte offset (or auto-detects local file size with -C -), relying on server support for Range/Content-Range.",
+  "standout_features": [
+   "Two-tier API (Easy/Multi) cleanly separating single-transfer semantics from a scalable concurrent-transfer event loop — directly analogous to a HttpClient-per-segment vs. an orchestrator pattern.",
+   "Connection pool keyed by hostname+port+protocol+config compatibility, with explicit idle-age and lifetime eviction knobs exposed to the caller.",
+   "Multi-API connection sharing across independently created/destroyed easy handles — connections outlive the handle that created them.",
+   "Happy Eyeballs dual-stack racing with a tunable head-start window, always preferring the first successful connection and killing the loser.",
+   "Parallel CLI mode with both a global concurrency cap and a per-origin concurrency cap, plus an explicit flag to opt out of connection-reuse-preferring behavior when raw throughput matters more than connection economy.",
+   "Simple, well-understood resume contract: --continue-at N sends Range: bytes=N- and trusts server Content-Range/206 response, with '-C -' auto-detecting the offset from an existing partial local file."
+  ],
+  "ideas_for_kurio": [
+   "Model Kurio.Core's per-download connection strategy explicitly on curl's pool semantics: use a shared SocketsHttpHandler (or PooledConnectionLifetime-tuned HttpMessageInvoker) per origin host across all segments/downloads to that host, rather than a fresh HttpClient per segment — this gets connection reuse 'for free' but Kurio should add its own explicit per-host concurrency cap analogous to --parallel-max-host to avoid hammering a single origin across multiple simultaneous downloads in the queue.",
+   "Add a global + per-host concurrency cap to Kurio's queue engine (e.g., MaxConcurrentSegmentsGlobal and MaxConcurrentSegmentsPerHost config), mirroring --parallel-max / --parallel-max-host, configurable via the REST API/dashboard.",
+   "Adopt curl's resume contract as Kurio's canonical resume semantics: always resume via Range: bytes=<offset>- against the same URL, validate the server's 206 response and Content-Range/ETag/Last-Modified against the persisted state before trusting the local partial file, and fall back to a full restart if the server doesn't support ranges or the file changed (ETag mismatch) — this closes a real correctness gap many home-grown resume implementations get wrong.",
+   "Implement a Happy-Eyeballs-style connect race for dual-stack hosts if SocketsHttpHandler's built-in behavior isn't sufficient, or explicitly configure/verify .NET's own Happy Eyeballs support (available via SocketsHttpHandler/Socket connect since .NET has had some dual-stack support) rather than assuming it 'just works'.",
+   "Expose connection-pool tuning (idle timeout, max lifetime, max connections per host) as first-class Kurio.Core.Config options, since Polly-based retry sits on top of the transport and benefits from knowing these bounds when deciding retry vs. reconnect strategy."
+  ],
+  "pitfalls_to_avoid": [
+   "Don't let Polly-driven retries and the HTTP connection pool fight each other — a naive retry-with-new-HttpClient pattern defeats connection reuse and re-triggers TLS handshakes; retries should reuse the same pooled handler/host.",
+   "Range-based resume must validate that the remote resource hasn't changed since the partial download started (ETag/Last-Modified check) before appending to a local partial file — silently trusting stale offsets can corrupt the reassembled file.",
+   "Per-origin concurrency caps must be considered across the whole queue, not just within a single multi-segment download — two simultaneous queued downloads from the same host each opening 8 segments can accidentally open 16 connections to one origin and get rate-limited/blocked."
+  ]
+ },
+ {
+  "name": "aria2 (.aria2 control file / resume format)",
+  "repo": "aria2/aria2",
+  "popularity": "~25k+ GitHub stars, mature/stable, low-activity maintenance mode but widely deployed",
+  "language": "C++",
+  "architecture": "Single-process CLI/daemon with optional JSON-RPC/XML-RPC server for remote control (session save/load, tellStatus, pause/unpause). Each active download gets a sidecar '<filename>.aria2' binary control file alongside the real (truncated-to-size or sparse) output file. The control file is the authoritative resume/progress record; the data file itself holds only the bytes actually written.",
+  "standout_features": [
+   "Binary control file (not JSON/XML) versioned via a 2-bit VERSION field for forward/backward compatibility; v1 uses network byte order (big-endian) for all multi-byte ints, v0 used host byte order and is only read, never written, by modern aria2",
+   "Fields in order: VERSION, EXTENSION bitmask, INFO HASH LENGTH + INFO HASH (BitTorrent identity), PIECE LENGTH, TOTAL LENGTH, UPLOAD LENGTH, BITFIELD LENGTH + BITFIELD (one bit per whole piece, completed=1), NUMBER OF IN-FLIGHT PIECES, then for each in-flight piece: INDEX, LENGTH, PIECE BITFIELD LENGTH + PIECE BITFIELD (sub-piece granularity, 16KiB chunks) — this lets aria2 resume a piece that was only partially received rather than re-downloading the whole piece",
+   "Control file is flushed periodically during the transfer (on a save-interval timer) and always on graceful shutdown/pause; on restart aria2 reopens it, reconstructs the bitfield, and reissues HTTP Range requests only for missing byte ranges, using HTTP validators (If-Range/ETag) to detect a changed remote resource before trusting the local bitfield",
+   "--file-allocation flag exposes explicit tradeoffs: 'none' (sparse, fastest, fragmentation risk), 'prealloc' (posix_fallocate/fallocate, zero-fills, safe but slower to start on some FS), 'trunc' (ftruncate to final size, may create sparse holes), and 'falloc' (Linux fallocate(2), fast and safe where supported)",
+   "Known pitfall documented in aria2 issue #583: SetFileValidData on Windows was considered for fast preallocation but rejected because it can expose previously-deleted disk data (a security/privacy leak) unlike posix_fallocate/fallocate which always zero-fill"
+  ],
+  "ideas_for_kurio": [
+   "Adopt a compact, versioned binary (or MessagePack) per-download sidecar '<file>.kurio-state' with an explicit VERSION byte so the schema can evolve without breaking old resumes; keep a human-debuggable JSON fallback only for the queue/job list, not per-segment state",
+   "Store segment completion as a bitfield over fixed-size sub-ranges (e.g. 256KB-1MB chunks) rather than only 'bytesDownloaded per segment', so a segment that died mid-flight can resume from its last fully-written chunk instead of restarting the whole segment",
+   "On resume, before trusting the local bitfield/segment map, issue a HEAD (or small ranged GET) and compare ETag/Last-Modified/Content-Length against values captured at download start; if mismatched, invalidate the whole state file and restart (mirrors aria2 + wget2 behavior)",
+   "Flush the state file on a timer (e.g. every 1-2s) AND on every pause/cancel/shutdown, decoupled from the data-file fsync cadence, so state-file writes stay cheap even though full data fsync is rarer",
+   "Never use SetFileValidData equivalents for prealloc on Windows; use FileStream/RandomAccess preallocationSize (which maps to SetFileInformationByHandle FILE_ALLOCATION_INFO, zero-semantics preserved) or expose an explicit opt-in 'fast prealloc' flag with a security warning if you ever add a raw SetFileValidData path"
+  ],
+  "pitfalls_to_avoid": [
+   "Do not roll your own binary format without a version field — aria2's v0->v1 byte-order change shows why versioning from day one matters",
+   "Do not treat 'file exists with expected size' as proof of a valid resume — always re-validate ETag/Last-Modified before reusing partial data",
+   "Avoid fast Windows preallocation APIs that skip zero-fill unless you fully understand the data-leak implications"
+  ]
+ },
+ {
+  "name": "wget2 (partial-download resume via .wget-hsts-independent sidecar / HTTP validators)",
+  "repo": "https://gitlab.com/gnuwget/wget2",
+  "popularity": "Official GNU successor to wget; actively maintained, moderate community size (not primarily a GitHub star-count project)",
+  "language": "C",
+  "architecture": "Single-shot CLI process (no daemon/RPC); resume state for a partial file is largely stateless with respect to sidecar metadata — wget2 relies on the local file's size (bytes already on disk) plus HTTP conditional-request headers, not a separate structured state file, to decide how to continue a '-c/--continue' download.",
+  "standout_features": [
+   "Uses If-Range combined with either ETag or Last-Modified (per RFC 7233, never both) to make the Range request conditional: server returns 206 to continue, or 200 (full body) if the resource changed, which wget2 detects and restarts the file from scratch",
+   "--continue simply appends from Content-Length-so-far; there is an open wget2 issue/dev-thread (#580/703) about wget2 not tracking sufficient metadata (like true completion state vs. truncated/corrupt file) which causes ambiguity — a caution about being too minimal",
+   "No piece-level or segment-level resume tracking at all (wget2 is single-stream per file by default) — this is the naive baseline Kurio already exceeds with segmented downloads"
+  ],
+  "ideas_for_kurio": [
+   "Persist the validator (ETag and/or Last-Modified) captured on the initial 200/206 response as part of the per-download state file; use If-Range on every resumed range request so the server itself can reject a stale resume with a fresh 200, which Kurio should detect (Content-Length/Range headers absent) and treat as 'must restart'",
+   "Add an explicit 'download integrity' field distinguishing 'segment fully written' vs 'segment file size matches expected but never fsynced/verified' to avoid wget2-style ambiguity about truncated/corrupt continuations",
+   "Log and surface to the SignalR dashboard when a resume falls back to full restart because the remote resource changed, rather than silently starting over"
+  ],
+  "pitfalls_to_avoid": [
+   "Relying only on file size on disk as proof of correct partial content (no checksum/validator) risks silently resuming corrupted or stale data, exactly the ambiguity wget2 contributors flagged"
+  ]
+ },
+ {
+  "name": "Free Download Manager (.fdmdownload sidecar file)",
+  "repo": "https://www.freedownloadmanager.org/",
+  "popularity": "Long-running proprietary/closed-core product (20+ years), large end-user base, Windows/macOS/Android/browser-extension ecosystem",
+  "language": "C++ (closed source; behavior inferred from file-extension docs and community reports)",
+  "architecture": "Desktop GUI app; while a file is downloading (including multi-connection segmented downloads), FDM writes to a single '<filename>.fdmdownload' file that embeds both the partial content and enough metadata for FDM to know the file is incomplete; the extension itself acts as the 'incomplete' marker so other tools/OS file managers can visually flag unfinished downloads, and FDM swaps it for the real filename only on verified completion.",
+  "standout_features": [
+   "Single-file design: rather than separate '<file>.part' + '<file>.state.json', the sidecar convention embeds an unambiguous incomplete/complete signal directly in the filesystem namespace (extension), simplifying crash recovery — after a crash, any '*.fdmdownload' file left in the download directory is self-evidently resumable/incomplete",
+   "Supports resuming multi-connection (segmented) downloads from the same sidecar, implying internal per-segment offset bookkeeping even though the on-disk artifact is a single growing file rather than multiple temp files",
+   "FDM explicitly renames to the final name only after the transfer is confirmed complete — a simple, robust 'commit' step that avoids ever exposing a half-written file under its final name"
+  ],
+  "ideas_for_kurio": [
+   "Adopt the same 'incomplete marker' convention for the final artifact: write to '<file>.kurio-part' (or keep the state file's existence as the marker) and only rename/move to the final filename after all segments are verified (checksum, if available) and fsynced — this gives Kurio a crash-safe, filesystem-visible 'this download is still in progress' signal",
+   "Ensure the rename-to-final step is atomic (File.Move with overwrite on the same volume) and happens strictly after the state file is marked 'Completed' and (optionally) deleted, so a crash between data-flush and rename can't leave an inconsistent final file"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't rename to the final filename before checksum verification and full fsync complete — otherwise a crash mid-rename or a premature 'done' UI signal can hand the user a corrupt file that looks finished"
+  ]
+ },
+ {
+  "name": ".NET RandomAccess / File.OpenHandle parallel positional I/O (BCL feature, .NET 6+)",
+  "repo": "dotnet/runtime",
+  "popularity": "Core BCL feature since .NET 6; actively maintained, used across the .NET ecosystem",
+  "language": "C#",
+  "architecture": "Provides stateless, offset-based file I/O (System.IO.RandomAccess) built on a shared SafeFileHandle so multiple threads/tasks can read/write at independent offsets concurrently without the position-mutation races FileStream has; File.OpenHandle exposes a preallocationSize parameter that maps to platform-native preallocation (posix_fallocate/fallocate on Linux, fcntl F_PREALLOCATE-family on macOS, SetFileInformationByHandle FILE_ALLOCATION_INFO on Windows) and supports scatter/gather I/O (writing/reading many buffers in one syscall).",
+  "standout_features": [
+   "RandomAccess.Write/WriteAsync(SafeFileHandle, buffer, fileOffset) — thread-safe positional writes with no shared file-pointer state, ideal for N parallel segment downloaders writing into disjoint byte ranges of one shared handle",
+   "File.OpenHandle(..., preallocationSize: totalSize) preallocates the whole file up front using zero-filling native APIs (safe semantics, unlike SetFileValidData) reducing fragmentation and avoiding late 'disk full' failures mid-download",
+   "Scatter/gather overloads (ReadOnlyMemory<byte>[] buffers in a single WriteAsync call) reduce syscall count when flushing several small buffered chunks belonging to one segment together",
+   "RandomAccess.FlushToDisk(handle) / FileStream.Flush(flushToDisk:true) give explicit control to decouple 'data is written to OS cache' from 'data is durable on disk' — letting an app choose a cheap progress-checkpoint cadence (write + update in-memory/state-file progress) independent of an expensive fsync cadence (e.g., fsync only every N MB or every checkpoint interval, not per chunk)"
+  ],
+  "ideas_for_kurio": [
+   "Replace any per-segment FileStream instances with a single shared SafeFileHandle per download (opened once via File.OpenHandle with preallocationSize = total content length when known) and have each segment worker call RandomAccess.WriteAsync at its own offset — eliminates the need for per-segment temp files and a final merge/copy pass entirely",
+   "Decouple checkpoint cadence from fsync cadence explicitly in the writer pipeline: update the in-memory progress/bitfield and persist the lightweight state-file JSON frequently (e.g. every 250ms-1s or every N bytes), but only call RandomAccess.FlushToDisk on a coarser interval (e.g. every 5-10s or every completed segment) to avoid fsync thrashing on spinning disks/NAS/SMB shares",
+   "When total content length is unknown (no Content-Length / chunked response), fall back to no-preallocation (sparse growth) or an estimated preallocation with post-hoc truncate, and record in the state file which mode was used so resume logic knows whether to trust file length as a completion signal",
+   "Add a configurable IStorageAllocationStrategy (None/Sparse/Preallocate) in Kurio.Core so behavior can be tuned per filesystem (e.g., avoid preallocation on SMB/NAS mounts where it forces a full-size synchronous transfer per the APFS/SMB sparse-file caveat, and where fallocate over network filesystems can be slow or unsupported)",
+   "Explicitly avoid any P/Invoke to SetFileValidData for 'fast' Windows preallocation; standardize on File.OpenHandle's built-in preallocationSize which already selects the safe, zero-filling FILE_ALLOCATION_INFO path"
+  ],
+  "pitfalls_to_avoid": [
+   "Per-segment temp files merged at the end double the disk I/O (write once per segment, then read+write again to merge) and roughly double peak disk usage during the merge — prefer shared-handle positional writes over this pattern for Kurio.Core",
+   "Memory-mapped files are a poor fit for this workload: they complicate flush/checkpoint semantics (dirty-page flush timing is OS-controlled and less predictable than explicit fsync calls) and don't offer material benefit over RandomAccess for large sequential-ish segment writes",
+   "fsync'ing after every write call will tank throughput on rotational disks and especially on SMB/NAS mounts; but never fsync until 'download complete' risks large data loss windows on crash — pick a bounded time/byte-based fsync interval and make it configurable",
+   "On APFS, F_PREALLOCATE can fail with EINVAL in some configurations, and sparse files lose their sparseness when copied over SMB — don't assume preallocation always succeeds; treat it as best-effort and fall back gracefully"
+  ]
+ },
+ {
+  "name": "aria2",
+  "repo": "aria2/aria2",
+  "popularity": "~25k GitHub stars; C++ project, mature but low-activity (mostly maintenance mode as of 2026, sporadic commits, many stale PRs)",
+  "language": "C++",
+  "architecture": "Single-process, event-loop based (libuv/epoll) multi-protocol downloader (HTTP/HTTPS/FTP/SFTP/BitTorrent/Metalink) exposing a JSON-RPC/XML-RPC/WebSocket control API (aria2.addUri, aria2.tellStatus, aria2.pause, aria2.changeOption, aria2.getGlobalStat, system.multicall, etc.) so any GUI/CLI can drive it as a headless daemon — architecturally the closest analog to a 'Kurio.Core engine + separate UI' split. Per-download state and per-segment progress are persisted in a sidecar '<file>.aria2' control file (binary format storing piece bitfield, URIs, and in-flight segment offsets) so downloads survive process restart even without a full session file. `--save-session` additionally serializes the whole queue (GIDs, URIs, options) to a text file consumable via `--input-file` for restoring an entire batch. Segment/connection strategy is decoupled from source count via `--split` (target total connections) and `--min-split-size` (floor before further splitting is refused), with a pluggable `--uri-selector` (inorder/feedback/adaptive) that does mirror failover and can persist observed per-server throughput stats (`--server-stat-of/-if`) to bias future mirror choice.",
+  "standout_features": [
+   "Control-file-per-download (.aria2) storing segment bitfield/offsets so resume works even after a hard crash with no full session file",
+   "Adaptive URI selector (inorder/feedback/adaptive) that tracks per-server historical throughput across runs to pick mirrors, not just round-robin",
+   "--always-resume / --max-resume-failure-tries: explicit policy for what to do when some mirrors advertise no-resume support and others do",
+   "Full Metalink4 (RFC 5854, .meta4/.metalink XML) support: mirror lists, per-piece hashes for chunk-level integrity checking, language/os/location file-variant selection, and realtime chunk checksum validation during transfer, independent from Metalink/HTTP header variant (RFC 6249)",
+   "RPC-first design: the daemon is fully controllable/observable over JSON-RPC, decoupling engine from any particular UI — same shape as Kurio.Server's SignalR hubs"
+  ],
+  "ideas_for_kurio": [
+   "Add a per-download sidecar '.kurio' or '.progress.json' control file (segment bitfield + byte offsets) written incrementally during transfer, separate from the full queue-state JSON, so a crash mid-segment doesn't require re-probing the whole file — only the in-flight segment is re-verified",
+   "Implement an aria2-style resume policy option: when Accept-Ranges/206 support differs across configured mirrors for one download, decide (config-driven) whether to fall back to single-connection full re-download vs. abort vs. skip that mirror",
+   "Add a pluggable mirror/URI selector strategy on DownloadTask (in-order, fastest-observed, adaptive) and persist rolling per-host throughput stats so future downloads to the same host pick better initial segment counts",
+   "Implement RFC 5854 Metalink (.meta4) parsing as an optional import path: user pastes/uploads a .meta4 file, Kurio.Core extracts mirrors + per-piece hashes and drives the existing segmented engine with multi-source failover instead of single-URL segments",
+   "Expose a minimal JSON-RPC-style bulk/scripting API (mirroring aria2.* method shapes) alongside the existing REST+SignalR API for headless/automation clients, since this is a well-trodden interface shape worth being compatible-ish with"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't couple the segment count strictly to number of mirrors — aria2 decouples '--split' (connections) from the URI list and reuses URIs round-robin, which Kurio.Core's engine should already support conceptually",
+   "Avoid a monolithic single full-session file for everything; a crash while writing it can corrupt in-flight-segment info for all downloads, not just one"
+  ]
+ },
+ {
+  "name": "wget2",
+  "repo": "gnuwget/wget2",
+  "popularity": "~1.4k GitHub stars, actively maintained successor to GNU Wget (development happens primarily on GitLab, mirrored to GitHub)",
+  "language": "C",
+  "architecture": "Uses libwget as the core HTTP/FTP engine with libnghttp2 for HTTP/2 (ALPN-negotiated) including request pipelining/multiplexing, and can multithread a single large file download by splitting it into fixed-size chunks (`--chunk-size`) each fetched by a worker thread issuing its own Range request, rather than a fixed connection count — chunk size, not connection count, is the tunable. Supports Metalink both as XML description (RFC 5854, versions 3 and 4) and as the HTTP-header variant (RFC 6249: Link rel=duplicate + Digest instance headers), letting it discover mirrors/hashes without fetching a separate .meta4 file.",
+  "standout_features": [
+   "--chunk-size based splitting (fixed chunk size rather than fixed connection count) so segment count scales with file size automatically",
+   "First-class HTTP/2 multiplexing via nghttp2 for regular fetches, plus TCP Fast Open, TLS session resumption cache, and TLS False Start for reducing per-connection setup latency — directly relevant to whether Kurio should open N sockets or N HTTP/2 streams per segment",
+   "Implements RFC 6249 Metalink/HTTP (mirrors/hashes discovered via response headers on the primary URL, no separate metadata file needed) in addition to RFC 5854 XML metalink"
+  ],
+  "ideas_for_kurio": [
+   "When probing a URL, in addition to checking Accept-Ranges/Content-Length, inspect response for Link: <mirror-url>; rel=duplicate and Digest: SHA-256=... headers (RFC 6249) and opportunistically add discovered mirrors as failover sources for the same segmented download, without requiring the user to supply a .meta4 file",
+   "Make Kurio.Core's segmentation strategy chunk-size-driven (e.g. target ~8-16MB per segment, split count = ceil(size/chunkSize) capped by max-connections) instead of a purely fixed segment count, so small files don't over-fragment and huge files scale connections sensibly",
+   "For HTTP/2 origins, evaluate using multiple concurrent GET-with-Range requests over the *same* multiplexed connection (via HttpClient with EnableMultipleHttp2Connections=false) instead of opening N TCP connections, since RFC 9113 recommends one connection per origin for HTTP/2 — document this as an explicit design decision in Kurio.Core's connection strategy"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't assume HTTP/2 multiplexed streams behave like independent HTTP/1.1 sockets for throughput purposes — a single slow/misbehaving stream or a low SETTINGS_MAX_CONCURRENT_STREAMS can throttle all 'segments' sharing one HTTP/2 connection differently than parallel HTTP/1.1 sockets would"
+  ]
+ },
+ {
+  "name": "Motrix (Turbo v2, in beta)",
+  "repo": "agalwood/Motrix",
+  "popularity": "~40k+ GitHub stars for classic Motrix v1 (Electron+aria2 wrapper); v2 'Motrix Turbo' is an active from-scratch rewrite in beta as of 2026",
+  "language": "TypeScript (Electron/React UI) + Node.js core, historically wrapping a forked aria2 C++ binary",
+  "architecture": "Layered design explicitly separating a portable download core from the UI: the core exposes MDXP (Motrix Download eXchange Protocol), an open JSON-RPC 2.0 wire protocol with Zod-validated schemas, so the same core process can be driven by the Electron desktop UI, a headless Node/Docker server with its own web UI, an official CLI (`@motrix/cli`), or browser extensions (Manifest V3 native messaging) — architecturally very close to Kurio.Server (engine) + Kurio.Web (Blazor) + potential future headless/CLI clients. Session/download state is persisted in SQLite (better-sqlite3) rather than flat JSON files, enabling queryable history and automatic restore of in-flight downloads after a restart. A QuickJS-sandboxed plugin system (with a manifest schema, permission model, and an in-app marketplace) allows third parties to add filename templates, page-scraping link extraction, and site-specific media resolvers without touching core code.",
+  "standout_features": [
+   "MDXP: a documented, versioned JSON-RPC 2.0 protocol (with a standalone npm package of shared Zod types) as the single integration surface for desktop UI, CLI, browser extension, and remote/headless pairing — not just an internal implementation detail",
+   "SQLite-backed session storage instead of a JSON blob, giving atomic writes, queryability, and safer partial-update semantics under crash/restart",
+   "Device-code pairing flow for CLI/agent clients to authenticate against a remote/headless instance — a lightweight secure-pairing pattern for exposing a control API beyond localhost",
+   "QuickJS sandboxed plugin architecture with a formal manifest + permission schema and a public plugin registry JSON feed",
+   "Browser extension hand-off (Manifest V3 native messaging) that intercepts browser downloads and redirects them to the engine — this is exactly the 'browser integration / clipboard capture' backlog item Kurio has open"
+  ],
+  "ideas_for_kurio": [
+   "Define an explicit, versioned wire-protocol contract (analogous to MDXP) for Kurio's SignalR hub payloads and REST DTOs — publish it as a small shared contracts package/NuGet so future CLI or browser-extension clients aren't reverse-engineering hub method shapes",
+   "Replace or supplement Kurio.Core's JSON state-persistence file with SQLite (e.g. via Microsoft.Data.Sqlite or EF Core) for the download queue/history, giving atomic per-row updates and safe concurrent access from multiple server components instead of full-file JSON rewrites on every progress tick",
+   "Design the future browser-integration backlog item around a native-messaging-style handoff: a small browser extension posts intercepted download URLs (with cookies/auth headers) to Kurio.Server's REST API, mirroring Motrix's Manifest V3 native messaging approach",
+   "For a future plugin/extension system backlog item, look at Motrix's manifest+permission-schema+sandbox approach (even if .NET would use AssemblyLoadContext or a WASM sandbox instead of QuickJS) as a reference shape: declarative manifest, explicit permission grants, marketplace-style discovery feed"
+  ],
+  "pitfalls_to_avoid": [
+   "Motrix v1's tight coupling to a bundled/forked aria2 binary became a maintenance burden significant enough to justify a full v2 rewrite — avoid baking Kurio.Core's segmented-download logic around a similarly hard external dependency; keep it a pure managed-code engine as it already is",
+   "The v2 rewrite is still in beta with explicit 'do not use with your only copy of v1 data' warnings — a lesson that persistence-format migrations (JSON to SQLite, etc.) need an explicit, tested migration/backup path before shipping"
+  ]
+ },
+ {
+  "name": "Internet Download Manager (IDM) — dynamic segmentation algorithm",
+  "repo": "https://www.internetdownloadmanager.com/support/segmentation.html",
+  "popularity": "Proprietary, decades-old commercial product; extremely widely used on Windows; not open source but its segmentation algorithm is publicly documented",
+  "language": "C/C++ (closed source; behavior documented by vendor)",
+  "architecture": "Not applicable in the open-source sense — included purely as a documented reference algorithm for adaptive/dynamic segmentation rather than a codebase to study directly.",
+  "standout_features": [
+   "Dynamic segmentation: instead of pre-splitting a file into N fixed segments before starting, IDM starts a connection, and each time a *new* connection becomes available it finds the currently-largest remaining segment and splits it in half, assigning the new half to the new connection",
+   "Idle-connection work stealing: when a connection finishes its segment early and the next connection hasn't started its own segment yet, IDM reassigns/merges that segment back onto the free connection instead of leaving it idle",
+   "Split-refusal floor: IDM will not split a segment further once it is 'too small for this connection type', preventing pathological over-fragmentation on fast/low-latency links"
+  ],
+  "ideas_for_kurio": [
+   "Implement IDM-style dynamic re-segmentation in Kurio.Core: when a segment worker finishes early and no unstarted segment is queued, split the largest remaining in-progress segment's unread tail in half and hand the new half to the freed worker (requires making segment boundaries mid-flight-adjustable rather than fixed at download start)",
+   "Add a minimum-remaining-bytes floor (e.g. skip further splitting below ~1-2MB remaining) to Kurio's segment planner to avoid thrashing on fast connections where per-request overhead would dominate",
+   "Expose 'segments rebalanced N times' as a stat in Kurio.Core's stats/ETA module so users/operators can see the adaptive algorithm working, distinct from static per-segment throughput"
+  ],
+  "pitfalls_to_avoid": [
+   "A fixed segment count decided once at download start (Kurio's current apparent model) leaves fast workers idle near the end while a slow worker's segment is still large — this is precisely the inefficiency IDM's algorithm targets; worth an explicit backlog issue even if not implemented immediately"
+  ]
+ },
+ {
+  "name": ".NET SocketsHttpHandler / HttpClient HTTP/2+HTTP/3 range behavior",
+  "repo": "https://learn.microsoft.com/en-us/dotnet/api/system.net.http.socketshttphandler",
+  "popularity": "Built-in BCL component, actively developed (net10.0 docs current as of 2026)",
+  "language": "C#/.NET",
+  "architecture": "SocketsHttpHandler pools connections per-origin; for HTTP/1.1 it opens multiple TCP connections up to MaxConnectionsPerServer, making 'one connection per segment' natural. For HTTP/2, RFC 9113 says clients SHOULD use a single connection per origin, and .NET honors that by default (only one HTTP/2 connection to a given server) with concurrent requests multiplexed as separate streams on it — EnableMultipleHttp2Connections must be explicitly set true to open extra HTTP/2 connections, and even then each connection is still capped by the server's SETTINGS_MAX_CONCURRENT_STREAMS. PooledConnectionLifetime/PooledConnectionIdleTimeout control connection recycling, which matters for long-running segmented downloads against CDNs that rotate edge nodes or invalidate signed URLs.",
+  "standout_features": [
+   "EnableMultipleHttp2Connections: an explicit, documented opt-in to violate the 'one connection per origin' HTTP/2 norm — directly answers the 'connection-per-segment vs multiplexing' design question for Kurio.Core",
+   "Per-origin connection pooling with PooledConnectionLifetime, useful for forcing periodic reconnects on very long segmented downloads (helps pick up DNS/CDN changes and avoid a single connection silently degrading)",
+   "HttpRequestMessage.Version + VersionPolicy (RequestVersionOrLower/Exact/OrHigher) let Kurio.Core explicitly force HTTP/1.1 per-segment sockets even against an HTTP/2-capable server if that's empirically faster for large parallel range downloads"
+  ],
+  "ideas_for_kurio": [
+   "In Kurio.Core's segment-worker connection setup, detect the negotiated protocol version of the first probe/HEAD request; if HTTP/2 or HTTP/3, either set EnableMultipleHttp2Connections=true deliberately (with a comment referencing RFC 9113) or fall back to forcing HTTP/1.1 via VersionPolicy for the actual segment requests — don't let this be accidental/default behavior",
+   "Set PooledConnectionLifetime to a bounded value (e.g. a few minutes) on the HttpClient/SocketsHttpHandler instance used for segment workers so multi-hour downloads periodically re-resolve DNS and re-negotiate, catching CDN edge-node or signed-URL-expiry issues before they silently stall a segment",
+   "Add an explicit integration test that downloads a large file from an HTTP/2-only test server with 4+ concurrent Range requests and asserts they land on the expected number of streams/connections, to lock in whichever policy is chosen and catch accidental regressions when .NET's HTTP/2 defaults change across SDK versions"
+  ],
+  "pitfalls_to_avoid": [
+   "Silently relying on default SocketsHttpHandler behavior against an unknown-protocol server means segment 'connections' may actually be multiplexed HTTP/2 streams sharing one socket and one congestion-control state — segment-level throughput measurements and per-segment retry/backoff logic can be misleading unless this is explicitly accounted for",
+   "MaxConnectionsPerServer defaults and HTTP/2's single-connection norm interact poorly if Kurio.Core's segment planner assumes N segments == N independent network paths"
+  ]
+ },
+ {
+  "name": "Metalink standards family (RFC 5854 Metalink XML, RFC 6249 Metalink/HTTP)",
+  "repo": "https://datatracker.ietf.org/doc/rfc5854/ , https://datatracker.ietf.org/doc/rfc6249/",
+  "popularity": "IETF-standardized (2010/2011); adoption is now mostly limited to aria2 and wget2 among actively maintained clients — Apache Traffic Server ships a Metalink plugin server-side; most other download managers (FDM, IDM, browsers) do not implement it",
+  "language": "N/A (protocol/format specification)",
+  "architecture": "RFC 5854 defines a .meta4 XML document format describing one logical file via a list of mirror <url> elements (each optionally with priority/location/geographic hints) plus per-file and optionally per-piece <hash> elements (multiple algorithms allowed, client should pick the strongest) and optional XML signatures for the metadata itself. RFC 6249 achieves the same mirror/hash discovery without a separate file by adding a `Digest:` response header (RFC 3230-style instance digest) and/or `Link: <url>; rel=duplicate` header(s) to the ordinary HTTP response for the resource itself, letting a client that only ever requested the resource directly still discover mirrors and validate integrity.",
+  "standout_features": [
+   "Per-piece hashing in .meta4 enables detecting and re-downloading only the corrupted chunk of an already-completed file rather than re-verifying/re-fetching the whole thing",
+   "RFC 6249's Digest-header route requires no separate metadata fetch or file format at all — mirrors/hashes ride along on the normal response to the primary URL",
+   "Location/OS/language file-variant selection in .meta4 lets one metadata document describe several download variants (e.g. per-locale installers) and let the client auto-pick"
+  ],
+  "ideas_for_kurio": [
+   "Add an optional .meta4/.metalink importer to Kurio.Core: parse mirrors + per-piece hashes, feed them into the existing segmented-download engine as a multi-source job with per-segment hash verification instead of only a single end-to-end checksum",
+   "Add lightweight RFC 6249 header sniffing (Digest + Link rel=duplicate) to the existing probe/HEAD step so even plain single-URL downloads opportunistically pick up mirror/hash metadata with zero user effort, falling back silently when absent",
+   "When implementing per-piece hashes, size pieces independently from network segment size (a piece boundary doesn't have to equal a connection's byte-range boundary) so re-verification granularity can be tuned separately from parallelism"
+  ],
+  "pitfalls_to_avoid": [
+   "Low real-world adoption means test URLs are scarce — plan to stand up a local test server (e.g. a small ASP.NET Core endpoint) that emits RFC 6249 headers and serves a .meta4 fixture, rather than relying on finding public example URLs",
+   "RFC 6249 explicitly requires clients to treat Digest and Link rel=duplicate as independent, optionally-absent hints — don't require both to be present, and don't fail parsing on any unrecognized Link relation types"
+  ]
+ },
+ {
+  "name": "qBittorrent WebUI API",
+  "repo": "qbittorrent/qBittorrent",
+  "popularity": "Very high (~28k+ stars), actively maintained; the de-facto lingua franca for *arr download-client integrations",
+  "language": "C++ (server), API is JSON over HTTP",
+  "architecture": "Single desktop/headless (qbittorrent-nox) process embeds an HTTP server exposing a versioned REST-ish API under /api/v2/<namespace>/<method> (namespaces: auth, app, log, sync, transfer, torrents, search, rss). Auth is cookie-based (POST /api/v2/auth/login sets a SID cookie); v5.2+ adds a Bearer API key that skips the cookie dance entirely. All mutating calls are POST, all reads are GET, and every method requires the prior auth except login. There's no separate client/server split - the WebUI and the RPC API are served by the same process.",
+  "standout_features": [
+   "Version-namespaced flat method space (/api/v2/torrents/info, /api/v2/torrents/add, /api/v2/torrents/pause, /api/v2/torrents/setCategory) that is trivial to reverse-engineer and mock",
+   "Rich per-torrent state machine surfaced directly in JSON (state field: downloading/stalledDL/queuedDL/pausedDL/error/missingFiles/checkingUP/forcedUP/moving, etc.) which *arr apps poll to decide when an item is 'complete' and importable",
+   "Category and Tag as two independent, orthogonal classification axes, with categories carrying a savePath used for per-category output directories - this is exactly the mechanism *arr apps rely on to route completed downloads",
+   "content_path / save_path returned per-torrent so a caller (Sonarr/Radarr) can locate output files without guessing",
+   "File-level priority endpoint (filePrio) enabling selective download within one job",
+   "Because the API is so widely cloned (rdt-client emulates it fully just to appear as a 'normal' qBittorrent client to Sonarr/Radarr), implementing a qBittorrent-compatible shim is the single highest-leverage way for a new download server to plug into the existing *arr ecosystem without Sonarr/Radarr needing a new integration written"
+  ],
+  "ideas_for_kurio": [
+   "Ship an optional qBittorrent-API-compatibility controller in Kurio.Server (a distinct route prefix, e.g. /qbtcompat/api/v2/...) that maps Kurio's job model onto the qBittorrent v2 JSON shapes (torrents/info, add, pause, resume, delete, categories) purely so Sonarr/Radarr can add Kurio as a 'qBittorrent' download client with zero changes on their side - file this as its own GitHub issue since it's high-value and self-contained",
+   "Adopt qBittorrent's category=savePath convention for Kurio.Core's queue model so a future *arr integration (native or via the compat shim) can route by category to distinct output folders",
+   "Expose an equivalent to content_path/save_path plus a normalized status enum (downloading/paused/queued/completed/error) on every Kurio job returned via SignalR/REST, since that is the minimum vocabulary any *arr-style consumer will poll for",
+   "Support both cookie-session auth and a static Bearer API key on Kurio.Server, mirroring qBittorrent v5.2's simplification - the API key path is much friendlier for scripts, *arr apps, and Docker health checks"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't invent a bespoke auth scheme for the primary API - offer a simple static API key first, since most self-hosted tooling (and the *arr ecosystem) expects that pattern",
+   "Keep the compat layer strictly additive/optional so it doesn't constrain Kurio's native REST/SignalR API design"
+  ]
+ },
+ {
+  "name": "SABnzbd API",
+  "repo": "sabnzbd/sabnzbd",
+  "popularity": "High (~2.5k+ stars), mature, long-running project, primary reference implementation for Usenet client APIs",
+  "language": "Python",
+  "architecture": "Monolithic Python app with an embedded web server. All operations go through a single endpoint (/sabnzbd/api) dispatched by a mode query parameter (mode=queue, mode=history, mode=addurl, mode=addfile, mode=pause, mode=resume, mode=delete, mode=change_cat, mode=change_opts, mode=priority, ...), plus output=json for JSON instead of the legacy XML. Every call (except version/auth) requires an apikey query parameter - a single static, regenerable secret, no session/cookie concept at all.",
+  "standout_features": [
+   "Mode-dispatch single-endpoint RPC style (?mode=X&...) rather than REST resources - simple to implement and simple to reverse-engineer/mock, but harder to document via OpenAPI",
+   "Priority is a small signed integer scale (-2 Paused, -1 Low, 0 Normal, 1 High, 2 Force, -100 'use category default') letting category defaults cascade unless explicitly overridden per job",
+   "Post-processing is an explicit numeric enum on the job (0 None, 1 +Repair, 2 +Repair/Unpack, 3 +Repair/Unpack/Delete) decoupled from the download itself - a distinct pipeline stage after the raw transfer completes",
+   "History is a first-class, separate query surface from the live queue (mode=history vs mode=queue), with its own retry/delete/mark_as_completed actions - completed/failed jobs don't just disappear, they move to an addressable history list, which is exactly what *arr-style import polling depends on",
+   "Category is a simple string tag (default '*') that maps to output folder + default priority + default post-processing script server-side"
+  ],
+  "ideas_for_kurio": [
+   "Introduce an explicit, separately-addressable 'history' surface in Kurio.Server (distinct from the live active-queue endpoint/hub) so completed/failed/cancelled downloads remain queryable after removal from the active queue - needed for both a dashboard 'history' tab and any future *arr-style completed-download-import polling",
+   "Add a small signed priority scale (or reuse an enum) plus a 'category' string that carries default output-path/priority/post-processing settings, mirroring SABnzbd's cascade-unless-overridden model",
+   "Model post-processing (checksum verification, unzip/move, notification webhook) as an explicit numbered pipeline stage attached to a job/category rather than folding it into the download engine itself - this maps well onto Kurio.Core's existing checksum-verification feature and leaves room for future 'unpack archive' or 'run script' steps",
+   "Keep a simple static API-key-only auth mode available for headless/automation use even if Kurio.Server later adds richer auth"
+  ],
+  "pitfalls_to_avoid": [
+   "Avoid SABnzbd's single-endpoint mode-dispatch style for Kurio's primary API - prefer proper REST resources for discoverability/OpenAPI, but it's fine to keep it in mind as a lowest-common-denominator compatibility shim if third-party *arr-only tools ever expect it",
+   "Don't let 'history' become unbounded - SABnzbd users routinely hit issues with huge history files; plan for retention/pruning from day one"
+  ]
+ },
+ {
+  "name": "NZBGet JSON-RPC API",
+  "repo": "nzbgetcom/nzbget",
+  "popularity": "Moderate but long-standing (~1k+ stars for the community fork), stable/maintained, lightweight C++ alternative to SABnzbd",
+  "language": "C++",
+  "architecture": "Single process exposing XML-RPC, JSON-RPC, and JSON-P-RPC over one HTTP endpoint (/jsonrpc), all three protocols implementing an identical method set. Auth is plain HTTP Basic auth with three distinct credential tiers baked into config (ControlUsername/Password for full access, RestrictedUsername/Password for a read-mostly/no-settings-access role, AddUsername/Password for an add-only role limited to append + version). JSON-RPC here only supports positional (not named) parameters and does not support batched multicalls, unlike its XML-RPC sibling.",
+  "standout_features": [
+   "Three-tier role-based Basic-auth credentials baked into the server config itself (full/restricted/add-only) rather than a single shared API key - a genuinely useful least-privilege pattern for exposing a 'submit only' credential to a browser extension or a *arr app without granting it settings access",
+   "append is the canonical 'submit a job' RPC (analogous to addurl/addfile), decoupled from listgroups/listfiles for querying live queue state and history for completed/failed jobs",
+   "pausedownload/resumedownload/pausepost/resumepost/pausescan/resumescan separate pause/resume controls per pipeline stage (download vs post-processing vs directory-scan) rather than one blanket pause flag",
+   "rate for global speed-limit adjustment and testserver/testserverspeed/testdiskspeed/testnetworkspeed as built-in diagnostics callable over the same RPC surface",
+   "Extension script management exposed as RPC methods themselves (loadextensions/downloadextension/updateextension/deleteextension) - post-processing/notification scripts are managed remotely through the API, not just dropped in a folder"
+  ],
+  "ideas_for_kurio": [
+   "Add a role-scoped API key tier to Kurio.Server (e.g. full-control key vs an add-only key meant for browser-extension handoff) so a browser extension or public-facing capture endpoint can be granted a narrowly-scoped credential instead of a full-access key",
+   "Separate pause/resume semantics by pipeline stage if/when Kurio adds post-processing (pause the transfer vs pause a pending checksum/move step) rather than one global paused bool",
+   "Expose built-in network/disk diagnostics endpoints (analogous to testserverspeed/testdiskspeed) for the dashboard's 'test this download source/connection' UX",
+   "Consider offering both a REST/JSON surface and (lower priority) a minimal RPC-style compatibility shim only if a concrete consumer needs it - NZBGet's JSON-RPC positional-params quirk is a good cautionary example of API ergonomics to avoid in Kurio's own native API"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't require strictly positional parameters in Kurio's own JSON API the way NZBGet's JSON-RPC does - it makes client code fragile and hard to read; keep named JSON fields",
+   "HTTP Basic auth with credentials embedded in URLs (as NZBGet's docs show, http://user:pass@host/jsonrpc) leaks into logs/history easily - prefer header-based Bearer tokens for Kurio"
+  ]
+ },
+ {
+  "name": "Sonarr/Radarr 'download client' integration contract (Servarr ecosystem)",
+  "repo": "Sonarr/Sonarr and Radarr/Radarr (contract documented via Servarr/Wiki)",
+  "popularity": "Extremely high adoption as the de-facto standard PVR/media-automation stack; Sonarr ~14k+ stars, Radarr similar; both actively maintained",
+  "language": "C#/.NET (Sonarr, Radarr) - directly relevant precedent since Kurio is also .NET",
+  "architecture": "Sonarr/Radarr poll a configured 'download client' on an interval via that client's native API (qBittorrent, SABnzbd, NZBGet, Deluge, Transmission, etc. each have a dedicated adapter inside Sonarr/Radarr implementing a shared internal download-client interface). The contract each adapter must satisfy is: (1) accept a new job (magnet/URL/NZB) tagged with a category, (2) report a queue of in-progress items with enough per-item status/progress to render in the Activity/Queue UI, (3) retain completed items with a resolvable local output path/directory until Radarr/Sonarr has imported them ('Completed Download Handling' requires the client not to purge history before import), (4) support remote path mapping when the download client's filesystem view differs from the *arr app's (e.g. Docker container vs host, or Linux client + Windows *arr).",
+  "standout_features": [
+   "'Remote Path Mapping' as an explicit, separate settings concept: a dumb string search/replace applied to whatever path the download client reports, needed whenever the download client and the *arr app don't share an identical filesystem view (classic Docker-volume-mismatch problem)",
+   "'Completed Download Handling' hinges entirely on the download client keeping completed-job history (with a stable output path) available until the *arr app has scanned and imported it - premature history pruning breaks the integration silently",
+   "Because there's no single canonical *arr download-client API, third-party servers (rdt-client, and by precedent Kurio) get broadest compatibility for free by emulating an existing supported client's wire protocol (most commonly qBittorrent's) rather than lobbying for a new native integration to be coded into Sonarr/Radarr",
+   "Category assignment at add-time is the main hook *arr apps use to keep their own downloads segregated from user-added ones in the same client"
+  ],
+  "ideas_for_kurio": [
+   "Prioritize the qBittorrent-compatibility shim (see qBittorrent entry) as the concrete, lowest-effort path to real Sonarr/Radarr interoperability, rather than trying to get a native 'Kurio' adapter merged upstream into Sonarr/Radarr's C# codebase",
+   "When designing Kurio's own job model, include a stable, never-mutated 'final output path' field per job plus a documented retention window before a completed job is purged from history/state - this is the exact prerequisite Completed Download Handling needs",
+   "Add a first-class 'remote path mapping' concept to Kurio.Server config (host-path <-> container-path substitution table) since Kurio itself will often run in Docker while a *arr app or the dashboard's host filesystem view differs",
+   "Support a category/label field on job submission from day one (already loosely implied by Kurio.Core's design) and surface it in both the REST API and SignalR events"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't purge job history immediately on completion - keep it until an explicit acknowledgment/import or a configurable retention timeout, or any future *arr-style consumer will race and miss files",
+   "Don't assume the consumer and Kurio.Server share a filesystem view; always design paths to be mappable/relative to a category root, not absolute host paths baked into responses"
+  ]
+ },
+ {
+  "name": "MeTube",
+  "repo": "alexta69/metube",
+  "popularity": "High for its niche (~7k+ stars), actively maintained, extremely popular in the self-hosted/yt-dlp community",
+  "language": "Python (backend) + Angular (frontend)",
+  "architecture": "Single-container app: a Python backend wrapping yt-dlp, an Angular SPA served by the same process, and WebSocket-based real-time status pushed to the UI (no polling) - directly analogous to Kurio.Server's SignalR hub pushing progress to Kurio.Web. State is plain JSON files on disk in a configurable STATE_DIR (queue.json, pending.json, completed.json, subscriptions.json) rather than a database, giving trivial backup/inspection/portability. Downloads land in DOWNLOAD_DIR (optionally split further via AUDIO_DOWNLOAD_DIR and CUSTOM_DIRS subfolders), with a TEMP_DIR for in-progress files recommended to be a tmpfs/RAM mount for performance.",
+  "standout_features": [
+   "PUID/PGID/UMASK environment variables plus a CHOWN_DIRS toggle so the container can run as an arbitrary host UID/GID and correctly own files on bind-mounted volumes - the standard self-hosted-NAS permission story",
+   "Deliberate separation of queue.json (pending/active) vs completed.json (finished/failed) state files, letting the UI and any external tooling distinguish 'still working' vs 'done' without a database",
+   "CLEAR_COMPLETED_AFTER auto-purge delay for the completed list, balancing history visibility against unbounded growth",
+   "URL_PREFIX support specifically for reverse-proxy base-path deployment (e.g. https://host/metube/), and CORS_ALLOWED_ORIGINS specifically to let browser extensions/bookmarklets call the API cross-origin from arbitrary tab origins",
+   "MAX_CONCURRENT_DOWNLOADS as a simple, single global concurrency knob exposed as an env var, not buried in a config file"
+  ],
+  "ideas_for_kurio": [
+   "Adopt PUID/PGID/UMASK env vars (with an optional auto-chown-on-start step) in Kurio's Dockerfile/entrypoint so the container can write into NAS bind mounts (Synology/Unraid/TrueNAS) with correct host ownership - currently a gap since Kurio only has a web dashboard and no documented container image",
+   "Add a documented URL_PREFIX / PathBase-style base-path config to Kurio.Server (ASP.NET Core has native UsePathBase support) so Kurio can be reverse-proxied at a subpath without breaking SignalR negotiation",
+   "Add a narrowly-scoped CORS_ALLOWED_ORIGINS setting (default empty/deny) explicitly documented as 'set this to enable a browser-extension or bookmarklet capture flow' - this is the direct alternative to native messaging for a web-facing download server",
+   "Mirror the queue.json/completed.json file-split pattern for Kurio.Core's own JSON state persistence if not already split - keeps the 'hot' active-queue state file small and fast to read/write independent of a potentially large history file",
+   "Expose a CLEAR_COMPLETED_AFTER-equivalent retention policy for Kurio's job history"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't couple TEMP_DIR/incomplete-file location to the same volume as the final DOWNLOAD_DIR by default - document that using a separate fast/tmpfs mount for in-progress segments avoids slow bind-mount NAS writes during active transfers",
+   "Don't require a database for state just because Kurio.Core already does JSON persistence - keep parity with the lightweight file-based model for easy backup/restore, consistent with what Kurio.Core already does"
+  ]
+ },
+ {
+  "name": "linuxserver.io Docker image conventions",
+  "repo": "linuxserver/docker-baseimage-alpine / linuxserver/docker-documentation (ecosystem convention, not a single app)",
+  "popularity": "Extremely high adoption across the self-hosted ecosystem (thousands of images built on this convention); the de-facto packaging standard people expect on Unraid/Synology/TrueNAS app catalogs",
+  "language": "Shell/s6-overlay init system, applies to images of any backend language",
+  "architecture": "Each image runs an internal fixed user 'abc' (uid/gid 911 baked in at build time); at container start, the s6-overlay init system reads PUID/PGID env vars and rewrites abc's uid/gid to match, then chowns the app's own files (not necessarily user volumes) before exec'ing the real process as that user. Every image exposes a single, consistently-named /config volume for all app state/settings/logs/db, keeping every other data volume (media, downloads, etc.) separate and app-specific. Health is normally surfaced via a docker HEALTHCHECK hitting the app's own HTTP endpoint.",
+  "standout_features": [
+   "Fixed internal uid/gid (911) is a documented ecosystem-wide constant across all linuxserver.io images, making cross-image volume permission reasoning predictable",
+   "Strict separation of concerns between the one true /config volume (settings/db/logs) versus arbitrary user-mounted data volumes (e.g. /downloads, /media) - this single convention is what lets Unraid/Synology/TrueNAS app templates auto-generate sensible default mount points",
+   "s6-overlay as process supervisor inside the container (handles PUID/PGID remap, signal forwarding, graceful shutdown, and optional multiple co-processes) rather than a bare ENTRYPOINT script",
+   "HEALTHCHECK baked into the image itself (not left to the user's compose file) so orchestrators (Portainer, Unraid, Synology Container Manager) show accurate health status out of the box"
+  ],
+  "ideas_for_kurio": [
+   "Publish a Kurio.Server Docker image following this exact convention: internal service user with PUID/PGID remap support, a single /config volume for Kurio's JSON state/settings, and separate documented volumes for /downloads/incomplete and /downloads/complete",
+   "Add a Dockerfile HEALTHCHECK hitting a lightweight Kurio.Server /health or /api/health endpoint (ASP.NET Core has built-in health check middleware) so container orchestrators report accurate status without extra user config",
+   "Write Unraid Community Applications / Synology / TrueNAS SCALE app-catalog templates once the Docker image is stable - these all key off documented volume paths and env vars, which is exactly what MeTube/linuxserver.io establish as expected norms",
+   "Document a stable, minimal set of env vars (PUID, PGID, UMASK, PORT, API_KEY, DOWNLOAD_DIR, INCOMPLETE_DIR) as Kurio's public Docker contract, mirroring what users already expect from every other self-hosted download tool"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't chown large media/download volumes recursively on every container start (slow on NAS with huge libraries) - only chown the app's own /config and let PUID/PGID be applied to the process user for new files going forward, as linuxserver.io images are careful to scope their chown operations narrowly",
+   "Don't run as root by default even though it's the path of least resistance - the entire PUID/PGID convention exists because self-hosters mount NAS shares with specific host-side uid/gid and expect the container to respect that, not require running privileged"
+  ]
+ },
+ {
+  "name": "Browser native messaging handoff (WebExtensions spec + MyJDownloader/FDM/Gopeed patterns)",
+  "repo": "WebExtensions Native Messaging spec (Chrome/Firefox/Edge docs) plus GopeedLab/browser-extension, magnetgrouplabs/myjdownloader-extension-mv3",
+  "popularity": "Native messaging itself is a stable, long-standing cross-browser standard; the download-manager extensions built on it (FDM, Gopeed, JDownloader Interceptor) are each moderately popular niche tools",
+  "language": "JSON manifest + JS extension + a native stdio-speaking host binary in any language",
+  "architecture": "Three distinct architectures observed: (1) MyJDownloader's official extension does NOT use native messaging at all - it relays entirely through MyJDownloader's cloud relay service to a JDownloader instance that maintains an outbound connection to that cloud, avoiding CORS/localhost issues entirely at the cost of requiring a cloud account and internet round-trip; (2) the separate 'JDownloader Interceptor' extension and FDM's extension use classic WebExtensions native messaging - the browser launches a native host process declared by an OS-level manifest file (registry key on Windows, well-known directory on macOS/Linux) with type: stdio, allowed_origins/allowed_extensions restricting which extension IDs may connect, and exchange length-prefixed JSON messages (4-byte native-endian length header + UTF-8 JSON body, host->browser capped at 1MB, browser->host capped at 1MB-4GB depending on browser/version) over the child process's stdin/stdout; the extension intercepts chrome.downloads.onCreated / context-menu clicks, cancels the browser's own download, captures cookies/referrer/headers via the extension APIs, and forwards a job description JSON to the native host, which then talks to the actual download manager (often over a local loopback HTTP/RPC port, not further native-messaging hops); (3) Gopeed's extension instead talks directly over HTTP to Gopeed's own always-listening local REST server (default http://localhost:9999), or to a configured remote Gopeed server, entirely sidestepping native messaging - CORS is handled by Gopeed's server explicitly allowing the extension's origin.",
+  "standout_features": [
+   "Native messaging manifest keyed by exact extension ID (allowed_extensions for Chrome, allowed_origins style for Firefox) - a strict allowlist so no arbitrary web page or extension can spawn/talk to the native host",
+   "Length-prefixed newline-free JSON framing over stdio is intentionally simple and easy to implement in any language (a 4-byte little/native-endian length header, then that many bytes of UTF-8 JSON) - no HTTP server, no port, no firewall exposure at all",
+   "FDM/Bolt-style flow of intercepting chrome.downloads.onCreated, cancelling the native browser download, and re-submitting with captured cookies+referrer+headers is the standard technique for handing a fully-authenticated download context to an external manager",
+   "Gopeed's simpler alternative: skip native messaging entirely and just run a persistent local HTTP server with a scoped CORS allowlist - trades OS-level install complexity (manifest registration) for a more familiar REST/CORS security model",
+   "MyJDownloader's cloud-relay pattern demonstrates a third option entirely: no localhost/CORS/native-host complexity at all, but requires the download server to maintain a persistent outbound connection to a broker service and requires user account/pairing setup"
+  ],
+  "ideas_for_kurio": [
+   "For a first browser-extension milestone, prefer Gopeed's approach over native messaging: have Kurio.Server expose a small, explicitly-CORS-allowlisted 'capture' REST endpoint (e.g. POST /api/capture with url/referrer/cookies/headers) on its existing local/LAN port, since Kurio.Server already runs as a persistent server (unlike JDownloader which is often a desktop app) - this avoids the OS-level native-messaging-manifest installation step entirely and fits Kurio's server-first architecture",
+   "Design the extension to intercept chrome.downloads.onCreated (and a context-menu 'Download with Kurio' action), cancel the browser's native download, capture cookies/referrer/custom headers via the WebRequest/cookies APIs, and POST that job description to Kurio.Server's capture endpoint - directly modeled on the FDM/Bolt flow",
+   "If a future desktop-agent story returns, offer native messaging as the alternative transport for users running Kurio purely as a local desktop process without a reachable HTTP port - reuse the same JSON job-description schema over the length-prefixed stdio framing instead of HTTP, so the extension-side code barely changes",
+   "Require a per-install pairing token (generated in the Kurio.Web dashboard, entered once into the extension's options page) rather than open CORS-to-any-origin, to avoid a hostile webpage silently POSTing arbitrary download jobs to a LAN-reachable Kurio.Server",
+   "Explicitly design the capture payload schema (url, filename hint, referrer, cookies[], extra headers{}, suggested category) now, even before an extension exists, since it will also double as the schema for a future 'add via clipboard/bookmarklet' capture path"
+  ],
+  "pitfalls_to_avoid": [
+   "Don't default to Access-Control-Allow-Origin: * on any authenticated Kurio.Server endpoint just to make a browser extension work - scope CORS to the specific extension origin (chrome-extension://<id>) or require a pairing token in addition to CORS",
+   "Don't build native messaging first as the primary transport - it requires a per-OS installer step (registry keys on Windows, manifest files in specific directories on macOS/Linux) that adds real deployment friction for a server-first product like Kurio; keep it as an optional secondary transport only if a local-desktop-agent use case materializes",
+   "Remember native messaging's hard message-size ceiling (1MB) if that path is ever built - don't try to pass large payloads (e.g. embedded file blobs) through it, only pass small job-description JSON"
+  ]
+ }
+]

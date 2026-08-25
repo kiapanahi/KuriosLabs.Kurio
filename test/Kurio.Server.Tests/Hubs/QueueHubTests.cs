@@ -1,5 +1,4 @@
 using FluentAssertions;
-using KuriousLabs.Kurio.Contracts.Downloads;
 using KuriousLabs.Kurio.Contracts.Hubs;
 using KuriousLabs.Kurio.Contracts.Queue;
 using KuriousLabs.Kurio.Core.Abstractions;
@@ -7,6 +6,7 @@ using KuriousLabs.Kurio.Server.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContractDownloads = KuriousLabs.Kurio.Contracts.Downloads;
 using CoreModels = KuriousLabs.Kurio.Core.Models;
 
 namespace Kurio.Server.Tests.Hubs;
@@ -164,8 +164,7 @@ public sealed class QueueHubTests
                 FileName = "file.zip",
                 Category = "general",
                 MaxConnections = 4
-            },
-            Progress = new CoreModels.DownloadProgress { TaskId = taskId }
+            }
         };
 
         _mockQueueManager.Setup(q => q.GetQueuedTasks()).Returns([task]);
@@ -178,7 +177,7 @@ public sealed class QueueHubTests
             c => c.QueueSnapshotAsync(It.Is<List<QueueItem>>(list =>
                 list.Count == 1 &&
                 list[0].DownloadId == taskId &&
-                list[0].Priority == DownloadPriority.High &&
+                list[0].Priority == ContractDownloads.DownloadPriority.High &&
                 list[0].Position == 1)),
             Times.Once);
     }

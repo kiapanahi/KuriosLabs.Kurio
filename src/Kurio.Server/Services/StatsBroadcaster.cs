@@ -9,7 +9,8 @@ namespace KuriousLabs.Kurio.Server.Services;
 
 public class StatsBroadcaster : BackgroundService
 {
-    private static readonly TimeSpan BroadcastInterval = TimeSpan.FromSeconds(5);
+    // Virtual so tests can shrink the interval without reflection or InternalsVisibleTo.
+    protected virtual TimeSpan BroadcastInterval => TimeSpan.FromSeconds(5);
 
     private readonly IStatisticsService _statisticsService;
     private readonly IDownloadQueueManager _queueManager;
@@ -32,22 +33,35 @@ public class StatsBroadcaster : BackgroundService
     {
         _logger.LogInformation("Stats broadcaster started");
 
-        try
+        using PeriodicTimer timer = new(BroadcastInterval);
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
                 await BroadcastAsync(stoppingToken).ConfigureAwait(false);
-                await Task.Delay(BroadcastInterval, stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                // A failed tick must not kill the broadcaster for the host's lifetime.
+                _logger.LogError(ex, "Stats broadcast tick failed");
+            }
+
+            try
+            {
+                await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
         }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Stats broadcaster stopped");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Stats broadcaster encountered an error");
-        }
+
+        _logger.LogInformation("Stats broadcaster stopped");
     }
 
     private async Task BroadcastAsync(CancellationToken cancellationToken)

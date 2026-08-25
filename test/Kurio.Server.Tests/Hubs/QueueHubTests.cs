@@ -6,6 +6,7 @@ using KuriousLabs.Kurio.Server.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContractDownloads = KuriousLabs.Kurio.Contracts.Downloads;
 using CoreModels = KuriousLabs.Kurio.Core.Models;
 
 namespace Kurio.Server.Tests.Hubs;
@@ -149,22 +150,23 @@ public sealed class QueueHubTests
     {
         // Arrange
         var taskId = Guid.NewGuid();
-        var task = new CoreModels.DownloadTask(
-            taskId,
-            new Uri("https://example.com/file.zip"),
-            new CoreModels.DownloadOptions
+        var task = new TestFakeDownloadTask
+        {
+            Id = taskId,
+            Url = new Uri("https://example.com/file.zip"),
+            FileName = "file.zip",
+            State = CoreModels.DownloadState.Queued,
+            Priority = CoreModels.DownloadPriority.High,
+            CreatedAt = DateTime.UtcNow,
+            Options = new CoreModels.DownloadOptions
             {
-                Destination = "/tmp",
+                DestinationDirectory = "/tmp",
                 FileName = "file.zip",
                 Category = "general",
                 MaxConnections = 4
-            },
-            CoreModels.DownloadState.Queued,
-            CoreModels.DownloadPriority.High,
-            DateTime.UtcNow,
-            null,
-            null);
-        
+            }
+        };
+
         _mockQueueManager.Setup(q => q.GetQueuedTasks()).Returns([task]);
 
         // Act
@@ -175,7 +177,7 @@ public sealed class QueueHubTests
             c => c.QueueSnapshotAsync(It.Is<List<QueueItem>>(list =>
                 list.Count == 1 &&
                 list[0].DownloadId == taskId &&
-                list[0].Priority == Contracts.Downloads.DownloadPriority.High &&
+                list[0].Priority == ContractDownloads.DownloadPriority.High &&
                 list[0].Position == 1)),
             Times.Once);
     }

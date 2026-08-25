@@ -72,7 +72,7 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.Is<List<DownloadInfo>>(list => list.Count == 1)),
+            c => c.ReceiveSnapshotAsync(It.Is<IReadOnlyList<DownloadSummary>>(list => list.Count == 1)),
             Times.Once);
     }
 
@@ -97,7 +97,7 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.Is<List<DownloadInfo>>(
+            c => c.ReceiveSnapshotAsync(It.Is<IReadOnlyList<DownloadSummary>>(
                 list => list.Count == 1 && list[0].State == DownloadState.Downloading)),
             Times.Once);
     }
@@ -127,7 +127,7 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.Is<List<DownloadInfo>>(list => list.Count == 2)),
+            c => c.ReceiveSnapshotAsync(It.Is<IReadOnlyList<DownloadSummary>>(list => list.Count == 2)),
             Times.Once);
     }
 
@@ -152,8 +152,8 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.Is<List<DownloadInfo>>(
-                list => list.Count == 1 && list[0].FileName == "video.mp4")),
+            c => c.ReceiveSnapshotAsync(It.Is<IReadOnlyList<DownloadSummary>>(
+                list => list.Count == 1 && list[0].Name == "video.mp4")),
             Times.Once);
     }
 
@@ -181,7 +181,7 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.IsAny<List<DownloadInfo>>()),
+            c => c.ReceiveSnapshotAsync(It.IsAny<IReadOnlyList<DownloadSummary>>()),
             Times.Once);
     }
 
@@ -217,11 +217,11 @@ public sealed class DownloadHubTests
 
         // Assert
         _mockCaller.Verify(
-            c => c.ReceiveSnapshotAsync(It.Is<List<DownloadInfo>>(list =>
+            c => c.ReceiveSnapshotAsync(It.Is<IReadOnlyList<DownloadSummary>>(list =>
                 list.Count == 3 &&
-                list[0].FileName == "high-new.zip" &&
-                list[1].FileName == "normal.zip" &&
-                list[2].FileName == "low-old.zip")),
+                list[0].Name == "high-new.zip" &&
+                list[1].Name == "normal.zip" &&
+                list[2].Name == "low-old.zip")),
             Times.Once);
     }
 

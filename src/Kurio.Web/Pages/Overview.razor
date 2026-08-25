@@ -78,6 +78,7 @@
 	private async Task ConnectStatsAsync()
 	{
 		_statsConnection = HubFactory.CreateStatsHub();
+		_statsConnection.Reconnected += _ => SubscribeStatsAsync();
 		_statsConnection.On<StatsSnapshot>(nameof(IStatsClient.StatsSnapshotAsync), snapshot =>
 		{
 			_stats = snapshot;
@@ -89,12 +90,18 @@
 			return InvokeAsync(StateHasChanged);
 		});
 		await _statsConnection.StartAsync();
-		await _statsConnection.InvokeAsync(nameof(IStatsHub.SubscribeStatsAsync));
+		await SubscribeStatsAsync();
+	}
+
+	private Task SubscribeStatsAsync()
+	{
+		return _statsConnection?.InvokeAsync(nameof(IStatsHub.SubscribeStatsAsync)) ?? Task.CompletedTask;
 	}
 
 	private async Task ConnectDownloadsAsync()
 	{
 		_downloadsConnection = HubFactory.CreateDownloadsHub();
+		_downloadsConnection.Reconnected += _ => SubscribeDownloadsAsync();
 		_downloadsConnection.On<IReadOnlyList<DownloadSummary>>(nameof(IDownloadsClient.ReceiveSnapshotAsync), snapshot =>
 		{
 			_downloads = snapshot.ToList();
@@ -124,12 +131,17 @@
 		});
 
 		await _downloadsConnection.StartAsync();
-		await _downloadsConnection.InvokeAsync(nameof(IDownloadsHub.SubscribeDownloadsAsync), new DownloadSubscriptionRequest
+		await SubscribeDownloadsAsync();
+	}
+
+	private Task SubscribeDownloadsAsync()
+	{
+		return _downloadsConnection?.InvokeAsync(nameof(IDownloadsHub.SubscribeDownloadsAsync), new DownloadSubscriptionRequest
 		{
 			States = DownloadStateFilter.Active,
 			IncludeCompleted = false,
 			Limit = 10
-		});
+		}) ?? Task.CompletedTask;
 	}
 
 	private static string GetStateClass(DownloadState state) => state switch

@@ -79,7 +79,7 @@ else
 		_connection = HubFactory.CreateQueueHub();
 
 		_connection.Reconnecting += _ => OnReconnect("Queue hub reconnecting");
-		_connection.Reconnected += _ => RequestSnapshotAsync();
+		_connection.Reconnected += _ => RefreshSnapshotAsync();
 		_connection.Closed += error =>
 		{
 			_error = error?.Message ?? "Connection closed";

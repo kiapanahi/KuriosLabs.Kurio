@@ -98,10 +98,11 @@ public sealed class StorageManager : IStorageManager
         await fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // Read access is required when VerifyWrites reads back the written bytes
             FileStream fileStream = new(
                 filePath,
                 FileMode.Open,
-                FileAccess.Write,
+                _options.VerifyWrites ? FileAccess.ReadWrite : FileAccess.Write,
                 FileShare.None, // Exclusive access during write
                 _options.WriteBufferSize,
                 FileOptions.WriteThrough | FileOptions.Asynchronous);

@@ -277,8 +277,9 @@ public class DownloadsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogCancelDownloadError(ex, id);
+            // Never echo unexpected exception details to the client
             return Problem(
-                ex.Message,
+                "An unexpected error occurred while cancelling the download.",
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Failed to cancel download");
         }

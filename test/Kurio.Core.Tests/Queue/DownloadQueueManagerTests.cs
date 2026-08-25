@@ -63,8 +63,8 @@ public class DownloadQueueManagerTests
     [Fact]
     public void GetNextTask_ReturnsPriorityOrder()
     {
-        // Arrange
-        var queueManager = CreateQueueManager();
+        // Arrange (cap above the number of dequeues — ordering is what's under test)
+        var queueManager = CreateQueueManager(maxConcurrent: 4);
         var lowTask = CreateTestTask(DownloadPriority.Low);
         var normalTask = CreateTestTask();
         var highTask = CreateTestTask(DownloadPriority.High);
@@ -135,6 +135,10 @@ public class DownloadQueueManagerTests
         Assert.Equal(2, queueManager.ActiveDownloadsCount);
         Assert.Equal(3, queueManager.QueuedDownloadsCount);
         Assert.False(queueManager.CanStartNewDownload());
+
+        // At the cap, GetNextTask must refuse to claim even though items are queued
+        Assert.Null(queueManager.GetNextTask());
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
 
         // A redundant MarkAsStarted for an already-claimed task must be a no-op
         queueManager.MarkAsStarted(first!.Id);

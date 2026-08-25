@@ -37,10 +37,11 @@ public interface IDownloadQueueManager
 
     /// <summary>
     ///     Dequeues the next download task based on priority and queue position and
-    ///     atomically marks it active, so it immediately counts against
-    ///     <see cref="MaxConcurrentDownloads" />.
+    ///     atomically marks it active. The <see cref="MaxConcurrentDownloads" /> cap
+    ///     is enforced inside the same critical section as the claim.
     /// </summary>
-    /// <returns>The next task to start, or null if none available.</returns>
+    /// <returns>The next task to start, or null if the queue is empty or the
+    ///     concurrency cap is reached.</returns>
     IDownloadTask? GetNextTask();
 
     /// <summary>

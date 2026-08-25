@@ -72,19 +72,17 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
     {
         if (!_options.EnableConnectionMonitoring)
         {
-            _logger.LogInformation("Connection monitoring is disabled");
+            _logger.LogMonitoringDisabled();
             return Task.CompletedTask;
         }
 
         if (_monitoringTask != null)
         {
-            _logger.LogWarning("Connection monitoring is already running");
+            _logger.LogMonitoringAlreadyRunning();
             return Task.CompletedTask;
         }
 
-        _logger.LogInformation(
-            "Starting connection health monitoring (interval: {Interval}s)",
-            _options.NetworkHealthCheckIntervalSeconds);
+        _logger.LogMonitoringStarting(_options.NetworkHealthCheckIntervalSeconds);
 
         _monitoringTask = Task.Run(() => MonitorConnectionHealthAsync(_disposalCts.Token), cancellationToken);
 
@@ -99,7 +97,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             return Task.CompletedTask;
         }
 
-        _logger.LogInformation("Stopping connection health monitoring");
+        _logger.LogMonitoringStopping();
 
         _disposalCts.Cancel();
 
@@ -116,26 +114,23 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             {
                 var httpClient = _httpClientFactory.CreateClient("KurioHealthCheck");
 
-                _logger.LogDebug("Checking connection health via {Endpoint}", endpoint);
+                _logger.LogCheckingHealthViaEndpoint(endpoint);
 
                 using var request = new HttpRequestMessage(HttpMethod.Head, endpoint);
                 using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogDebug("Health check succeeded via {Endpoint}", endpoint);
+                    _logger.LogHealthCheckSucceededViaEndpoint(endpoint);
                     await UpdateHealthStatusAsync(true, null).ConfigureAwait(false);
                     return true;
                 }
 
-                _logger.LogDebug(
-                    "Health check failed via {Endpoint}: {StatusCode}",
-                    endpoint,
-                    response.StatusCode);
+                _logger.LogHealthCheckFailedViaEndpointWithStatus(endpoint, response.StatusCode);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                _logger.LogDebug(ex, "Health check failed via {Endpoint}", endpoint);
+                _logger.LogHealthCheckFailedViaEndpoint(ex, endpoint);
                 // Try next endpoint
             }
         }
@@ -203,12 +198,12 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during connection health monitoring");
+                _logger.LogMonitoringError(ex);
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
         }
 
-        _logger.LogInformation("Connection health monitoring stopped");
+        _logger.LogMonitoringStopped();
     }
 
     /// <summary>
@@ -229,7 +224,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 if (!_isHealthy)
                 {
                     _isHealthy = true;
-                    _logger.LogInformation("Connection restored");
+                    _logger.LogConnectionRestored();
                     OnHealthChanged(true, null);
                 }
             }
@@ -240,9 +235,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 if (_consecutiveFailures >= _options.ConsecutiveFailuresThreshold && _isHealthy)
                 {
                     _isHealthy = false;
-                    _logger.LogWarning(
-                        "Connection lost after {Count} consecutive failures",
-                        _consecutiveFailures);
+                    _logger.LogConnectionLost(_consecutiveFailures);
                     OnHealthChanged(false, error);
                 }
             }

@@ -54,7 +54,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             _entries.Add(entry);
             await SaveAsync(cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Added history entry for download {Id}: {FileName}", entry.Id, entry.FileName);
+            _logger.LogHistoryEntryAdded(entry.Id, entry.FileName);
         }
         finally
         {
@@ -194,8 +194,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             if (deletedCount > 0)
             {
                 await SaveAsync(cancellationToken).ConfigureAwait(false);
-                _logger.LogInformation("Cleaned up {Count} old history entries older than {Cutoff}", deletedCount,
-                    cutoff);
+                _logger.LogOldEntriesCleanedUp(deletedCount, cutoff);
             }
 
             return deletedCount;
@@ -221,7 +220,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
 
             _entries.Remove(entry);
             await SaveAsync(cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Deleted history entry {Id}", id);
+            _logger.LogHistoryEntryDeleted(id);
             return true;
         }
         finally
@@ -238,7 +237,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         {
             _entries.Clear();
             await SaveAsync(cancellationToken).ConfigureAwait(false);
-            _logger.LogInformation("Cleared all download history");
+            _logger.LogAllHistoryCleared();
         }
         finally
         {
@@ -284,12 +283,12 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
                     fileStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
                 _entries = entries ?? [];
                 _isLoaded = true;
-                _logger.LogDebug("Loaded {Count} history entries from {Path}", _entries.Count, _historyFilePath);
+                _logger.LogHistoryEntriesLoaded(_entries.Count, _historyFilePath);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load history from {Path}, starting fresh", _historyFilePath);
+            _logger.LogHistoryLoadFailed(ex, _historyFilePath);
             _entries = [];
             _isLoaded = true;
 
@@ -298,11 +297,11 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             {
                 var backupPath = $"{_historyFilePath}.corrupted.{DateTime.UtcNow:yyyyMMddHHmmss}";
                 File.Move(_historyFilePath, backupPath);
-                _logger.LogWarning("Moved corrupted history file to {BackupPath}", backupPath);
+                _logger.LogCorruptedHistoryFileBackedUp(backupPath);
             }
             catch (Exception moveEx)
             {
-                _logger.LogError(moveEx, "Failed to backup corrupted history file");
+                _logger.LogHistoryBackupFailed(moveEx);
             }
         }
     }
@@ -324,7 +323,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save history to {Path}", _historyFilePath);
+            _logger.LogHistorySaveFailed(ex, _historyFilePath);
             throw;
         }
     }
@@ -336,12 +335,12 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             if (!Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
-                _logger.LogInformation("Created history directory at {Directory}", directory);
+                _logger.LogHistoryDirectoryCreated(directory);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create history directory at {Directory}", directory);
+            _logger.LogHistoryDirectoryCreationFailed(ex, directory);
             throw;
         }
     }

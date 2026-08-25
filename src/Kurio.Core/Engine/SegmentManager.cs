@@ -500,7 +500,7 @@ public sealed class SegmentManager : ISegmentManager
         string tempFilePath,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Verifying segment boundaries...");
+        _logger?.LogVerifyingSegmentBoundaries();
 
         // Verify all segments are completed
         var incompleteSegments = config.States
@@ -565,8 +565,7 @@ public sealed class SegmentManager : ISegmentManager
                 $"Total downloaded size mismatch. Expected: {config.FileSize}, Got: {totalBytesVerified}");
         }
 
-        _logger?.LogInformation("Segment boundary verification completed successfully. Total size: {TotalSize} bytes",
-            totalBytesVerified);
+        _logger?.LogSegmentBoundariesVerified(totalBytesVerified);
     }
 
     /// <summary>
@@ -577,8 +576,7 @@ public sealed class SegmentManager : ISegmentManager
         string tempFilePath,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Verifying checksums for {CompletedCount} completed segments",
-            segmentStates.Count(s => s.Status == SegmentStatus.Completed));
+        _logger?.LogVerifyingCompletedSegments(segmentStates.Count(s => s.Status == SegmentStatus.Completed));
 
         List<int> corruptedSegments = new();
 
@@ -605,8 +603,7 @@ public sealed class SegmentManager : ISegmentManager
             // Skip if segment file doesn't exist (shouldn't happen but be defensive)
             if (string.IsNullOrEmpty(segmentFile) || !File.Exists(segmentFile))
             {
-                _logger?.LogWarning("Segment file not found for segment {SegmentIndex}, skipping verification",
-                    state.SegmentIndex);
+                _logger?.LogSegmentFileNotFound(state.SegmentIndex);
                 continue;
             }
 
@@ -622,7 +619,7 @@ public sealed class SegmentManager : ISegmentManager
             if (isValid)
             {
                 state.Checksum.MarkAsVerified();
-                _logger?.LogDebug("Segment {SegmentIndex} checksum verified successfully", state.SegmentIndex);
+                _logger?.LogSegmentChecksumVerified(state.SegmentIndex);
             }
             else
             {
@@ -631,23 +628,17 @@ public sealed class SegmentManager : ISegmentManager
                 state.BytesDownloaded = 0; // Reset to re-download
                 corruptedSegments.Add(state.SegmentIndex);
 
-                _logger?.LogWarning(
-                    "Segment {SegmentIndex} checksum verification failed. Expected: {ExpectedChecksum}, will re-download",
-                    state.SegmentIndex,
-                    state.Checksum.Hash[..16]);
+                _logger?.LogSegmentChecksumFailed(state.SegmentIndex, state.Checksum.Hash[..16]);
             }
         }
 
         if (corruptedSegments.Count > 0)
         {
-            _logger?.LogWarning(
-                "Detected {CorruptedCount} corrupted segments: {SegmentIndices}. These will be re-downloaded.",
-                corruptedSegments.Count,
-                string.Join(", ", corruptedSegments));
+            _logger?.LogCorruptedSegmentsDetected(corruptedSegments.Count, string.Join(", ", corruptedSegments));
         }
         else
         {
-            _logger?.LogInformation("All completed segments verified successfully");
+            _logger?.LogAllSegmentsVerified();
         }
     }
 }

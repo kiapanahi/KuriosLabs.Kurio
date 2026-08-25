@@ -53,8 +53,8 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics();
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(0);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(0);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(0);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(0);
 
         // Act
         await _hub.SubscribeStatsAsync();
@@ -77,8 +77,8 @@ public sealed class StatsHubTests
             
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(3);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(5);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(3);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(5);
 
         // Act
         await _hub.SubscribeStatsAsync();
@@ -110,8 +110,8 @@ public sealed class StatsHubTests
         
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(2);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(8);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(2);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(8);
 
         // Act
         await _hub.SubscribeStatsAsync();
@@ -149,8 +149,8 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics();
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(0);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(0);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(0);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(0);
 
         // Act
         await _hub.RequestStatsSnapshotAsync();
@@ -168,8 +168,8 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics(0, 0, 0, 0);
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(0);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(0);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(0);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(0);
 
         // Act
         await _hub.SubscribeStatsAsync();
@@ -196,8 +196,8 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics();
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(cts.Token))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(0);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(0);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(0);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(0);
 
         // Act
         await _hub.SubscribeStatsAsync();
@@ -215,15 +215,15 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics();
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(7);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(13);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(7);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(13);
 
         // Act
         await _hub.SubscribeStatsAsync();
 
         // Assert
-        _mockQueueManager.Verify(q => q.GetActiveCount(), Times.AtLeastOnce);
-        _mockQueueManager.Verify(q => q.GetQueuedCount(), Times.AtLeastOnce);
+        _mockQueueManager.VerifyGet(q => q.ActiveDownloadsCount, Times.AtLeastOnce);
+        _mockQueueManager.VerifyGet(q => q.QueuedDownloadsCount, Times.AtLeastOnce);
     }
 
     [Fact]
@@ -233,8 +233,8 @@ public sealed class StatsHubTests
         var stats = CreateMockStatistics();
         _mockStatisticsService.Setup(s => s.GetStatisticsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(stats);
-        _mockQueueManager.Setup(q => q.GetActiveCount()).Returns(0);
-        _mockQueueManager.Setup(q => q.GetQueuedCount()).Returns(0);
+        _mockQueueManager.Setup(q => q.ActiveDownloadsCount).Returns(0);
+        _mockQueueManager.Setup(q => q.QueuedDownloadsCount).Returns(0);
 
         // Act
         await Task.WhenAll(
@@ -253,7 +253,7 @@ public sealed class StatsHubTests
         int completedDownloads = 0,
         int failedDownloads = 0,
         long totalBytesDownloaded = 0,
-        double averageSpeed = 0)
+        long averageSpeed = 0)
     {
         return new CoreModels.DownloadStatistics
         {

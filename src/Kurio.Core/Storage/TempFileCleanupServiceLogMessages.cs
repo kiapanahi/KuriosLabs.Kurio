@@ -5,7 +5,7 @@ namespace KuriousLabs.Kurio.Core.Storage;
 internal static partial class TempFileCleanupServiceLogMessages
 {
     [LoggerMessage(
-        EventId = 8000,
+        EventId = 6200,
         Level = LogLevel.Warning,
         Message = "Failed to get info for file {File}")]
     public static partial void LogFileInfoFailed(
@@ -14,7 +14,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         string file);
 
     [LoggerMessage(
-        EventId = 8001,
+        EventId = 6201,
         Level = LogLevel.Information,
         Message = "Found {Count} orphaned files totaling {Bytes} bytes")]
     public static partial void LogOrphanedFilesFound(
@@ -23,7 +23,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         long bytes);
 
     [LoggerMessage(
-        EventId = 8002,
+        EventId = 6202,
         Level = LogLevel.Debug,
         Message = "Deleted orphaned file {File}")]
     public static partial void LogOrphanedFileDeleted(
@@ -31,7 +31,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         string file);
 
     [LoggerMessage(
-        EventId = 8003,
+        EventId = 6203,
         Level = LogLevel.Warning,
         Message = "Failed to delete orphaned file {File}")]
     public static partial void LogOrphanedFileDeleteFailed(
@@ -40,7 +40,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         string file);
 
     [LoggerMessage(
-        EventId = 8004,
+        EventId = 6204,
         Level = LogLevel.Information,
         Message = "Cleanup complete: {Deleted} deleted, {Failed} failed, {Bytes} bytes freed")]
     public static partial void LogCleanupComplete(
@@ -50,7 +50,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         long bytes);
 
     [LoggerMessage(
-        EventId = 8005,
+        EventId = 6205,
         Level = LogLevel.Information,
         Message = "Cleaned up temporary files for task {TaskId}")]
     public static partial void LogTaskFilesCleanedUp(
@@ -58,7 +58,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         Guid taskId);
 
     [LoggerMessage(
-        EventId = 8006,
+        EventId = 6206,
         Level = LogLevel.Warning,
         Message = "Failed to cleanup temporary files for task {TaskId}")]
     public static partial void LogTaskFilesCleanupFailed(
@@ -67,7 +67,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         Guid taskId);
 
     [LoggerMessage(
-        EventId = 8007,
+        EventId = 6207,
         Level = LogLevel.Debug,
         Message = "Failed to delete empty directory {Directory}")]
     public static partial void LogEmptyDirectoryDeleteFailed(
@@ -76,7 +76,7 @@ internal static partial class TempFileCleanupServiceLogMessages
         string directory);
 
     [LoggerMessage(
-        EventId = 8008,
+        EventId = 6208,
         Level = LogLevel.Debug,
         Message = "Failed to cleanup empty directories in {Directory}")]
     public static partial void LogEmptyDirectoriesCleanupFailed(

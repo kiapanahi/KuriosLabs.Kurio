@@ -17,7 +17,7 @@ web dashboard is the only UI.
 
 ```bash
 dotnet build                                    # builds KuriousLabs.Kurio.slnx
-dotnet test test/Kurio.Core.Tests               # the healthy suite (345 tests, ~30s)
+dotnet test                                     # both suites: Core 351 tests (~30s), Server 29 tests
 dotnet test test/Kurio.Core.Tests --filter "FullyQualifiedName~SegmentManagerTests"  # one class
 dotnet test test/Kurio.Core.Tests --filter "DisplayName~Resume"                      # by name fragment
 
@@ -26,10 +26,11 @@ dotnet run --project src/Kurio.Server           # REST API + SignalR + SSE only
 dotnet run --project src/Kurio.Web              # Blazor dashboard only (expects the server running)
 ```
 
-Known state (verified 2026-08): `test/Kurio.Server.Tests` **does not compile** (32 errors — hub tests reference
-types/APIs since removed from Contracts/Core, e.g. `DownloadInfo`, `IDownloadQueueManager.GetActiveCount`; the exact
-drift is documented in `test/TESTING_STATUS.md`). There is **no CI** (`.github/workflows/` does not exist). The build
-emits ~440 analyzer warnings (`latest-Recommended` analysis level in `Directory.Build.props`).
+Known state (verified 2026-08, after the phase-0 stabilization branch): both suites compile and pass — Core 351
+tests including the loopback-HTTP integration tests in `test/Kurio.Core.Tests/Integration/` (they exercise the real
+composition root against an in-process server), Server 29 tests. CI builds and tests every push/PR via
+`.github/workflows/ci.yml`. The build still emits ~400 analyzer warnings (`latest-Recommended` analysis level in
+`Directory.Build.props`), mostly style rules in test files and code not yet swept.
 
 ## Architecture
 
@@ -93,7 +94,7 @@ and history persist under `~/.kurio/` — wipe that directory if manual test run
 
 - README links `docs/`, `CONTRIBUTING.md`, `CHANGELOG.md` — none exist.
 - `Directory.Packages.props` still pins Avalonia/Spectre.Console versions for the deleted desktop clients.
-- `src/Kurio.Server/TESTING.md` (curl-based manual test guide) predates the queue/stats/config endpoints;
-  `test/TESTING_STATUS.md` is the most current test document.
-- Internal version is 1.18.0 but there are no git tags and no GitHub releases; a local `review` branch holds an
+- `src/Kurio.Server/TESTING.md` (curl-based manual test guide) predates the queue/stats/config endpoints, and
+  `test/TESTING_STATUS.md` documents test drift that has since been repaired — treat both as historical.
+- Internal version is 1.18.1 but there are no git tags and no GitHub releases; a local `review` branch holds an
   unmerged `IDownloadTask`→`DownloadTask` refactor from 2025-12-04.

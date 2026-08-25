@@ -51,9 +51,18 @@ internal static partial class DownloadsControllerLogMessages
 
     [LoggerMessage(
         EventId = 8005,
-        Level = LogLevel.Warning,
-        Message = "Error cancelling download {Id}")]
+        Level = LogLevel.Error,
+        Message = "Unexpected error cancelling download {Id}")]
     public static partial void LogCancelDownloadError(
+        this ILogger logger,
+        Exception exception,
+        Guid id);
+
+    [LoggerMessage(
+        EventId = 8006,
+        Level = LogLevel.Warning,
+        Message = "Cannot cancel download {Id}")]
+    public static partial void LogCannotCancelDownload(
         this ILogger logger,
         Exception exception,
         Guid id);

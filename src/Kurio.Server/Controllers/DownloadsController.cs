@@ -245,6 +245,7 @@ public class DownloadsController : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CancelDownload(
         Guid id,
         CancellationToken cancellationToken,
@@ -257,13 +258,29 @@ public class DownloadsController : ControllerBase
             await BroadcastQueueSnapshotAsync(cancellationToken).ConfigureAwait(false);
             return NoContent();
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogCannotCancelDownload(ex, id);
+            return Problem(
+                ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Cannot cancel download");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogDownloadNotFound(ex, id);
+            return Problem(
+                ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Download not found");
+        }
         catch (Exception ex)
         {
             _logger.LogCancelDownloadError(ex, id);
             return Problem(
                 ex.Message,
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Download not found");
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Failed to cancel download");
         }
     }
 

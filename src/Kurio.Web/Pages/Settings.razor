@@ -43,7 +43,7 @@ else
 
 	private async Task LoadAsync()
 	{
-		_speedLimit = await ApiClient.GetSpeedLimitAsync().ConfigureAwait(false);
+		_speedLimit = await ApiClient.GetSpeedLimitAsync();
 		await InvokeAsync(StateHasChanged);
 	}
 
@@ -63,7 +63,7 @@ else
 				Enabled = _speedLimit.Enabled,
 				MaxDownloadSpeedBytesPerSecond = _speedLimit.MaxDownloadSpeedBytesPerSecond,
 				MaxUploadSpeedBytesPerSecond = _speedLimit.MaxUploadSpeedBytesPerSecond
-			}).ConfigureAwait(false);
+			});
 
 			if (!success)
 			{
@@ -71,7 +71,7 @@ else
 			}
 			else
 			{
-				_speedLimit = await ApiClient.GetSpeedLimitAsync().ConfigureAwait(false);
+				_speedLimit = await ApiClient.GetSpeedLimitAsync();
 			}
 		}
 		finally

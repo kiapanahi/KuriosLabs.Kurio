@@ -85,9 +85,12 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
                 return null;
             }
 
-            // Already sorted by priority and sequence
+            // Already sorted by priority and sequence. Claim the slot atomically:
+            // the task must count as active before the caller spins up the download,
+            // otherwise CanStartNewDownload() ignores the concurrency limit.
             var nextItem = _queuedItems[0];
             _queuedItems.RemoveAt(0);
+            _activeTasks.TryAdd(nextItem.Task.Id, nextItem.Task);
             return nextItem.Task;
         }
     }

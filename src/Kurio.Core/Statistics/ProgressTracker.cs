@@ -129,7 +129,7 @@ public sealed class ProgressTracker : IProgressTracker, IDisposable
         return CreateProgress(taskId, state, DateTime.UtcNow);
     }
 
-    private EnhancedDownloadProgress CreateProgress(Guid taskId, DownloadTrackingState state, DateTime now)
+    private static EnhancedDownloadProgress CreateProgress(Guid taskId, DownloadTrackingState state, DateTime now)
     {
         var bytesRemaining = state.TotalBytes - state.BytesDownloaded;
         var totalElapsed = now - state.StartTime;

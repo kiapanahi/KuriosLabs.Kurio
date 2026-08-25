@@ -307,7 +307,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
     {
         var activeTasks = _queueManager.GetActiveTasks();
-        var activeCount = activeTasks.Count();
+        var activeCount = activeTasks.Count;
         _logger.LogPausingAll(activeCount);
 
         var pausedCount = 0;

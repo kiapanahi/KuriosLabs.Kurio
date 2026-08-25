@@ -16,7 +16,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ConnectionHealthMonitor> _logger;
     private readonly ConnectionResilienceOptions _options;
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly Lock _stateLock = new();
 
     private int _consecutiveFailures;
     private bool _disposed;
@@ -64,7 +64,6 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
 
         _disposalCts.Cancel();
         _disposalCts.Dispose();
-        _stateLock.Dispose();
     }
 
     /// <inheritdoc />
@@ -122,7 +121,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogHealthCheckSucceededViaEndpoint(endpoint);
-                    await UpdateHealthStatusAsync(true, null).ConfigureAwait(false);
+                    UpdateHealthStatus(true, null);
                     return true;
                 }
 
@@ -136,7 +135,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
         }
 
         // All endpoints failed
-        await UpdateHealthStatusAsync(false, "All health check endpoints failed").ConfigureAwait(false);
+        UpdateHealthStatus(false, "All health check endpoints failed");
         return false;
     }
 
@@ -209,10 +208,9 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
     /// <summary>
     ///     Updates the health status and raises events if changed.
     /// </summary>
-    private async Task UpdateHealthStatusAsync(bool isHealthy, string? error)
+    private void UpdateHealthStatus(bool isHealthy, string? error)
     {
-        await _stateLock.WaitAsync().ConfigureAwait(false);
-        try
+        lock (_stateLock)
         {
             var previousHealth = _isHealthy;
 
@@ -239,10 +237,6 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                     OnHealthChanged(false, error);
                 }
             }
-        }
-        finally
-        {
-            _stateLock.Release();
         }
     }
 

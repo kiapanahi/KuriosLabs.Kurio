@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
@@ -429,49 +430,52 @@ public sealed class SegmentManager : ISegmentManager
             state.BytesDownloaded = initialBytesDownloaded + range.Length;
             state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
 
-            // Compute checksum for the ENTIRE segment from the segment file (not just the newly written part)
-            // This is important for resume scenarios where we need to verify the complete segment
-            // Read the entire segment from its file to compute checksum
-            using (FileStream fileStream = new(
-                       segmentFilePath,
-                       FileMode.Open,
-                       FileAccess.Read,
-                       FileShare.Read,
-                       81920,
-                       true))
+            // Compute checksum for the ENTIRE segment from the segment file (not just the newly
+            // written part) — important for resume scenarios where the complete segment is verified.
+            // Hash exactly TotalSize bytes in bounded chunks: segments can exceed 2GB, so the
+            // segment must never be buffered in memory as a whole.
+            FileStream fileStream = new(
+                segmentFilePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            await using (fileStream.ConfigureAwait(false))
             {
-                var segmentData = new byte[state.TotalSize];
-                var totalRead = 0;
-
-                while (totalRead < state.TotalSize)
+                using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var buffer = ArrayPool<byte>.Shared.Rent(81920);
+                try
                 {
-                    var bytesRead = await fileStream.ReadAsync(
-                        segmentData.AsMemory(totalRead, (int)(state.TotalSize - totalRead)),
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (bytesRead == 0)
+                    var remaining = state.TotalSize;
+                    while (remaining > 0)
                     {
-                        throw new InvalidOperationException(
-                            $"Unexpected end of file while reading segment {state.SegmentIndex}");
+                        var toRead = (int)Math.Min(buffer.Length, remaining);
+                        var bytesRead = await fileStream
+                            .ReadAsync(buffer.AsMemory(0, toRead), cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (bytesRead == 0)
+                        {
+                            throw new InvalidOperationException(
+                                $"Unexpected end of file while reading segment {state.SegmentIndex}");
+                        }
+
+                        hasher.AppendData(buffer, 0, bytesRead);
+                        remaining -= bytesRead;
                     }
 
-                    totalRead += bytesRead;
+                    var checksum = Convert.ToHexString(hasher.GetHashAndReset());
+                    state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+
+                    var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
+                    _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
                 }
-
-                var checksum = await _segmentVerifier
-                    .ComputeChecksumAsync(segmentData, "SHA256", cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (string.IsNullOrWhiteSpace(checksum))
+                finally
                 {
-                    var hash = SHA256.HashData(segmentData);
-                    checksum = Convert.ToHexString(hash);
+                    ArrayPool<byte>.Shared.Return(buffer);
                 }
-
-                state.Checksum = SegmentChecksum.Create("SHA256", checksum);
-
-                var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
-                _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
             }
 
             // Mark segment as completed

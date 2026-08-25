@@ -119,12 +119,12 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 _logger.LogDebug("Checking connection health via {Endpoint}", endpoint);
 
                 using var request = new HttpRequestMessage(HttpMethod.Head, endpoint);
-                using var response = await httpClient.SendAsync(request, cancellationToken);
+                using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogDebug("Health check succeeded via {Endpoint}", endpoint);
-                    await UpdateHealthStatusAsync(true, null);
+                    await UpdateHealthStatusAsync(true, null).ConfigureAwait(false);
                     return true;
                 }
 
@@ -141,7 +141,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
         }
 
         // All endpoints failed
-        await UpdateHealthStatusAsync(false, "All health check endpoints failed");
+        await UpdateHealthStatusAsync(false, "All health check endpoints failed").ConfigureAwait(false);
         return false;
     }
 
@@ -160,7 +160,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             }
 
             // Check health immediately
-            if (await CheckHealthAsync(cancellationToken))
+            if (await CheckHealthAsync(cancellationToken).ConfigureAwait(false))
             {
                 return true;
             }
@@ -170,7 +170,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             {
                 await Task.Delay(
                     TimeSpan.FromSeconds(_options.HealthCheckTimeoutSeconds),
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -190,11 +190,11 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
         {
             try
             {
-                await CheckHealthAsync(cancellationToken);
+                await CheckHealthAsync(cancellationToken).ConfigureAwait(false);
 
                 await Task.Delay(
                     TimeSpan.FromSeconds(_options.NetworkHealthCheckIntervalSeconds),
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -204,7 +204,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during connection health monitoring");
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -216,7 +216,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
     /// </summary>
     private async Task UpdateHealthStatusAsync(bool isHealthy, string? error)
     {
-        await _stateLock.WaitAsync();
+        await _stateLock.WaitAsync().ConfigureAwait(false);
         try
         {
             var previousHealth = _isHealthy;

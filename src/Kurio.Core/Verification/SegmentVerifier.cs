@@ -28,7 +28,7 @@ public sealed class SegmentVerifier : ISegmentVerifier
         CancellationToken cancellationToken = default)
     {
         using var hashAlgorithm = CreateHashAlgorithm(algorithm);
-        var hash = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken);
+        var hash = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexString(hash);
     }
 
@@ -46,7 +46,7 @@ public sealed class SegmentVerifier : ISegmentVerifier
             return false;
         }
 
-        await using FileStream fileStream = new(
+        FileStream fileStream = new(
             filePath,
             FileMode.Open,
             FileAccess.Read,
@@ -54,17 +54,20 @@ public sealed class SegmentVerifier : ISegmentVerifier
             81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        // Seek to the segment offset
-        fileStream.Seek(offset, SeekOrigin.Begin);
+        await using (fileStream.ConfigureAwait(false))
+        {
+            // Seek to the segment offset
+            fileStream.Seek(offset, SeekOrigin.Begin);
 
-        // Create a bounded stream for just this segment
-        using BoundedStream boundedStream = new(fileStream, length);
+            // Create a bounded stream for just this segment
+            using BoundedStream boundedStream = new(fileStream, length);
 
-        // Compute checksum of the segment
-        var actualChecksum = await ComputeChecksumAsync(boundedStream, algorithm, cancellationToken);
+            // Compute checksum of the segment
+            var actualChecksum = await ComputeChecksumAsync(boundedStream, algorithm, cancellationToken).ConfigureAwait(false);
 
-        // Compare checksums (case-insensitive)
-        return string.Equals(actualChecksum, expectedChecksum, StringComparison.OrdinalIgnoreCase);
+            // Compare checksums (case-insensitive)
+            return string.Equals(actualChecksum, expectedChecksum, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     private static HashAlgorithm CreateHashAlgorithm(string algorithm)
@@ -131,7 +134,7 @@ public sealed class SegmentVerifier : ISegmentVerifier
             }
 
             var bytesToRead = (int)Math.Min(count, remainingBytes);
-            var bytesRead = await _innerStream.ReadAsync(buffer.AsMemory(offset, bytesToRead), cancellationToken);
+            var bytesRead = await _innerStream.ReadAsync(buffer.AsMemory(offset, bytesToRead), cancellationToken).ConfigureAwait(false);
             _position += bytesRead;
             return bytesRead;
         }
@@ -146,7 +149,7 @@ public sealed class SegmentVerifier : ISegmentVerifier
             }
 
             var bytesToRead = (int)Math.Min(buffer.Length, remainingBytes);
-            var bytesRead = await _innerStream.ReadAsync(buffer[..bytesToRead], cancellationToken);
+            var bytesRead = await _innerStream.ReadAsync(buffer[..bytesToRead], cancellationToken).ConfigureAwait(false);
             _position += bytesRead;
             return bytesRead;
         }

@@ -97,7 +97,7 @@ public sealed class TempFileCleanupService : ITempFileCleanupService
         TimeSpan olderThan,
         CancellationToken cancellationToken = default)
     {
-        var orphanedInfo = await ScanForOrphanedFilesAsync(cancellationToken);
+        var orphanedInfo = await ScanForOrphanedFilesAsync(cancellationToken).ConfigureAwait(false);
 
         var threshold = DateTime.Now - olderThan;
         var filesToDelete = orphanedInfo.Files

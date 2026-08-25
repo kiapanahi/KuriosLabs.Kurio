@@ -48,12 +48,12 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             _entries.Add(entry);
-            await SaveAsync(cancellationToken);
+            await SaveAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Added history entry for download {Id}: {FileName}", entry.Id, entry.FileName);
         }
         finally
@@ -65,10 +65,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task<DownloadHistoryEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries.Find(e => e.Id == id);
         }
         finally
@@ -80,10 +80,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<DownloadHistoryEntry>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries.OrderByDescending(e => e.CompletedAt ?? e.CreatedAt).ToList();
         }
         finally
@@ -98,10 +98,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         DateTime to,
         CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries
                 .Where(e => (e.CompletedAt ?? e.CreatedAt) >= from && (e.CompletedAt ?? e.CreatedAt) <= to)
                 .OrderByDescending(e => e.CompletedAt ?? e.CreatedAt)
@@ -117,10 +117,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     public async Task<IReadOnlyList<DownloadHistoryEntry>> GetCompletedAsync(
         CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries
                 .Where(e => e.IsSuccessful)
                 .OrderByDescending(e => e.CompletedAt)
@@ -135,10 +135,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<DownloadHistoryEntry>> GetFailedAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries
                 .Where(e => !e.IsSuccessful)
                 .OrderByDescending(e => e.CompletedAt ?? e.CreatedAt)
@@ -157,13 +157,13 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            return await GetAllAsync(cancellationToken);
+            return await GetAllAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var term = searchTerm.ToLowerInvariant();
             return _entries
                 .Where(e => e.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
@@ -183,17 +183,17 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     {
         var cutoff = DateTime.UtcNow - retentionPeriod;
 
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var originalCount = _entries.Count;
             _entries = _entries.Where(e => (e.CompletedAt ?? e.CreatedAt) >= cutoff).ToList();
             var deletedCount = originalCount - _entries.Count;
 
             if (deletedCount > 0)
             {
-                await SaveAsync(cancellationToken);
+                await SaveAsync(cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Cleaned up {Count} old history entries older than {Cutoff}", deletedCount,
                     cutoff);
             }
@@ -209,10 +209,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var entry = _entries.Find(e => e.Id == id);
             if (entry == null)
             {
@@ -220,7 +220,7 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
             }
 
             _entries.Remove(entry);
-            await SaveAsync(cancellationToken);
+            await SaveAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Deleted history entry {Id}", id);
             return true;
         }
@@ -233,11 +233,11 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task ClearAllAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _entries.Clear();
-            await SaveAsync(cancellationToken);
+            await SaveAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("Cleared all download history");
         }
         finally
@@ -249,10 +249,10 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
     /// <inheritdoc />
     public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        await _fileLock.WaitAsync(cancellationToken);
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await EnsureLoadedAsync(cancellationToken);
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             return _entries.Count;
         }
         finally
@@ -277,12 +277,15 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
 
         try
         {
-            await using var fileStream = File.OpenRead(_historyFilePath);
-            var entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
-                fileStream, _jsonOptions, cancellationToken);
-            _entries = entries ?? [];
-            _isLoaded = true;
-            _logger.LogDebug("Loaded {Count} history entries from {Path}", _entries.Count, _historyFilePath);
+            var fileStream = File.OpenRead(_historyFilePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                var entries = await JsonSerializer.DeserializeAsync<List<DownloadHistoryEntry>>(
+                    fileStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                _entries = entries ?? [];
+                _isLoaded = true;
+                _logger.LogDebug("Loaded {Count} history entries from {Path}", _entries.Count, _historyFilePath);
+            }
         }
         catch (Exception ex)
         {
@@ -309,12 +312,15 @@ public sealed class JsonDownloadHistoryRepository : IDownloadHistoryRepository
         try
         {
             var tempFilePath = $"{_historyFilePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
-            await JsonSerializer.SerializeAsync(fileStream, _entries, _jsonOptions, cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
-            fileStream.Close();
+            var fileStream = File.Create(tempFilePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                await JsonSerializer.SerializeAsync(fileStream, _entries, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                fileStream.Close();
 
-            File.Move(tempFilePath, _historyFilePath, true);
+                File.Move(tempFilePath, _historyFilePath, true);
+            }
         }
         catch (Exception ex)
         {

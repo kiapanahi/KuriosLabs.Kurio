@@ -102,7 +102,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         Guid? taskId = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
             // Filter by task ID if specified
             if (taskId == null || progress.TaskId == taskId)

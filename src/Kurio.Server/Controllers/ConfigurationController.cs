@@ -95,8 +95,7 @@ public class ConfigurationController : ControllerBase
             var newMaxSpeed = request.Enabled ? request.MaxDownloadSpeedBytesPerSecond : 0;
             _speedLimiter.UpdateMaxSpeed(newMaxSpeed);
 
-            _logger.LogInformation(
-                "Speed limit updated: Enabled={Enabled}, DownloadSpeed={DownloadSpeed} B/s, UploadSpeed={UploadSpeed} B/s (applied immediately to active downloads)",
+            _logger.LogSpeedLimitUpdated(
                 request.Enabled,
                 request.MaxDownloadSpeedBytesPerSecond,
                 request.MaxUploadSpeedBytesPerSecond);
@@ -113,7 +112,7 @@ public class ConfigurationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update speed limit configuration");
+            _logger.LogSpeedLimitUpdateFailed(ex);
             return Problem(
                 ex.Message,
                 statusCode: StatusCodes.Status500InternalServerError,

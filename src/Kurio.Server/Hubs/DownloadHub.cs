@@ -27,7 +27,7 @@ public sealed class DownloadHub : Hub<IDownloadsClient>, IDownloadsHub
 
     public async Task SubscribeDownloadsAsync(DownloadSubscriptionRequest request)
     {
-        _logger.LogInformation("Client {ConnectionId} subscribed to downloads", Context.ConnectionId);
+        _logger.LogClientSubscribedToDownloads(Context.ConnectionId);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
         await SendSnapshotAsync(request).ConfigureAwait(false);
@@ -35,13 +35,13 @@ public sealed class DownloadHub : Hub<IDownloadsClient>, IDownloadsHub
 
     public async Task UnsubscribeDownloadsAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} unsubscribed from downloads", Context.ConnectionId);
+        _logger.LogClientUnsubscribedFromDownloads(Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
     }
 
     public async Task RequestSnapshotAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} requested snapshot", Context.ConnectionId);
+        _logger.LogClientRequestedDownloadsSnapshot(Context.ConnectionId);
         await SendSnapshotAsync(null).ConfigureAwait(false);
     }
 

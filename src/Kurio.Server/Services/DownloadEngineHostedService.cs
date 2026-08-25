@@ -20,23 +20,23 @@ public class DownloadEngineHostedService : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Download engine hosted service starting");
+        _logger.LogDownloadEngineStarting();
         return Task.CompletedTask;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Download engine hosted service stopping");
+        _logger.LogDownloadEngineStopping();
 
         try
         {
             // Pause all active downloads gracefully
-            var pausedCount = await _engine.PauseAllAsync(cancellationToken);
-            _logger.LogInformation("Paused {Count} downloads before shutdown", pausedCount);
+            var pausedCount = await _engine.PauseAllAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogDownloadsPausedBeforeShutdown(pausedCount);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error while pausing downloads during shutdown");
+            _logger.LogPauseDownloadsOnShutdownError(ex);
         }
     }
 }

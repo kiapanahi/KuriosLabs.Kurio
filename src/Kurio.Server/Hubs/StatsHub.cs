@@ -26,20 +26,20 @@ public sealed class StatsHub : Hub<IStatsClient>, IStatsHub
 
     public async Task SubscribeStatsAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} subscribed to stats", Context.ConnectionId);
+        _logger.LogClientSubscribedToStats(Context.ConnectionId);
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
         await SendSnapshotAsync().ConfigureAwait(false);
     }
 
     public async Task UnsubscribeStatsAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} unsubscribed from stats", Context.ConnectionId);
+        _logger.LogClientUnsubscribedFromStats(Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
     }
 
     public async Task RequestStatsSnapshotAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} requested stats snapshot", Context.ConnectionId);
+        _logger.LogClientRequestedStatsSnapshot(Context.ConnectionId);
         await SendSnapshotAsync().ConfigureAwait(false);
     }
 

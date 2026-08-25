@@ -31,7 +31,7 @@ public class StatsBroadcaster : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Stats broadcaster started");
+        _logger.LogStatsBroadcasterStarted();
 
         using PeriodicTimer timer = new(BroadcastInterval);
 
@@ -48,7 +48,7 @@ public class StatsBroadcaster : BackgroundService
             catch (Exception ex)
             {
                 // A failed tick must not kill the broadcaster for the host's lifetime.
-                _logger.LogError(ex, "Stats broadcast tick failed");
+                _logger.LogStatsBroadcastTickFailed(ex);
             }
 
             try
@@ -61,7 +61,7 @@ public class StatsBroadcaster : BackgroundService
             }
         }
 
-        _logger.LogInformation("Stats broadcaster stopped");
+        _logger.LogStatsBroadcasterStopped();
     }
 
     private async Task BroadcastAsync(CancellationToken cancellationToken)

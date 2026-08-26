@@ -83,22 +83,22 @@ internal sealed class DownloadQueueManager : IDownloadQueueManager
             // The cap check and the claim must happen under the same lock so
             // overlapping scheduler ticks cannot both pass the check and then
             // each claim a slot beyond MaxConcurrentDownloads.
-            if (_queuedItems.Count == 0 || _activeTasks.Count >= MaxConcurrentDownloads)
+            while (_queuedItems.Count > 0 && _activeTasks.Count < MaxConcurrentDownloads)
             {
-                return null;
+                // Already sorted by priority and sequence
+                var nextItem = _queuedItems[0];
+                _queuedItems.RemoveAt(0);
+
+                if (_activeTasks.TryAdd(nextItem.Task.Id, nextItem.Task))
+                {
+                    return nextItem.Task;
+                }
+
+                // Stale duplicate of an already-active task: discard it and keep
+                // looking so one bad entry can't stall the rest of the queue.
             }
 
-            // Already sorted by priority and sequence
-            var nextItem = _queuedItems[0];
-            _queuedItems.RemoveAt(0);
-            if (!_activeTasks.TryAdd(nextItem.Task.Id, nextItem.Task))
-            {
-                // Task is somehow already active (stale duplicate queue entry);
-                // drop the queue entry rather than handing the task out twice.
-                return null;
-            }
-
-            return nextItem.Task;
+            return null;
         }
     }
 

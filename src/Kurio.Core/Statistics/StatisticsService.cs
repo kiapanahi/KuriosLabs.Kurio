@@ -1,8 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Kurio.Core.Statistics;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 
@@ -218,12 +216,15 @@ public sealed class StatisticsService : IStatisticsService
 
         try
         {
-            await using var fileStream = File.OpenRead(_statisticsFilePath);
-            _statistics = await JsonSerializer.DeserializeAsync<DownloadStatistics>(
-                fileStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
-            _statistics ??=
-                new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
-            _logger.LogStatisticsLoaded(_statisticsFilePath);
+            var fileStream = File.OpenRead(_statisticsFilePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                _statistics = await JsonSerializer.DeserializeAsync<DownloadStatistics>(
+                    fileStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                _statistics ??=
+                    new DownloadStatistics { CreatedAt = DateTime.UtcNow, SessionStartedAt = _sessionStartTime };
+                _logger.LogStatisticsLoaded(_statisticsFilePath);
+            }
         }
         catch (Exception ex)
         {
@@ -242,11 +243,14 @@ public sealed class StatisticsService : IStatisticsService
         try
         {
             var tempFilePath = $"{_statisticsFilePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
-            await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken).ConfigureAwait(false);
-            await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            fileStream.Close();
+            var fileStream = File.Create(tempFilePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                await JsonSerializer.SerializeAsync(fileStream, _statistics, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
 
+            // Atomic move — only after disposal has fully released the file handle
             File.Move(tempFilePath, _statisticsFilePath, true);
         }
         catch (Exception ex)

@@ -1,7 +1,6 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
-
-using Kurio.Core.Engine;
 
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
@@ -202,7 +201,7 @@ public sealed class SegmentManager : ISegmentManager
         CancellationToken cancellationToken = default)
     {
         // Verify completed segments' checksums before resuming
-        await VerifyCompletedSegmentsAsync(segmentStates, tempFilePath, cancellationToken);
+        await VerifyCompletedSegmentsAsync(segmentStates, tempFilePath, cancellationToken).ConfigureAwait(false);
 
         // Find incomplete segments
         List<Task> incompleteTasks = new();
@@ -237,7 +236,7 @@ public sealed class SegmentManager : ISegmentManager
         }
 
         // Wait for all incomplete segments to complete
-        await Task.WhenAll(incompleteTasks);
+        await Task.WhenAll(incompleteTasks).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -269,10 +268,10 @@ public sealed class SegmentManager : ISegmentManager
                     tempFilePath,
                     options,
                     progress,
-                    ct);
+                    ct).ConfigureAwait(false);
 
                 return 0; // Success indicator
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
 
             return;
         }
@@ -293,7 +292,7 @@ public sealed class SegmentManager : ISegmentManager
                     tempFilePath,
                     options,
                     progress,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 // Success - exit retry loop
                 return;
@@ -362,7 +361,7 @@ public sealed class SegmentManager : ISegmentManager
 
         // Open segment file for writing - stream directly to disk, no in-memory buffering
         // Use OpenOrCreate for resume support
-        await using FileStream segmentStream = new(
+        FileStream segmentStream = new(
             segmentFilePath,
             FileMode.OpenOrCreate,
             FileAccess.Write,
@@ -370,57 +369,58 @@ public sealed class SegmentManager : ISegmentManager
             81920,
             true);
 
-        // For resumed downloads, seek to the position where we left off
-        segmentStream.Seek(initialBytesDownloaded, SeekOrigin.Begin);
-
-        // Track bytes written in this session for progress reporting
-        long bytesWrittenThisSession = 0;
-
-        // Progress tracking for this segment
-        // Note: We update state.BytesDownloaded for live progress aggregation,
-        // but only the final value (after flush) is persisted to disk
-        Progress<long> segmentProgress = new(bytesRead =>
+        await using (segmentStream.ConfigureAwait(false))
         {
-            // bytesRead is cumulative bytes written to disk in this session
-            bytesWrittenThisSession = bytesRead;
-            var totalForSegment = initialBytesDownloaded + bytesRead;
+            // For resumed downloads, seek to the position where we left off
+            segmentStream.Seek(initialBytesDownloaded, SeekOrigin.Begin);
 
-            // Update state for live progress aggregation (not persisted until completion)
-            state.BytesDownloaded = totalForSegment;
+            // Track bytes written in this session for progress reporting
+            long bytesWrittenThisSession = 0;
 
-            progress?.Report(new SegmentProgress
+            // Progress tracking for this segment
+            // Note: We update state.BytesDownloaded for live progress aggregation,
+            // but only the final value (after flush) is persisted to disk
+            Progress<long> segmentProgress = new(bytesRead =>
             {
-                SegmentIndex = state.SegmentIndex,
-                BytesDownloaded = totalForSegment,
-                Status = SegmentStatus.Downloading,
-                Timestamp = DateTime.UtcNow
+                // bytesRead is cumulative bytes written to disk in this session
+                bytesWrittenThisSession = bytesRead;
+                var totalForSegment = initialBytesDownloaded + bytesRead;
+
+                // Update state for live progress aggregation (not persisted until completion)
+                state.BytesDownloaded = totalForSegment;
+
+                progress?.Report(new SegmentProgress
+                {
+                    SegmentIndex = state.SegmentIndex,
+                    BytesDownloaded = totalForSegment,
+                    Status = SegmentStatus.Downloading,
+                    Timestamp = DateTime.UtcNow
+                });
             });
-        });
 
-        // Download directly to the segment file stream (no in-memory buffering!)
-        await handler.DownloadRangeAsync(
-            url,
-            range,
-            segmentStream,
-            options,
-            segmentProgress,
-            cancellationToken);
+            // Download directly to the segment file stream (no in-memory buffering!)
+            await handler.DownloadRangeAsync(
+                url,
+                range,
+                segmentStream,
+                options,
+                segmentProgress,
+                cancellationToken).ConfigureAwait(false);
 
-        // Flush to ensure all data is written to disk
-        await segmentStream.FlushAsync(cancellationToken);
+            // Flush to ensure all data is written to disk
+            await segmentStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-        // Verify downloaded size matches expected
-        var finalPosition = segmentStream.Position;
-        var expectedPosition = initialBytesDownloaded + range.Length;
+            // Verify downloaded size matches expected
+            var finalPosition = segmentStream.Position;
+            var expectedPosition = initialBytesDownloaded + range.Length;
 
-        if (finalPosition != expectedPosition)
-        {
-            throw new InvalidOperationException(
-                $"Segment {state.SegmentIndex} size mismatch. Expected position: {expectedPosition}, Got: {finalPosition}");
+            if (finalPosition != expectedPosition)
+            {
+                throw new InvalidOperationException(
+                    $"Segment {state.SegmentIndex} size mismatch. Expected position: {expectedPosition}, Got: {finalPosition}");
+            }
+
         }
-
-        // Close the stream before reading for checksum
-        await segmentStream.DisposeAsync();
 
         // CRITICAL: Set the final persisted value after successful flush
         // This ensures resume starts from the correct position and state file has accurate data
@@ -429,49 +429,52 @@ public sealed class SegmentManager : ISegmentManager
         state.BytesDownloaded = initialBytesDownloaded + range.Length;
         state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
 
-        // Compute checksum for the ENTIRE segment from the segment file (not just the newly written part)
-        // This is important for resume scenarios where we need to verify the complete segment
-        // Read the entire segment from its file to compute checksum
-        using (FileStream fileStream = new(
-                   segmentFilePath,
-                   FileMode.Open,
-                   FileAccess.Read,
-                   FileShare.Read,
-                   81920,
-                   true))
+        // Compute checksum for the ENTIRE segment from the segment file (not just the newly
+        // written part) — important for resume scenarios where the complete segment is verified.
+        // Hash exactly TotalSize bytes in bounded chunks: segments can exceed 2GB, so the
+        // segment must never be buffered in memory as a whole.
+        FileStream fileStream = new(
+            segmentFilePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        await using (fileStream.ConfigureAwait(false))
         {
-            var segmentData = new byte[state.TotalSize];
-            var totalRead = 0;
-
-            while (totalRead < state.TotalSize)
+            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = ArrayPool<byte>.Shared.Rent(81920);
+            try
             {
-                var bytesRead = await fileStream.ReadAsync(
-                    segmentData.AsMemory(totalRead, (int)(state.TotalSize - totalRead)),
-                    cancellationToken);
-
-                if (bytesRead == 0)
+                var remaining = state.TotalSize;
+                while (remaining > 0)
                 {
-                    throw new InvalidOperationException(
-                        $"Unexpected end of file while reading segment {state.SegmentIndex}");
+                    var toRead = (int)Math.Min(buffer.Length, remaining);
+                    var bytesRead = await fileStream
+                        .ReadAsync(buffer.AsMemory(0, toRead), cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (bytesRead == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Unexpected end of file while reading segment {state.SegmentIndex}");
+                    }
+
+                    hasher.AppendData(buffer, 0, bytesRead);
+                    remaining -= bytesRead;
                 }
 
-                totalRead += bytesRead;
+                var checksum = Convert.ToHexString(hasher.GetHashAndReset());
+                state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+
+                var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
+                _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
             }
-
-            var checksum = await _segmentVerifier
-                .ComputeChecksumAsync(segmentData, "SHA256", cancellationToken)
-                .ConfigureAwait(false);
-
-            if (string.IsNullOrWhiteSpace(checksum))
+            finally
             {
-                var hash = SHA256.HashData(segmentData);
-                checksum = Convert.ToHexString(hash);
+                ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            state.Checksum = SegmentChecksum.Create("SHA256", checksum);
-
-            var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
-            _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
         }
 
         // Mark segment as completed
@@ -497,7 +500,7 @@ public sealed class SegmentManager : ISegmentManager
         string tempFilePath,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Verifying segment boundaries...");
+        _logger?.LogVerifyingSegmentBoundaries();
 
         // Verify all segments are completed
         var incompleteSegments = config.States
@@ -562,8 +565,7 @@ public sealed class SegmentManager : ISegmentManager
                 $"Total downloaded size mismatch. Expected: {config.FileSize}, Got: {totalBytesVerified}");
         }
 
-        _logger?.LogInformation("Segment boundary verification completed successfully. Total size: {TotalSize} bytes",
-            totalBytesVerified);
+        _logger?.LogSegmentBoundariesVerified(totalBytesVerified);
     }
 
     /// <summary>
@@ -574,8 +576,7 @@ public sealed class SegmentManager : ISegmentManager
         string tempFilePath,
         CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Verifying checksums for {CompletedCount} completed segments",
-            segmentStates.Count(s => s.Status == SegmentStatus.Completed));
+        _logger?.LogVerifyingCompletedSegments(segmentStates.Count(s => s.Status == SegmentStatus.Completed));
 
         List<int> corruptedSegments = new();
 
@@ -602,8 +603,7 @@ public sealed class SegmentManager : ISegmentManager
             // Skip if segment file doesn't exist (shouldn't happen but be defensive)
             if (string.IsNullOrEmpty(segmentFile) || !File.Exists(segmentFile))
             {
-                _logger?.LogWarning("Segment file not found for segment {SegmentIndex}, skipping verification",
-                    state.SegmentIndex);
+                _logger?.LogSegmentFileNotFound(state.SegmentIndex);
                 continue;
             }
 
@@ -614,12 +614,12 @@ public sealed class SegmentManager : ISegmentManager
                 state.TotalSize,
                 state.Checksum.Hash,
                 state.Checksum.Algorithm,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             if (isValid)
             {
                 state.Checksum.MarkAsVerified();
-                _logger?.LogDebug("Segment {SegmentIndex} checksum verified successfully", state.SegmentIndex);
+                _logger?.LogSegmentChecksumVerified(state.SegmentIndex);
             }
             else
             {
@@ -628,23 +628,17 @@ public sealed class SegmentManager : ISegmentManager
                 state.BytesDownloaded = 0; // Reset to re-download
                 corruptedSegments.Add(state.SegmentIndex);
 
-                _logger?.LogWarning(
-                    "Segment {SegmentIndex} checksum verification failed. Expected: {ExpectedChecksum}, will re-download",
-                    state.SegmentIndex,
-                    state.Checksum.Hash[..16]);
+                _logger?.LogSegmentChecksumFailed(state.SegmentIndex, state.Checksum.Hash[..16]);
             }
         }
 
         if (corruptedSegments.Count > 0)
         {
-            _logger?.LogWarning(
-                "Detected {CorruptedCount} corrupted segments: {SegmentIndices}. These will be re-downloaded.",
-                corruptedSegments.Count,
-                string.Join(", ", corruptedSegments));
+            _logger?.LogCorruptedSegmentsDetected(corruptedSegments.Count, string.Join(", ", corruptedSegments));
         }
         else
         {
-            _logger?.LogInformation("All completed segments verified successfully");
+            _logger?.LogAllSegmentsVerified();
         }
     }
 }

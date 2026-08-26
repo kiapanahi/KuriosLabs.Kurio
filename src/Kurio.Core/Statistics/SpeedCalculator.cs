@@ -5,7 +5,7 @@ namespace KuriousLabs.Kurio.Core.Statistics;
 /// </summary>
 public sealed class SpeedCalculator
 {
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly Queue<SpeedSample> _samples;
     private readonly int _windowSize;
     private SpeedSample? _lastSample;

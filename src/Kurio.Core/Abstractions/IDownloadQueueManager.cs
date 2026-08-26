@@ -36,9 +36,12 @@ public interface IDownloadQueueManager
     bool Dequeue(Guid taskId);
 
     /// <summary>
-    ///     Gets the next download task that should start based on priority and queue position.
+    ///     Dequeues the next download task based on priority and queue position and
+    ///     atomically marks it active. The <see cref="MaxConcurrentDownloads" /> cap
+    ///     is enforced inside the same critical section as the claim.
     /// </summary>
-    /// <returns>The next task to start, or null if none available.</returns>
+    /// <returns>The next task to start, or null if the queue is empty or the
+    ///     concurrency cap is reached.</returns>
     IDownloadTask? GetNextTask();
 
     /// <summary>

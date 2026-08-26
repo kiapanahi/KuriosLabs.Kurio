@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.ErrorHandling;
+namespace KuriousLabs.Kurio.Core.ErrorHandling;
 
 internal static partial class RetryHandlerLogMessages
 {

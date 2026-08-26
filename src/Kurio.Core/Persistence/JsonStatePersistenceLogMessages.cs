@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Persistence;
+namespace KuriousLabs.Kurio.Core.Persistence;
 
 internal static partial class JsonStatePersistenceLogMessages
 {

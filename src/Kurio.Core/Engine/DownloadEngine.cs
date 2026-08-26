@@ -2,8 +2,6 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-using Kurio.Core.Engine;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 using KuriousLabs.Kurio.Core.Queue;
@@ -102,7 +100,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
         Guid? taskId = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var progress in _progressChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
             // Filter by task ID if specified
             if (taskId == null || progress.TaskId == taskId)
@@ -148,7 +146,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Queued)
@@ -171,7 +169,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Downloading)
@@ -203,7 +201,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Paused)
@@ -234,7 +232,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         _logger.LogTaskCancelled(taskId, removePartialFiles);
@@ -309,7 +307,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     public async Task<int> PauseAllAsync(CancellationToken cancellationToken = default)
     {
         var activeTasks = _queueManager.GetActiveTasks();
-        var activeCount = activeTasks.Count();
+        var activeCount = activeTasks.Count;
         _logger.LogPausingAll(activeCount);
 
         var pausedCount = 0;
@@ -393,14 +391,13 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
             // Check if we can start new downloads
             while (_queueManager.CanStartNewDownload())
             {
+                // GetNextTask atomically claims an active slot for the task
                 var nextTask = _queueManager.GetNextTask();
                 if (nextTask == null)
                 {
                     break; // No more tasks in queue
                 }
 
-                // Start the download
-                _queueManager.MarkAsStarted(nextTask.Id);
                 _logger.LogTaskStarted(nextTask.Id);
 
                 // Check if this is a resume or new download
@@ -447,8 +444,10 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
 
             task.FileSize = task.Metadata.ContentLength;
 
-            // Update filename if suggested by server
-            if (!string.IsNullOrEmpty(task.Metadata.SuggestedFileName))
+            // Update filename if suggested by server, but never override a
+            // filename the caller explicitly requested via options
+            if (string.IsNullOrEmpty(task.Options.FileName) &&
+                !string.IsNullOrEmpty(task.Metadata.SuggestedFileName))
             {
                 task.FileName = task.Metadata.SuggestedFileName;
             }
@@ -540,17 +539,16 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 progress,
                 linkedToken).ConfigureAwait(false);
 
-            // Merge segment files into final file (for per-segment file mode)
-            if (segmentConfig.SegmentCount > 1)
-            {
-                _logger.LogMergingSegments(segmentConfig.SegmentCount, task.Id);
+            // Merge segment files into the final temp file. This must also run for a
+            // single segment: segments are always written to segment_NNNN.part files
+            // and the commit path below does not exist until the merge produces it.
+            _logger.LogMergingSegments(segmentConfig.SegmentCount, task.Id);
 
-                await _storageManager.MergeSegmentFilesAsync(
-                    task.Id,
-                    tempFilePath,
-                    segmentConfig.SegmentCount,
-                    linkedToken).ConfigureAwait(false);
-            }
+            await _storageManager.MergeSegmentFilesAsync(
+                task.Id,
+                tempFilePath,
+                segmentConfig.SegmentCount,
+                linkedToken).ConfigureAwait(false);
 
             // Commit the download
             var finalPath = await _storageManager.CommitDownloadAsync(
@@ -709,17 +707,15 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
                 progress,
                 linkedToken).ConfigureAwait(false);
 
-            // Merge segment files into final file (for per-segment file mode)
-            if (segmentConfig.SegmentCount > 1)
-            {
-                _logger.LogMergingResumedSegments(segmentConfig.SegmentCount, task.Id);
+            // Merge segment files into the final temp file (also required for a
+            // single segment; see ExecuteDownloadAsync)
+            _logger.LogMergingResumedSegments(segmentConfig.SegmentCount, task.Id);
 
-                await _storageManager.MergeSegmentFilesAsync(
-                    task.Id,
-                    tempFilePath,
-                    segmentConfig.SegmentCount,
-                    linkedToken).ConfigureAwait(false);
-            }
+            await _storageManager.MergeSegmentFilesAsync(
+                task.Id,
+                tempFilePath,
+                segmentConfig.SegmentCount,
+                linkedToken).ConfigureAwait(false);
 
             // Commit the download
             var finalPath = await _storageManager.CommitDownloadAsync(

@@ -95,31 +95,38 @@ public sealed class StorageManager : IStorageManager
         var fileLock = _fileLocks.GetOrAdd(filePath, _ => new SemaphoreSlim(1, 1));
 
         // Acquire exclusive lock for write operation
-        await fileLock.WaitAsync(cancellationToken);
+        await fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using FileStream fileStream = new(
+            // Read access is required when VerifyWrites reads back the written bytes
+            FileStream fileStream = new(
                 filePath,
                 FileMode.Open,
-                FileAccess.Write,
+                _options.VerifyWrites ? FileAccess.ReadWrite : FileAccess.Write,
                 FileShare.None, // Exclusive access during write
                 _options.WriteBufferSize,
                 FileOptions.WriteThrough | FileOptions.Asynchronous);
 
-            fileStream.Seek(offset, SeekOrigin.Begin);
-            await fileStream.WriteAsync(data.AsMemory(0, count), cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
-
-            // Optional: Verify write succeeded
-            if (_options.VerifyWrites)
+            await using (fileStream.ConfigureAwait(false))
             {
                 fileStream.Seek(offset, SeekOrigin.Begin);
-                var verifyBuffer = new byte[Math.Min(4096, count)];
-                var bytesRead = await fileStream.ReadAsync(verifyBuffer.AsMemory(), cancellationToken);
+                await fileStream.WriteAsync(data.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+                await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-                if (!data.AsSpan(0, bytesRead).SequenceEqual(verifyBuffer.AsSpan(0, bytesRead)))
+                // Optional: Verify write succeeded (first 4KB sample)
+                if (_options.VerifyWrites)
                 {
-                    throw new IOException($"Write verification failed at offset {offset}");
+                    fileStream.Seek(offset, SeekOrigin.Begin);
+                    var verifyLength = Math.Min(4096, count);
+                    var verifyBuffer = new byte[verifyLength];
+
+                    // ReadExactly guards against short reads silently skipping the comparison
+                    await fileStream.ReadExactlyAsync(verifyBuffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+
+                    if (!data.AsSpan(0, verifyLength).SequenceEqual(verifyBuffer))
+                    {
+                        throw new IOException($"Write verification failed at offset {offset}");
+                    }
                 }
             }
         }
@@ -213,7 +220,7 @@ public sealed class StorageManager : IStorageManager
 
         var segmentFilePath = Path.Combine(taskDirectory, $"segment_{segmentIndex:D4}.part");
 
-        await using FileStream fileStream = new(
+        FileStream fileStream = new(
             segmentFilePath,
             FileMode.Create,
             FileAccess.Write,
@@ -221,13 +228,16 @@ public sealed class StorageManager : IStorageManager
             4096,
             FileOptions.Asynchronous);
 
-        // Pre-allocate space for the segment
-        if (segmentSize > 0)
+        await using (fileStream.ConfigureAwait(false))
         {
-            fileStream.SetLength(segmentSize);
-        }
+            // Pre-allocate space for the segment
+            if (segmentSize > 0)
+            {
+                fileStream.SetLength(segmentSize);
+            }
 
-        return segmentFilePath;
+            return segmentFilePath;
+        }
     }
 
     /// <inheritdoc />
@@ -246,7 +256,22 @@ public sealed class StorageManager : IStorageManager
             Directory.CreateDirectory(finalDirectory);
         }
 
-        await using FileStream outputStream = new(
+        if (segmentCount == 1)
+        {
+            var singleSegmentPath = Path.Combine(taskDirectory, "segment_0000.part");
+            if (!File.Exists(singleSegmentPath))
+            {
+                throw new FileNotFoundException($"Segment file not found: {singleSegmentPath}");
+            }
+
+            // A single segment already holds the complete payload; rename it into
+            // place instead of copying (the payload can be arbitrarily large when
+            // the server does not support ranges).
+            File.Move(singleSegmentPath, finalPath, true);
+            return;
+        }
+
+        FileStream outputStream = new(
             finalPath,
             FileMode.Create,
             FileAccess.Write,
@@ -254,44 +279,50 @@ public sealed class StorageManager : IStorageManager
             1048576, // 1MB buffer for fast merge
             FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        for (var i = 0; i < segmentCount; i++)
-        {
-            var segmentPath = Path.Combine(taskDirectory, $"segment_{i:D4}.part");
-
-            if (!File.Exists(segmentPath))
-            {
-                throw new FileNotFoundException($"Segment file not found: {segmentPath}");
-            }
-
-            await using FileStream inputStream = new(
-                segmentPath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                1048576,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-            await inputStream.CopyToAsync(outputStream, cancellationToken);
-        }
-
-        await outputStream.FlushAsync(cancellationToken);
-
-        // Cleanup segment files if configured
-        if (_options.CleanupSegmentFiles)
+        await using (outputStream.ConfigureAwait(false))
         {
             for (var i = 0; i < segmentCount; i++)
             {
                 var segmentPath = Path.Combine(taskDirectory, $"segment_{i:D4}.part");
-                try
+
+                if (!File.Exists(segmentPath))
                 {
-                    if (File.Exists(segmentPath))
-                    {
-                        File.Delete(segmentPath);
-                    }
+                    throw new FileNotFoundException($"Segment file not found: {segmentPath}");
                 }
-                catch
+
+                FileStream inputStream = new(
+                    segmentPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    1048576,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+                await using (inputStream.ConfigureAwait(false))
                 {
-                    // Ignore cleanup errors
+                    await inputStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+            // Cleanup segment files if configured
+            if (_options.CleanupSegmentFiles)
+            {
+                for (var i = 0; i < segmentCount; i++)
+                {
+                    var segmentPath = Path.Combine(taskDirectory, $"segment_{i:D4}.part");
+                    try
+                    {
+                        if (File.Exists(segmentPath))
+                        {
+                            File.Delete(segmentPath);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
                 }
             }
         }
@@ -305,7 +336,7 @@ public sealed class StorageManager : IStorageManager
         int count,
         CancellationToken cancellationToken = default)
     {
-        await using FileStream fileStream = new(
+        FileStream fileStream = new(
             filePath,
             FileMode.Open,
             FileAccess.Read,
@@ -313,27 +344,30 @@ public sealed class StorageManager : IStorageManager
             81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        fileStream.Seek(offset, SeekOrigin.Begin);
-
-        var buffer = new byte[count];
-        var totalRead = 0;
-
-        while (totalRead < count)
+        await using (fileStream.ConfigureAwait(false))
         {
-            var read = await fileStream.ReadAsync(
-                buffer.AsMemory(totalRead, count - totalRead),
-                cancellationToken);
+            fileStream.Seek(offset, SeekOrigin.Begin);
 
-            if (read == 0)
+            var buffer = new byte[count];
+            var totalRead = 0;
+
+            while (totalRead < count)
             {
-                // Unexpected end of file
-                return false;
+                var read = await fileStream.ReadAsync(
+                    buffer.AsMemory(totalRead, count - totalRead),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (read == 0)
+                {
+                    // Unexpected end of file
+                    return false;
+                }
+
+                totalRead += read;
             }
 
-            totalRead += read;
+            return expectedData.AsSpan(0, count).SequenceEqual(buffer.AsSpan(0, count));
         }
-
-        return expectedData.AsSpan(0, count).SequenceEqual(buffer.AsSpan(0, count));
     }
 
     /// <summary>
@@ -372,7 +406,7 @@ public sealed class StorageManager : IStorageManager
         long minimumFreeSpaceBuffer,
         CancellationToken cancellationToken = default)
     {
-        var availableSpace = await GetAvailableDiskSpaceAsync(path, cancellationToken);
+        var availableSpace = await GetAvailableDiskSpaceAsync(path, cancellationToken).ConfigureAwait(false);
         return availableSpace >= requiredBytes + minimumFreeSpaceBuffer;
     }
 

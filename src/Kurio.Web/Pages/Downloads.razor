@@ -126,7 +126,7 @@ else
 		_connection = HubFactory.CreateDownloadsHub();
 
 		_connection.Reconnecting += _ => OnReconnectState(ConnectionStatusKind.Reconnecting, "downloads hub reconnecting");
-		_connection.Reconnected += _ => RequestSnapshotAsync();
+		_connection.Reconnected += _ => RefreshSnapshotAsync();
 		_connection.Closed += error =>
 		{
 			_error = error?.Message ?? "Connection closed";
@@ -230,7 +230,7 @@ else
 		try
 		{
 			var request = _newDownload with { Priority = _newPriority };
-			var success = await ApiClient.AddDownloadAsync(request).ConfigureAwait(false);
+			var success = await ApiClient.AddDownloadAsync(request);
 			if (!success)
 			{
 				_error = "Failed to add download";
@@ -255,9 +255,9 @@ else
 		{
 			var success = action switch
 			{
-				"Start" => await ApiClient.StartDownloadAsync(id).ConfigureAwait(false),
-				"Pause" => await ApiClient.PauseDownloadAsync(id).ConfigureAwait(false),
-				"Resume" => await ApiClient.ResumeDownloadAsync(id).ConfigureAwait(false),
+				"Start" => await ApiClient.StartDownloadAsync(id),
+				"Pause" => await ApiClient.PauseDownloadAsync(id),
+				"Resume" => await ApiClient.ResumeDownloadAsync(id),
 				_ => false
 			};
 
@@ -278,7 +278,7 @@ else
 		_actionBusy.Add(id);
 		try
 		{
-			var success = await ApiClient.CancelDownloadAsync(id, removeFiles: false).ConfigureAwait(false);
+			var success = await ApiClient.CancelDownloadAsync(id, removeFiles: false);
 			if (!success)
 			{
 				_error = "Cancel failed";
@@ -293,7 +293,7 @@ else
 
 	private async Task ClearCompletedAsync()
 	{
-		var success = await ApiClient.ClearCompletedAsync().ConfigureAwait(false);
+		var success = await ApiClient.ClearCompletedAsync();
 		if (!success)
 		{
 			_error = "Clear completed failed";
@@ -305,7 +305,7 @@ else
 		_actionBusy.Add(id);
 		try
 		{
-			var success = await ApiClient.ChangeDownloadPriorityAsync(id, priority).ConfigureAwait(false);
+			var success = await ApiClient.ChangeDownloadPriorityAsync(id, priority);
 			if (!success)
 			{
 				_error = "Priority change failed";

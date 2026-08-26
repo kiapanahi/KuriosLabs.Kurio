@@ -28,11 +28,11 @@ public class ProgressBroadcaster : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Progress broadcaster started");
+        _logger.LogProgressBroadcasterStarted();
 
         try
         {
-            await foreach (var progress in _engine.StreamProgressAsync(null, stoppingToken))
+            await foreach (var progress in _engine.StreamProgressAsync(null, stoppingToken).ConfigureAwait(false))
             {
                 try
                 {
@@ -43,17 +43,17 @@ public class ProgressBroadcaster : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error broadcasting progress for task {TaskId}", progress.TaskId);
+                    _logger.LogProgressBroadcastError(ex, progress.TaskId);
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Progress broadcaster stopped");
+            _logger.LogProgressBroadcasterStopped();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Progress broadcaster encountered an error");
+            _logger.LogProgressBroadcasterError(ex);
         }
     }
 }

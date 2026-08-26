@@ -1,8 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Kurio.Core.Persistence;
-
 using KuriousLabs.Kurio.Core.Abstractions;
 using KuriousLabs.Kurio.Core.Models;
 
@@ -56,12 +54,14 @@ public sealed class JsonStatePersistence : IStatePersistence
         {
             // Write to a temporary file first for atomic operation
             var tempFilePath = $"{filePath}.tmp";
-            await using var fileStream = File.Create(tempFilePath);
-            await JsonSerializer.SerializeAsync(fileStream, state, _jsonOptions, cancellationToken);
-            await fileStream.FlushAsync(cancellationToken);
-            fileStream.Close();
+            var fileStream = File.Create(tempFilePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                await JsonSerializer.SerializeAsync(fileStream, state, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
 
-            // Atomic move
+            // Atomic move — only after disposal has fully released the file handle
             File.Move(tempFilePath, filePath, true);
 
             _logger.LogStateSaved(state.TaskId, filePath);
@@ -86,12 +86,16 @@ public sealed class JsonStatePersistence : IStatePersistence
 
         try
         {
-            await using var fileStream = File.OpenRead(filePath);
-            var state =
-                await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken);
+            var fileStream = File.OpenRead(filePath);
+            await using (fileStream.ConfigureAwait(false))
+            {
+                var state =
+                    await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions, cancellationToken)
+                        .ConfigureAwait(false);
 
-            _logger.LogStateLoaded(taskId, filePath);
-            return state;
+                _logger.LogStateLoaded(taskId, filePath);
+                return state;
+            }
         }
         catch (Exception ex)
         {
@@ -155,15 +159,18 @@ public sealed class JsonStatePersistence : IStatePersistence
             {
                 try
                 {
-                    await using var fileStream = File.OpenRead(filePath);
-                    var state =
-                        await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions,
-                            cancellationToken);
-
-                    if (state != null)
+                    var fileStream = File.OpenRead(filePath);
+                    await using (fileStream.ConfigureAwait(false))
                     {
-                        states.Add(state);
-                        _logger.LogStateLoadedFromFile(filePath);
+                        var state =
+                            await JsonSerializer.DeserializeAsync<DownloadTaskState>(fileStream, _jsonOptions,
+                                cancellationToken).ConfigureAwait(false);
+
+                        if (state != null)
+                        {
+                            states.Add(state);
+                            _logger.LogStateLoadedFromFile(filePath);
+                        }
                     }
                 }
                 catch (Exception ex)

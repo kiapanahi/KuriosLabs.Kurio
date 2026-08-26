@@ -26,20 +26,20 @@ public sealed class QueueHub : Hub<IQueueClient>, IQueueHub
 
     public async Task SubscribeQueueAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} subscribed to queue", Context.ConnectionId);
+        _logger.LogClientSubscribedToQueue(Context.ConnectionId);
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
         await SendSnapshotAsync().ConfigureAwait(false);
     }
 
     public async Task UnsubscribeQueueAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} unsubscribed from queue", Context.ConnectionId);
+        _logger.LogClientUnsubscribedFromQueue(Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName).ConfigureAwait(false);
     }
 
     public async Task RequestQueueSnapshotAsync()
     {
-        _logger.LogInformation("Client {ConnectionId} requested queue snapshot", Context.ConnectionId);
+        _logger.LogClientRequestedQueueSnapshot(Context.ConnectionId);
         await SendSnapshotAsync().ConfigureAwait(false);
     }
 

@@ -63,8 +63,8 @@ public class DownloadQueueManagerTests
     [Fact]
     public void GetNextTask_ReturnsPriorityOrder()
     {
-        // Arrange
-        var queueManager = CreateQueueManager();
+        // Arrange (cap above the number of dequeues — ordering is what's under test)
+        var queueManager = CreateQueueManager(maxConcurrent: 4);
         var lowTask = CreateTestTask(DownloadPriority.Low);
         var normalTask = CreateTestTask();
         var highTask = CreateTestTask(DownloadPriority.High);
@@ -113,6 +113,87 @@ public class DownloadQueueManagerTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void GetNextTask_ClaimsActiveSlot()
+    {
+        // Arrange
+        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        for (var i = 0; i < 5; i++)
+        {
+            queueManager.Enqueue(CreateTestTask());
+        }
+
+        // Act
+        var first = queueManager.GetNextTask();
+        var second = queueManager.GetNextTask();
+
+        // Assert
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(2, queueManager.ActiveDownloadsCount);
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
+        Assert.False(queueManager.CanStartNewDownload());
+
+        // At the cap, GetNextTask must refuse to claim even though items are queued
+        Assert.Null(queueManager.GetNextTask());
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
+
+        // A redundant MarkAsStarted for an already-claimed task must be a no-op
+        queueManager.MarkAsStarted(first!.Id);
+        Assert.Equal(2, queueManager.ActiveDownloadsCount);
+    }
+
+    [Fact]
+    public void GetNextTask_SkipsStaleEntriesForAlreadyActiveTasks()
+    {
+        // Arrange: a task that is already active also sits at the head of the queue
+        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        var task = CreateTestTask();
+        queueManager.Enqueue(task);
+        Assert.NotNull(queueManager.GetNextTask()); // claims 'task' as active
+
+        queueManager.Enqueue(task); // stale duplicate entry for the active task
+        var other = CreateTestTask();
+        queueManager.Enqueue(other);
+
+        // Act
+        var next = queueManager.GetNextTask();
+
+        // Assert: the duplicate is discarded and the next real item is claimed
+        Assert.NotNull(next);
+        Assert.Equal(other.Id, next!.Id);
+        Assert.Equal(0, queueManager.QueuedDownloadsCount);
+        Assert.Equal(2, queueManager.ActiveDownloadsCount);
+    }
+
+    [Fact]
+    public void GetNextTask_SchedulerSequence_EnforcesMaxConcurrent()
+    {
+        // Arrange: replicate the engine scheduler loop exactly
+        var queueManager = CreateQueueManager(maxConcurrent: 2);
+        for (var i = 0; i < 5; i++)
+        {
+            queueManager.Enqueue(CreateTestTask());
+        }
+
+        // Act
+        var started = 0;
+        while (queueManager.CanStartNewDownload())
+        {
+            var next = queueManager.GetNextTask();
+            if (next is null)
+            {
+                break;
+            }
+
+            started++;
+        }
+
+        // Assert
+        Assert.Equal(2, started);
+        Assert.Equal(3, queueManager.QueuedDownloadsCount);
     }
 
     [Fact]

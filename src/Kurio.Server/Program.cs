@@ -114,23 +114,29 @@ app.MapGet("/api/downloads/stream", async (
     {
         return Results.Stream(async stream =>
         {
-            await using StreamWriter writer = new(stream);
-            writer.AutoFlush = true;
-
-            await writer.WriteLineAsync("retry: 10000\n");
-
-            await foreach (var progress in engine.StreamProgressAsync(taskId, cancellationToken))
+            try
             {
-                var json = JsonSerializer.Serialize(progress,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        Converters = { new JsonStringEnumConverter() }
-                    });
+                await using StreamWriter writer = new(stream);
+                writer.AutoFlush = true;
 
-                await writer.WriteLineAsync("event: progress");
-                await writer.WriteLineAsync($"data: {json}");
-                await writer.WriteLineAsync();
+                await writer.WriteLineAsync("retry: 10000\n").ConfigureAwait(false);
+
+                await foreach (var progress in engine.StreamProgressAsync(taskId, cancellationToken).ConfigureAwait(false))
+                {
+                    var json = JsonSerializer.Serialize(progress, SseJsonOptions.Value);
+
+                    await writer.WriteLineAsync("event: progress").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"data: {json}").ConfigureAwait(false);
+                    await writer.WriteLineAsync().ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected or the request was aborted mid-stream; nothing left to write to.
+            }
+            catch (IOException)
+            {
+                // The underlying connection was closed mid-write (e.g. broken pipe); nothing left to write to.
             }
         }, "text/event-stream");
     })
@@ -139,3 +145,14 @@ app.MapGet("/api/downloads/stream", async (
     .Produces(200, contentType: "text/event-stream");
 
 app.Run();
+
+// Cached, reused JsonSerializerOptions for the SSE endpoint above (CA1869: avoid allocating
+// a new instance - and losing its JsonTypeInfo cache - on every streamed message).
+file static class SseJsonOptions
+{
+    public static readonly JsonSerializerOptions Value = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter() }
+    };
+}

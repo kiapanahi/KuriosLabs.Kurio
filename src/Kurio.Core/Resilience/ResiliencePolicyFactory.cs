@@ -46,8 +46,7 @@ public sealed class ResiliencePolicyFactory
                 UseJitter = _options.EnableJitter,
                 OnRetry = args =>
                 {
-                    _logger.LogWarning(
-                        "Retry {RetryCount}/{MaxRetries} after {Delay}s due to {Exception}",
+                    _logger.LogRetryAttempt(
                         args.AttemptNumber + 1,
                         _options.MaxRetryAttempts,
                         args.RetryDelay.TotalSeconds,
@@ -88,8 +87,7 @@ public sealed class ResiliencePolicyFactory
                     var exception = args.Outcome.Exception;
                     var errorType = ClassifyNetworkError(exception);
 
-                    _logger.LogWarning(
-                        "Network retry {RetryCount}/{MaxRetries} after {Delay}s - Error type: {ErrorType}, Exception: {Exception}",
+                    _logger.LogNetworkRetryAttempt(
                         args.AttemptNumber + 1,
                         connectionResilienceOptions.MaxRetryAttempts,
                         args.RetryDelay.TotalSeconds,
@@ -123,8 +121,7 @@ public sealed class ResiliencePolicyFactory
                 BreakDuration = TimeSpan.FromSeconds(_options.CircuitBreakerDurationSeconds),
                 OnOpened = args =>
                 {
-                    _logger.LogWarning(
-                        "Circuit breaker opened for {Duration}s due to {Exception}",
+                    _logger.LogCircuitBreakerOpenedWithException(
                         args.BreakDuration.TotalSeconds,
                         args.Outcome.Exception?.GetType().Name ?? "failure threshold");
 
@@ -132,12 +129,12 @@ public sealed class ResiliencePolicyFactory
                 },
                 OnClosed = args =>
                 {
-                    _logger.LogInformation("Circuit breaker reset");
+                    _logger.LogCircuitBreakerReset();
                     return ValueTask.CompletedTask;
                 },
                 OnHalfOpened = args =>
                 {
-                    _logger.LogInformation("Circuit breaker is half-open, testing connection");
+                    _logger.LogCircuitBreakerHalfOpen();
                     return ValueTask.CompletedTask;
                 },
                 ShouldHandle = new PredicateBuilder<TResult>()
@@ -159,9 +156,7 @@ public sealed class ResiliencePolicyFactory
                 Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
-                    _logger.LogWarning(
-                        "Operation timed out after {Timeout}s",
-                        args.Timeout.TotalSeconds);
+                    _logger.LogOperationTimedOut(args.Timeout.TotalSeconds);
 
                     return ValueTask.CompletedTask;
                 }
@@ -182,9 +177,7 @@ public sealed class ResiliencePolicyFactory
                 Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
-                    _logger.LogWarning(
-                        "Operation timed out after {Timeout}s",
-                        args.Timeout.TotalSeconds);
+                    _logger.LogOperationTimedOut(args.Timeout.TotalSeconds);
 
                     return ValueTask.CompletedTask;
                 }
@@ -198,8 +191,7 @@ public sealed class ResiliencePolicyFactory
                 BreakDuration = TimeSpan.FromSeconds(_options.CircuitBreakerDurationSeconds),
                 OnOpened = args =>
                 {
-                    _logger.LogWarning(
-                        "Circuit breaker opened for {Duration}s due to {Exception}",
+                    _logger.LogCircuitBreakerOpenedWithException(
                         args.BreakDuration.TotalSeconds,
                         args.Outcome.Exception?.GetType().Name ?? "failure threshold");
 
@@ -207,12 +199,12 @@ public sealed class ResiliencePolicyFactory
                 },
                 OnClosed = args =>
                 {
-                    _logger.LogInformation("Circuit breaker reset");
+                    _logger.LogCircuitBreakerReset();
                     return ValueTask.CompletedTask;
                 },
                 OnHalfOpened = args =>
                 {
-                    _logger.LogInformation("Circuit breaker is half-open, testing connection");
+                    _logger.LogCircuitBreakerHalfOpen();
                     return ValueTask.CompletedTask;
                 },
                 ShouldHandle = new PredicateBuilder<TResult>()
@@ -228,8 +220,7 @@ public sealed class ResiliencePolicyFactory
                 UseJitter = _options.EnableJitter,
                 OnRetry = args =>
                 {
-                    _logger.LogWarning(
-                        "Retry {RetryCount}/{MaxRetries} after {Delay}s due to {Exception}",
+                    _logger.LogRetryAttempt(
                         args.AttemptNumber + 1,
                         _options.MaxRetryAttempts,
                         args.RetryDelay.TotalSeconds,
@@ -257,7 +248,7 @@ public sealed class ResiliencePolicyFactory
                 Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds),
                 OnTimeout = args =>
                 {
-                    _logger.LogWarning("Operation timed out after {Timeout}s", args.Timeout.TotalSeconds);
+                    _logger.LogOperationTimedOut(args.Timeout.TotalSeconds);
                     return ValueTask.CompletedTask;
                 }
             })
@@ -269,14 +260,12 @@ public sealed class ResiliencePolicyFactory
                 BreakDuration = TimeSpan.FromSeconds(_options.CircuitBreakerDurationSeconds),
                 OnOpened = args =>
                 {
-                    _logger.LogWarning(
-                        "Circuit breaker opened for {Duration}s",
-                        args.BreakDuration.TotalSeconds);
+                    _logger.LogCircuitBreakerOpened(args.BreakDuration.TotalSeconds);
                     return ValueTask.CompletedTask;
                 },
                 OnClosed = args =>
                 {
-                    _logger.LogInformation("Circuit breaker reset");
+                    _logger.LogCircuitBreakerReset();
                     return ValueTask.CompletedTask;
                 },
                 ShouldHandle = new PredicateBuilder()
@@ -291,8 +280,7 @@ public sealed class ResiliencePolicyFactory
                 UseJitter = _options.EnableJitter,
                 OnRetry = args =>
                 {
-                    _logger.LogWarning(
-                        "Retry {RetryCount}/{MaxRetries} after {Delay}s",
+                    _logger.LogRetryAttemptSimple(
                         args.AttemptNumber + 1,
                         _options.MaxRetryAttempts,
                         args.RetryDelay.TotalSeconds);

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurio.Core.Statistics;
+namespace KuriousLabs.Kurio.Core.Statistics;
 
 internal static partial class StatisticsServiceLogMessages
 {

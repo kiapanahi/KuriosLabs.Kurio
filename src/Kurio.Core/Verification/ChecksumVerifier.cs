@@ -29,7 +29,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
             throw new FileNotFoundException($"File not found: {filePath}", filePath);
         }
 
-        await using FileStream fileStream = new(
+        FileStream fileStream = new(
             filePath,
             FileMode.Open,
             FileAccess.Read,
@@ -37,7 +37,10 @@ public sealed class ChecksumVerifier : IChecksumVerifier
             DefaultBufferSize,
             true);
 
-        return await CalculateChecksumAsync(fileStream, algorithm, cancellationToken);
+        await using (fileStream.ConfigureAwait(false))
+        {
+            return await CalculateChecksumAsync(fileStream, algorithm, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -54,7 +57,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         }
 
         using var hashAlgorithm = CreateHashAlgorithm(algorithm);
-        var hashBytes = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken);
+        var hashBytes = await hashAlgorithm.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
 
         return BytesToHexString(hashBytes);
     }
@@ -69,7 +72,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedChecksum);
 
-        var calculatedChecksum = await CalculateChecksumAsync(filePath, algorithm, cancellationToken);
+        var calculatedChecksum = await CalculateChecksumAsync(filePath, algorithm, cancellationToken).ConfigureAwait(false);
 
         return new ChecksumResult
         {
@@ -93,7 +96,7 @@ public sealed class ChecksumVerifier : IChecksumVerifier
         }
 
         Dictionary<string, string> checksums = new(StringComparer.OrdinalIgnoreCase);
-        var lines = await File.ReadAllLinesAsync(checksumFilePath, cancellationToken);
+        var lines = await File.ReadAllLinesAsync(checksumFilePath, cancellationToken).ConfigureAwait(false);
 
         foreach (var line in lines)
         {

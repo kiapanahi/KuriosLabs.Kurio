@@ -420,78 +420,76 @@ public sealed class SegmentManager : ISegmentManager
                     $"Segment {state.SegmentIndex} size mismatch. Expected position: {expectedPosition}, Got: {finalPosition}");
             }
 
-            // Close the stream before reading for checksum
-            await segmentStream.DisposeAsync().ConfigureAwait(false);
+        }
 
-            // CRITICAL: Set the final persisted value after successful flush
-            // This ensures resume starts from the correct position and state file has accurate data
-            // Note: state.BytesDownloaded was updated during progress for live aggregation,
-            // but we set the final confirmed value here
-            state.BytesDownloaded = initialBytesDownloaded + range.Length;
-            state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
+        // CRITICAL: Set the final persisted value after successful flush
+        // This ensures resume starts from the correct position and state file has accurate data
+        // Note: state.BytesDownloaded was updated during progress for live aggregation,
+        // but we set the final confirmed value here
+        state.BytesDownloaded = initialBytesDownloaded + range.Length;
+        state.SegmentFilePath = segmentFilePath; // Store the segment file path for merging later
 
-            // Compute checksum for the ENTIRE segment from the segment file (not just the newly
-            // written part) — important for resume scenarios where the complete segment is verified.
-            // Hash exactly TotalSize bytes in bounded chunks: segments can exceed 2GB, so the
-            // segment must never be buffered in memory as a whole.
-            FileStream fileStream = new(
-                segmentFilePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                81920,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
+        // Compute checksum for the ENTIRE segment from the segment file (not just the newly
+        // written part) — important for resume scenarios where the complete segment is verified.
+        // Hash exactly TotalSize bytes in bounded chunks: segments can exceed 2GB, so the
+        // segment must never be buffered in memory as a whole.
+        FileStream fileStream = new(
+            segmentFilePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            await using (fileStream.ConfigureAwait(false))
+        await using (fileStream.ConfigureAwait(false))
+        {
+            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = ArrayPool<byte>.Shared.Rent(81920);
+            try
             {
-                using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                var buffer = ArrayPool<byte>.Shared.Rent(81920);
-                try
+                var remaining = state.TotalSize;
+                while (remaining > 0)
                 {
-                    var remaining = state.TotalSize;
-                    while (remaining > 0)
+                    var toRead = (int)Math.Min(buffer.Length, remaining);
+                    var bytesRead = await fileStream
+                        .ReadAsync(buffer.AsMemory(0, toRead), cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (bytesRead == 0)
                     {
-                        var toRead = (int)Math.Min(buffer.Length, remaining);
-                        var bytesRead = await fileStream
-                            .ReadAsync(buffer.AsMemory(0, toRead), cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (bytesRead == 0)
-                        {
-                            throw new InvalidOperationException(
-                                $"Unexpected end of file while reading segment {state.SegmentIndex}");
-                        }
-
-                        hasher.AppendData(buffer, 0, bytesRead);
-                        remaining -= bytesRead;
+                        throw new InvalidOperationException(
+                            $"Unexpected end of file while reading segment {state.SegmentIndex}");
                     }
 
-                    var checksum = Convert.ToHexString(hasher.GetHashAndReset());
-                    state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+                    hasher.AppendData(buffer, 0, bytesRead);
+                    remaining -= bytesRead;
+                }
 
-                    var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
-                    _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
+                var checksum = Convert.ToHexString(hasher.GetHashAndReset());
+                state.Checksum = SegmentChecksum.Create("SHA256", checksum);
+
+                var checksumPreview = checksum.Length >= 16 ? checksum[..16] : checksum;
+                _logger?.LogSegmentChecksumComputed(state.SegmentIndex, checksumPreview); // Log first 16 chars
             }
-
-            // Mark segment as completed
-            state.Status = SegmentStatus.Completed;
-            state.CompletedAt = DateTime.UtcNow;
-
-            _logger?.LogSegmentCompleted(state.SegmentIndex, (state.CompletedAt.Value - state.StartedAt.Value).TotalMilliseconds);
-
-            progress?.Report(new SegmentProgress
+            finally
             {
-                SegmentIndex = state.SegmentIndex,
-                BytesDownloaded = state.BytesDownloaded,
-                Status = SegmentStatus.Completed,
-                Timestamp = DateTime.UtcNow
-            });
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
+
+        // Mark segment as completed
+        state.Status = SegmentStatus.Completed;
+        state.CompletedAt = DateTime.UtcNow;
+
+        _logger?.LogSegmentCompleted(state.SegmentIndex, (state.CompletedAt.Value - state.StartedAt.Value).TotalMilliseconds);
+
+        progress?.Report(new SegmentProgress
+        {
+            SegmentIndex = state.SegmentIndex,
+            BytesDownloaded = state.BytesDownloaded,
+            Status = SegmentStatus.Completed,
+            Timestamp = DateTime.UtcNow
+        });
     }
 
     /// <summary>

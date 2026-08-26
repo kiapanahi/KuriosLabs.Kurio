@@ -203,7 +203,7 @@ public sealed class DownloadEngineIntegrationTests
             {
                 Directory.Delete(Path, true);
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Background work may still hold a handle briefly; temp dirs get
                 // cleaned by the OS eventually.

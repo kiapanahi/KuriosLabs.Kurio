@@ -210,10 +210,11 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
     /// </summary>
     private void UpdateHealthStatus(bool isHealthy, string? error)
     {
+        bool? transition = null;
+        var failures = 0;
+
         lock (_stateLock)
         {
-            var previousHealth = _isHealthy;
-
             if (isHealthy)
             {
                 _consecutiveFailures = 0;
@@ -222,8 +223,7 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 if (!_isHealthy)
                 {
                     _isHealthy = true;
-                    _logger.LogConnectionRestored();
-                    OnHealthChanged(true, null);
+                    transition = true;
                 }
             }
             else
@@ -233,23 +233,37 @@ public sealed class ConnectionHealthMonitor : IConnectionHealthMonitor
                 if (_consecutiveFailures >= _options.ConsecutiveFailuresThreshold && _isHealthy)
                 {
                     _isHealthy = false;
-                    _logger.LogConnectionLost(_consecutiveFailures);
-                    OnHealthChanged(false, error);
+                    transition = false;
                 }
             }
+
+            failures = _consecutiveFailures;
+        }
+
+        // Raise the event outside the lock: HealthChanged handlers run arbitrary
+        // code and may re-enter the monitor, which would deadlock under _stateLock.
+        if (transition == true)
+        {
+            _logger.LogConnectionRestored();
+            OnHealthChanged(true, null, failures);
+        }
+        else if (transition == false)
+        {
+            _logger.LogConnectionLost(failures);
+            OnHealthChanged(false, error, failures);
         }
     }
 
     /// <summary>
     ///     Raises the HealthChanged event.
     /// </summary>
-    private void OnHealthChanged(bool isHealthy, string? error)
+    private void OnHealthChanged(bool isHealthy, string? error, int consecutiveFailures)
     {
         HealthChanged?.Invoke(this, new ConnectionHealthChangedEventArgs
         {
             IsHealthy = isHealthy,
             Timestamp = DateTime.UtcNow,
-            ConsecutiveFailures = _consecutiveFailures,
+            ConsecutiveFailures = consecutiveFailures,
             LastError = error
         });
     }

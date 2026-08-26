@@ -99,7 +99,7 @@ public sealed class PauseResumeTests : IDisposable
         var nonExistentId = Guid.NewGuid();
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => engine.PauseDownloadAsync(nonExistentId));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => engine.PauseDownloadAsync(nonExistentId));
     }
 
     [Fact]

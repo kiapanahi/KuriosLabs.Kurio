@@ -146,7 +146,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Queued)
@@ -169,7 +169,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Downloading)
@@ -201,7 +201,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         if (task.State != DownloadState.Paused)
@@ -232,7 +232,7 @@ public sealed class DownloadEngine : IDownloadEngine, IDisposable
     {
         if (!_tasks.TryGetValue(taskId, out var task))
         {
-            throw new InvalidOperationException($"Task with ID {taskId} not found.");
+            throw new KeyNotFoundException($"Task with ID {taskId} not found.");
         }
 
         _logger.LogTaskCancelled(taskId, removePartialFiles);

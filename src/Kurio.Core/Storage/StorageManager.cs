@@ -113,14 +113,17 @@ public sealed class StorageManager : IStorageManager
                 await fileStream.WriteAsync(data.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
                 await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-                // Optional: Verify write succeeded
+                // Optional: Verify write succeeded (first 4KB sample)
                 if (_options.VerifyWrites)
                 {
                     fileStream.Seek(offset, SeekOrigin.Begin);
-                    var verifyBuffer = new byte[Math.Min(4096, count)];
-                    var bytesRead = await fileStream.ReadAsync(verifyBuffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    var verifyLength = Math.Min(4096, count);
+                    var verifyBuffer = new byte[verifyLength];
 
-                    if (!data.AsSpan(0, bytesRead).SequenceEqual(verifyBuffer.AsSpan(0, bytesRead)))
+                    // ReadExactly guards against short reads silently skipping the comparison
+                    await fileStream.ReadExactlyAsync(verifyBuffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+
+                    if (!data.AsSpan(0, verifyLength).SequenceEqual(verifyBuffer))
                     {
                         throw new IOException($"Write verification failed at offset {offset}");
                     }

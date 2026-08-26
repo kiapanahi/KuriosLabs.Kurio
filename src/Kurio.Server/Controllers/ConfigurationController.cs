@@ -113,8 +113,9 @@ public class ConfigurationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogSpeedLimitUpdateFailed(ex);
+            // Never echo unexpected exception details to the client
             return Problem(
-                ex.Message,
+                "An unexpected error occurred while updating the speed limit.",
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Failed to update speed limit");
         }

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 using KuriousLabs.Kurio;
 using KuriousLabs.Kurio.Core;
-using KuriousLabs.Kurio.Core.Abstractions;
+using KuriousLabs.Kurio.Server.Endpoints;
 using KuriousLabs.Kurio.Server.Hubs;
 using KuriousLabs.Kurio.Server.Services;
 
@@ -12,20 +12,28 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Add controllers
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    });
+// JSON settings for minimal-API request/response bodies (Http.Json.JsonOptions - the minimal-API
+// counterpart of the MVC AddJsonOptions configuration this API used before the controller removal).
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
+
+// Surface parameter/body binding failures as a 400 in every environment. Minimal APIs default
+// ThrowOnBadRequest to true in Development, which would turn what MVC answered with a 400 into a
+// 500 via UseExceptionHandler.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 
 builder.Services.AddOpenApi()
     .AddEndpointsApiExplorer();
 
 // Add problem details service for standardized error responses
 builder.Services.AddProblemDetails();
+
+// Authorization services (previously pulled in transitively by AddControllers)
+builder.Services.AddAuthorization();
 
 // Add SignalR
 builder.Services.AddSignalR(options =>
@@ -100,59 +108,15 @@ app.UseHttpsRedirection();
 app.UseCors(corsPolicy);
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapDownloadEndpoints();
+app.MapQueueEndpoints();
+app.MapStatsEndpoints();
+app.MapConfigurationEndpoints();
+app.MapProgressStreamEndpoints();
+
 app.MapHub<DownloadHub>("/hubs/downloads");
 app.MapHub<QueueHub>("/hubs/queue");
 app.MapHub<StatsHub>("/hubs/stats");
 app.MapHealthChecks("/health");
 
-// SSE endpoint for progress streaming
-app.MapGet("/api/downloads/stream", async (
-        IDownloadEngine engine,
-        Guid? taskId,
-        CancellationToken cancellationToken) =>
-    {
-        return Results.Stream(async stream =>
-        {
-            try
-            {
-                await using StreamWriter writer = new(stream);
-                writer.AutoFlush = true;
-
-                await writer.WriteLineAsync("retry: 10000\n").ConfigureAwait(false);
-
-                await foreach (var progress in engine.StreamProgressAsync(taskId, cancellationToken).ConfigureAwait(false))
-                {
-                    var json = JsonSerializer.Serialize(progress, SseJsonOptions.Value);
-
-                    await writer.WriteLineAsync("event: progress").ConfigureAwait(false);
-                    await writer.WriteLineAsync($"data: {json}").ConfigureAwait(false);
-                    await writer.WriteLineAsync().ConfigureAwait(false);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Client disconnected or the request was aborted mid-stream; nothing left to write to.
-            }
-            catch (IOException)
-            {
-                // The underlying connection was closed mid-write (e.g. broken pipe); nothing left to write to.
-            }
-        }, "text/event-stream");
-    })
-    .WithName("StreamProgress")
-    .WithTags("Progress")
-    .Produces(200, contentType: "text/event-stream");
-
 app.Run();
-
-// Cached, reused JsonSerializerOptions for the SSE endpoint above (CA1869: avoid allocating
-// a new instance - and losing its JsonTypeInfo cache - on every streamed message).
-file static class SseJsonOptions
-{
-    public static readonly JsonSerializerOptions Value = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter() }
-    };
-}

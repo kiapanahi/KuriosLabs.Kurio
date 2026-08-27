@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 
-namespace KuriousLabs.Kurio.Server.Controllers;
+namespace KuriousLabs.Kurio.Server.Endpoints;
 
-internal static partial class DownloadsControllerLogMessages
+internal static partial class DownloadEndpointsLogMessages
 {
     [LoggerMessage(
         EventId = 8000,

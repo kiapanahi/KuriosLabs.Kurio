@@ -1,8 +1,15 @@
 using Microsoft.Extensions.Logging;
 
-namespace KuriousLabs.Kurio.Server.Controllers;
+namespace KuriousLabs.Kurio.Server.Endpoints;
 
-internal static partial class ConfigurationControllerLogMessages
+/// <summary>
+///     Marker type supplying the log category for the configuration endpoints. Minimal-API
+///     handlers live in a static class, which cannot be used as the type argument of
+///     <see cref="ILogger{TCategoryName}" />, so the category is carried by this type instead.
+/// </summary>
+internal sealed class ConfigurationEndpointsLogCategory;
+
+internal static partial class ConfigurationEndpointsLogMessages
 {
     [LoggerMessage(
         EventId = 8100,

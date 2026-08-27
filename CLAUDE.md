@@ -17,7 +17,7 @@ web dashboard is the only UI.
 
 ```bash
 dotnet build                                    # builds KuriousLabs.Kurio.slnx
-dotnet test                                     # both suites: Core 351 tests (~30s), Server 29 tests
+dotnet test                                     # both suites: Core 352 tests (~30s), Server 103 tests
 dotnet test test/Kurio.Core.Tests --filter "FullyQualifiedName~SegmentManagerTests"  # one class
 dotnet test test/Kurio.Core.Tests --filter "DisplayName~Resume"                      # by name fragment
 
@@ -26,9 +26,10 @@ dotnet run --project src/Kurio.Server           # REST API + SignalR + SSE only
 dotnet run --project src/Kurio.Web              # Blazor dashboard only (expects the server running)
 ```
 
-Known state (verified 2026-08, after the phase-0 stabilization branch): both suites compile and pass — Core 351
+Known state (verified 2026-08, after the phase-0 stabilization branch): both suites compile and pass — Core 352
 tests including the loopback-HTTP integration tests in `test/Kurio.Core.Tests/Integration/` (they exercise the real
-composition root against an in-process server), Server 29 tests. CI builds and tests every push/PR via
+composition root against an in-process server), Server 103 tests (endpoint-level, driven through `ServerTestFactory`
+in `test/Kurio.Server.Tests/Infrastructure/`). CI builds and tests every push/PR via
 `.github/workflows/ci.yml`. The build still emits ~400 analyzer warnings (`latest-Recommended` analysis level in
 `Directory.Build.props`), mostly style rules in test files and code not yet swept.
 
@@ -48,12 +49,13 @@ server exclusively over HTTP/SignalR using contract DTOs.
   (process-wide, shared across downloads). Composition root: `ServiceCollectionExtensions.AddKurioDownloadEngine()`.
 - **Kurio.Contracts** — wire-level DTOs plus typed SignalR client/server interfaces (`Hubs/*Contracts.cs`). Some DTO
   fields are dead surface (proxy fields, `ScheduledAt` hardcoded to `null` in `QueueContractMapper`).
-- **Kurio.Server** — attribute-routed controllers under `/api/*` (`Controllers/`), three SignalR hubs
+- **Kurio.Server** — minimal-API endpoint groups under `/api/*` (`Endpoints/`), three SignalR hubs
   (`/hubs/downloads`, `/hubs/queue`, `/hubs/stats`) using the typed client interfaces from Contracts, an SSE stream at
-  `GET /api/downloads/stream` (minimal-API endpoint in `Program.cs`), and hosted services:
+  `GET /api/downloads/stream` (`Endpoints/ProgressStreamEndpoints.cs`), and hosted services:
   `DownloadEngineHostedService` (engine lifecycle), `ProgressBroadcaster` + `StatsBroadcaster` (poll the engine, push
-  to hub groups). Controllers map Core models → contract DTOs via `Mappers/`; `Server/Models/` request/response types
-  partially duplicate Contracts.
+  to hub groups). Endpoint handlers map Core models → contract DTOs via `Mappers/`; `Server/Models/` request/response
+  types partially duplicate Contracts. `Endpoints/ApiResults.Problem(...)` reproduces the MVC `ControllerBase.Problem`
+  payload (including the `traceId` extension) so error bodies are unchanged.
 - **Kurio.Web** — Blazor Server dashboard. `KurioApiClient` (REST), `HubClientFactory` (SignalR connections),
   `ConnectionStateService`; server address comes from `KurioServerOptions` (validated by
   `KurioServerOptionsValidator`).
@@ -76,8 +78,8 @@ and history persist under `~/.kurio/` — wipe that directory if manual test run
 
 ## Repo rules (from .github/copilot-instructions.md — treat as law)
 
-- **Minimal APIs only** for ASP.NET Core. `Kurio.Server/Controllers/` violates this; write new endpoints as minimal
-  APIs, and prefer migrating controllers when touching them.
+- **Minimal APIs only** for ASP.NET Core. The controller layer was removed in the 1.19.0 minimal-API migration; there
+  is no MVC in the solution any more (no `AddControllers`/`MapControllers`). Add new endpoints to `Server/Endpoints/`.
 - Central package management: package versions only in `Directory.Packages.props`; shared MSBuild props in
   `Directory.Build.props`.
 - `System.Threading.Lock` instead of `SemaphoreSlim(1,1)` for mutual exclusion.
